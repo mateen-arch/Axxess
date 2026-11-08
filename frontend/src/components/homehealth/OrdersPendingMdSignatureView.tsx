@@ -1,0 +1,652 @@
+import React, { useState, useMemo } from 'react';
+import {
+  ArrowLeft,
+  Search,
+  Printer,
+  RefreshCw,
+  FileSpreadsheet,
+  CheckCircle2,
+  Calendar,
+  X,
+  FileText,
+  Paperclip,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+} from 'lucide-react';
+import { useHealthcare } from '../../context/HealthcareContext';
+
+interface OrdersPendingMdSignatureViewProps {
+  onBack: () => void;
+  onSelectPatient?: (patientName: string) => void;
+}
+
+interface PendingMdSignatureOrder {
+  id: string;
+  age: number;
+  orderNumber: string;
+  branch: string;
+  patientName: string;
+  payer: string;
+  orderType: string;
+  physicianName: string;
+  deliveryMethod: string;
+  orderDate: string;
+  sentDate: string;
+  status: 'Active' | 'Discharged' | 'Non-Admission';
+}
+
+const INITIAL_MD_PENDING_ORDERS: PendingMdSignatureOrder[] = [
+  {
+    id: 'pmd-1',
+    age: 2,
+    orderNumber: '70692464',
+    branch: 'Standards Home Care',
+    patientName: 'DAVID, JANEY',
+    payer: 'Medicaid',
+    orderType: 'Face-to-Face Encounter',
+    physicianName: 'SPREHN, SARA',
+    deliveryMethod: 'Fax',
+    orderDate: '11/06/2026',
+    sentDate: '11/06/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-2',
+    age: 2,
+    orderNumber: '70694107',
+    branch: 'Standards Home Care',
+    patientName: 'KERY, LETICIA',
+    payer: 'TUFTS HEALTH PLAN',
+    orderType: 'Face-to-Face Encounter',
+    physicianName: 'KHALID, AYESHA MD',
+    deliveryMethod: 'Fax',
+    orderDate: '11/06/2026',
+    sentDate: '11/06/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-3',
+    age: 4,
+    orderNumber: '69635238',
+    branch: 'Standards Home Care',
+    patientName: 'POINSON, PIERRE',
+    payer: 'UNITED HEALTHCARE MEDICARE',
+    orderType: 'Physician Order',
+    physicianName: 'MUQQADUS, SYED M.D',
+    deliveryMethod: 'Electronic',
+    orderDate: '11/02/2026',
+    sentDate: '11/04/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-4',
+    age: 4,
+    orderNumber: '70658563',
+    branch: 'Standards Home Care',
+    patientName: 'POINSON, PIERRE',
+    payer: 'UNITED HEALTHCARE MEDICARE',
+    orderType: 'Plan of Care',
+    physicianName: 'MUQQADUS, SYED M.D',
+    deliveryMethod: 'Electronic',
+    orderDate: '11/02/2026',
+    sentDate: '11/04/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-5',
+    age: 6,
+    orderNumber: '69619606',
+    branch: 'Standards Home Care',
+    patientName: 'JOINVILLE, ANTONIA',
+    payer: 'Medicaid',
+    orderType: 'Physician Order',
+    physicianName: 'SANNAPAREDDY, SASIKALA M.D.',
+    deliveryMethod: 'Fax',
+    orderDate: '10/28/2026',
+    sentDate: '11/02/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-6',
+    age: 6,
+    orderNumber: '70624731',
+    branch: 'Standards Home Care',
+    patientName: 'JOINVILLE, ANTONIA',
+    payer: 'Medicaid',
+    orderType: 'Plan of Care',
+    physicianName: 'SANNAPAREDDY, SASIKALA M.D.',
+    deliveryMethod: 'Fax',
+    orderDate: '10/28/2026',
+    sentDate: '11/02/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-7',
+    age: 2,
+    orderNumber: '70612805',
+    branch: 'Standards Home Care',
+    patientName: 'SAVCHEVA, ANTONIYA',
+    payer: 'COMMONWEALTH CARE ALLIANCE',
+    orderType: 'Plan of Care',
+    physicianName: 'GASSIRARO, EVA MD',
+    deliveryMethod: 'Fax',
+    orderDate: '10/28/2026',
+    sentDate: '11/06/2026',
+    status: 'Active',
+  },
+  {
+    id: 'pmd-8',
+    age: 3,
+    orderNumber: '69658530',
+    branch: 'Standards Home Care',
+    patientName: 'ANTONIOTTI, JEFFREY C.',
+    payer: 'Medicaid',
+    orderType: 'Physician Order',
+    physicianName: 'GUPTA, MAULSHREE MD',
+    deliveryMethod: 'Fax',
+    orderDate: '10/27/2026',
+    sentDate: '11/05/2026',
+    status: 'Active',
+  },
+];
+
+export const OrdersPendingMdSignatureView: React.FC<OrdersPendingMdSignatureViewProps> = ({
+  onBack,
+  onSelectPatient,
+}) => {
+  const { organization } = useHealthcare();
+
+  const [ordersList, setOrdersList] = useState<PendingMdSignatureOrder[]>(INITIAL_MD_PENDING_ORDERS);
+  const [selectedBranch, setSelectedBranch] = useState('All');
+  const [startDate, setStartDate] = useState('2026-09-10');
+  const [endDate, setEndDate] = useState('2026-11-08');
+  const [statusActive, setStatusActive] = useState(true);
+  const [statusDischarged, setStatusDischarged] = useState(true);
+  const [statusNonAdmission, setStatusNonAdmission] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<keyof PendingMdSignatureOrder>('age');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleSort = (field: keyof PendingMdSignatureOrder) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedOrderIds.size === filteredOrders.length) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(filteredOrders.map((o) => o.id)));
+    }
+  };
+
+  const handleToggleSelectOrder = (id: string) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const filteredOrders = useMemo(() => {
+    return ordersList.filter((ord) => {
+      if (selectedBranch !== 'All' && ord.branch !== selectedBranch) return false;
+      if (ord.status === 'Active' && !statusActive) return false;
+      if (ord.status === 'Discharged' && !statusDischarged) return false;
+      if (ord.status === 'Non-Admission' && !statusNonAdmission) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          ord.patientName.toLowerCase().includes(q) ||
+          ord.orderNumber.toLowerCase().includes(q) ||
+          ord.physicianName.toLowerCase().includes(q) ||
+          ord.orderType.toLowerCase().includes(q) ||
+          ord.payer.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    }).sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      return sortOrder === 'asc'
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
+    });
+  }, [ordersList, selectedBranch, statusActive, statusDischarged, statusNonAdmission, searchQuery, sortField, sortOrder]);
+
+  const handleReceiveSelected = () => {
+    if (selectedOrderIds.size === 0) {
+      showToast('Please select at least one order to mark as received.');
+      return;
+    }
+    const count = selectedOrderIds.size;
+    setOrdersList((prev) => prev.filter((o) => !selectedOrderIds.has(o.id)));
+    setSelectedOrderIds(new Set());
+    showToast(`Successfully marked ${count} order(s) as signed & received from physician.`);
+  };
+
+  const handleExportToExcel = () => {
+    const headers = [
+      'Age (Days)',
+      'Order',
+      'Branch',
+      'Patient',
+      'Payer',
+      'Type',
+      'Physician',
+      'Delivery Method',
+      'Order Date',
+      'Sent Date',
+    ];
+    const rows = filteredOrders.map((o) => [
+      `"${o.age}"`,
+      `"${o.orderNumber}"`,
+      `"${o.branch}"`,
+      `"${o.patientName}"`,
+      `"${o.payer}"`,
+      `"${o.orderType}"`,
+      `"${o.physicianName}"`,
+      `"${o.deliveryMethod}"`,
+      `"${o.orderDate}"`,
+      `"${o.sentDate}"`,
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Orders_Pending_MD_Signature_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Orders Pending Signature exported to Excel.');
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-pearl-100 font-sans text-slate-900 transition-colors dark:bg-charcoal-900 dark:text-slate-100">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 text-xs font-semibold text-white shadow-xl animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="h-4 w-4" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* 1. Contextual Header Strip */}
+      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-pearl-200/90 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/80 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-pearl-200 bg-pearl-50 text-slate-600 shadow-2xs transition hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 cursor-pointer"
+            title="Return to Dashboard"
+            aria-label="Return to Dashboard"
+          >
+            <ArrowLeft size={15} />
+          </button>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                Axxess Home Health
+              </span>
+              <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                View
+              </span>
+              <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Orders Management
+              </span>
+              <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
+              <span className="truncate text-xs font-black text-slate-950 dark:text-white">
+                Orders Pending MD Signature
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                Orders Pending Physician Signature & Return Tracking
+              </span>
+              <span>•</span>
+              <span className="truncate">{organization.name}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => showToast('Orders pending signature refreshed.')}
+            className="flex h-8 items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-pearl-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 cursor-pointer"
+          >
+            <RefreshCw size={13} />
+            <span>Refresh</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex h-8 items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-pearl-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 cursor-pointer"
+          >
+            <Printer size={13} />
+            <span>Print</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4">
+        {/* Single Row Filter & Actions Bar matching screenshot media_1794161254010_20f2181d.png */}
+        <div className="rounded-2xl border border-pearl-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Left Filters */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Branch */}
+              <div className="flex h-9 items-center gap-1.5 rounded-xl border border-pearl-300 bg-white px-3 shadow-2xs dark:border-charcoal-600 dark:bg-charcoal-750">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Branch:</span>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none dark:text-slate-200 cursor-pointer"
+                >
+                  <option value="All">All</option>
+                  <option value="Standards Home Care">Standards Home Care</option>
+                </select>
+              </div>
+
+              {/* Date Range */}
+              <div className="flex h-9 items-center gap-1.5 rounded-xl border border-pearl-300 bg-white px-3 shadow-2xs dark:border-charcoal-600 dark:bg-charcoal-750">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date Range:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none dark:text-slate-200 cursor-pointer"
+                />
+                <span className="text-slate-400 font-bold">To</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none dark:text-slate-200 cursor-pointer"
+                />
+              </div>
+
+              {/* Status Checkboxes */}
+              <div className="flex items-center gap-2 px-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={statusActive}
+                    onChange={(e) => setStatusActive(e.target.checked)}
+                    className="accent-rose-700 rounded"
+                  />
+                  <span>Active</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={statusDischarged}
+                    onChange={(e) => setStatusDischarged(e.target.checked)}
+                    className="accent-rose-700 rounded"
+                  />
+                  <span>Discharged</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={statusNonAdmission}
+                    onChange={(e) => setStatusNonAdmission(e.target.checked)}
+                    className="accent-rose-700 rounded"
+                  />
+                  <span>Non-Admission</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right Buttons: Generate, Export to Excel */}
+            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => showToast('Generated orders pending signature.')}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
+              >
+                Generate
+              </button>
+              <button
+                type="button"
+                onClick={handleExportToExcel}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Export to Excel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search Bar Row with total results */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Start Typing"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-full rounded-xl border border-pearl-300 bg-white pl-9 pr-8 text-xs text-slate-800 placeholder:text-slate-400 shadow-2xs focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-100"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Total: 37 orders pending MD signature
+          </div>
+        </div>
+
+        {/* Table Card - Columns beautifully framed without horizontal overflow scrollbar */}
+        <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white shadow-sm dark:border-charcoal-700/80 dark:bg-charcoal-800">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <thead>
+                <tr className="border-b border-pearl-200 bg-pearl-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrderIds.size === filteredOrders.length && filteredOrders.length > 0}
+                      onChange={handleToggleSelectAll}
+                      className="accent-rose-700 rounded"
+                    />
+                  </th>
+                  <th
+                    onClick={() => handleSort('age')}
+                    className="py-3 px-2 w-14 text-center cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Age {sortField === 'age' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('orderNumber')}
+                    className="py-3 px-3 w-24 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Order {sortField === 'orderNumber' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('patientName')}
+                    className="py-3 px-3 w-36 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Patient {sortField === 'patientName' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('payer')}
+                    className="py-3 px-3 w-36 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Payer {sortField === 'payer' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('orderType')}
+                    className="py-3 px-3 w-36 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Type {sortField === 'orderType' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('physicianName')}
+                    className="py-3 px-3 w-40 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Physician {sortField === 'physicianName' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th className="py-3 px-2 w-16 text-center">Method</th>
+                  <th
+                    onClick={() => handleSort('orderDate')}
+                    className="py-3 px-3 w-24 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Order Date {sortField === 'orderDate' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('sentDate')}
+                    className="py-3 px-3 w-24 cursor-pointer hover:text-rose-700 transition"
+                  >
+                    Sent Date {sortField === 'sentDate' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  </th>
+                  <th className="py-3 px-3 w-32 text-right pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="py-20 text-center text-slate-500">
+                      No orders pending signature.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((ord) => {
+                    const isSelected = selectedOrderIds.has(ord.id);
+                    return (
+                      <tr
+                        key={ord.id}
+                        className={`border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20 ${
+                          isSelected ? 'bg-rose-50/40 dark:bg-rose-950/30' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectOrder(ord.id)}
+                            className="accent-rose-700 rounded"
+                          />
+                        </td>
+                        <td className="py-3 px-2 text-center font-bold text-rose-700 dark:text-rose-400">
+                          {ord.age}
+                        </td>
+                        <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">
+                          {ord.orderNumber}
+                        </td>
+                        <td
+                          onClick={() => onSelectPatient?.(ord.patientName)}
+                          className="py-3 px-3 font-bold text-rose-700 hover:text-rose-800 cursor-pointer truncate hover:underline"
+                        >
+                          {ord.patientName}
+                        </td>
+                        <td className="py-3 px-3 text-slate-700 dark:text-slate-300 truncate">{ord.payer}</td>
+                        <td className="py-3 px-3 text-slate-800 dark:text-slate-200 font-medium truncate">
+                          {ord.orderType}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-rose-700 hover:text-rose-800 cursor-pointer hover:underline truncate">
+                          {ord.physicianName}
+                        </td>
+                        <td className="py-3 px-2 text-center text-slate-600 dark:text-slate-400">
+                          {ord.deliveryMethod}
+                        </td>
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300">{ord.orderDate}</td>
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-300">{ord.sentDate}</td>
+                        <td className="py-3 px-3 text-right pr-4">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                showToast(`Received and marked signed order #${ord.orderNumber}`);
+                                setOrdersList((prev) => prev.filter((o) => o.id !== ord.id));
+                              }}
+                              className="text-xs font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer"
+                            >
+                              Receive Order
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              title="Print Order"
+                              onClick={() => {
+                                showToast(`Printing order #${ord.orderNumber}...`);
+                                setTimeout(() => window.print(), 300);
+                              }}
+                              className="p-1 text-slate-500 hover:text-rose-700 rounded hover:bg-pearl-100 dark:hover:bg-charcoal-700"
+                            >
+                              <Printer size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="View Attachments"
+                              onClick={() => showToast(`Attachment loaded for order #${ord.orderNumber}`)}
+                              className="p-1 text-slate-500 hover:text-rose-700 rounded hover:bg-pearl-100 dark:hover:bg-charcoal-700"
+                            >
+                              <Paperclip size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Bottom Action Bar matching screenshot */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-pearl-200 bg-pearl-50/70 px-5 py-3 dark:border-charcoal-700 dark:bg-charcoal-750">
+            <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
+              Total: {filteredOrders.length}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleReceiveSelected}
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 px-6 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              <Check size={14} />
+              Receive Orders
+            </button>
+
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {selectedOrderIds.size} of {filteredOrders.length} selected
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
