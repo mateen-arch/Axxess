@@ -182,7 +182,7 @@ export const CreateInfectionLogPage: React.FC<CreateInfectionLogPageProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -325,7 +325,7 @@ export const CreateInfectionLogPage: React.FC<CreateInfectionLogPageProps> = ({
           </div>
 
           <div className="rounded-xl bg-pearl-100 p-3 text-[11px] text-slate-500 dark:bg-charcoal-800/80 dark:text-slate-400">
-            Axxess Infection Log v4.2 • OASIS-E Compatible
+            CareOrbit Infection Log v4.2 • OASIS-E Compatible
           </div>
         </aside>
 

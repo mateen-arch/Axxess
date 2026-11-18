@@ -29,9 +29,9 @@ import { useHealthcare } from '../../context/HealthcareContext';
 export type AdmissionValue = string | boolean | string[];
 export type PatientAdmissionFormData = Record<string, AdmissionValue>;
 
-export const createInitialPatientAdmissionForm = (mrn = '1204'): PatientAdmissionFormData => ({
+export const createInitialPatientAdmissionForm = (mrn = ''): PatientAdmissionFormData => ({
   firstName: '', middleInitial: '', lastName: '', sex: '', dob: '', ssn: '', ssnUnknown: false, maritalStatus: '',
-  mobile: '', alternatePhone: '', email: '', clinicalManager: '', caseManager: '', assignedClinician: '', branch: 'Standards Home Care',
+  mobile: '', alternatePhone: '', email: '', clinicalManager: '', caseManager: '', assignedClinician: '', branch: '',
   mrn, defaultServiceLocation: '', primaryAddress1: '', primaryAddress2: '', primaryZip: '', primaryZip4: '', primaryCounty: '', primaryCity: '', primaryState: '',
   sameMailingAddress: true, mailingAddress1: '', mailingAddress2: '', mailingZip: '', mailingZip4: '', mailingCounty: '', mailingCity: '', mailingState: '',
   visitAddressCount: '0', raceOrigins: [], races: [], preferredLanguage: '', additionalLanguage1: '', additionalLanguage2: '', additionalLanguage3: '', auxiliaryAids: '', interpreterNeed: '',
@@ -90,6 +90,25 @@ const requiredKeys: Record<SectionId, string[]> = {
 };
 
 const isPresent = (value: AdmissionValue | undefined) => Array.isArray(value) ? value.length > 0 : typeof value === 'boolean' ? value : Boolean(value?.toString().trim());
+
+export const isValidPhone = (phone: string): boolean => {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, '');
+  return digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+};
+
+export const isValidEmail = (email: string): boolean => {
+  if (!email || !email.trim()) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+};
+
+export const formatPhoneNumber = (val: string): string => {
+  const digits = val.replace(/\D/g, '').slice(0, 10);
+  if (digits.length === 0) return '';
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
 
 function Field({
   label,
@@ -338,15 +357,27 @@ export const AdmitPatientPage: React.FC<{
   const missingFor = (section: SectionId) => {
     const missing = requiredKeys[section].filter((key) => !isPresent(values[key]));
     if (section === 'pharmacy' && !isPharmacyComplete()) missing.push('pharmacy');
-    if (section === 'demographics' && duplicateMrn) missing.push('mrn');
-    if (section === 'demographics' && !booleanValue('ssnUnknown') && !isPresent(values.ssn)) missing.push('ssn');
-    if (section === 'demographics' && !arrayValue('paymentSources').length) missing.push('paymentSources');
-    if (section === 'demographics' && !arrayValue('inpatientFacilities').length) missing.push('inpatientFacilities');
-    if (section === 'demographics' && !stringValue('episodeTiming')) missing.push('episodeTiming');
+    if (section === 'demographics') {
+      if (duplicateMrn) missing.push('mrn');
+      if (!booleanValue('ssnUnknown') && !isPresent(values.ssn)) missing.push('ssn');
+      if (!arrayValue('paymentSources').length) missing.push('paymentSources');
+      if (!arrayValue('inpatientFacilities').length) missing.push('inpatientFacilities');
+      if (!stringValue('episodeTiming')) missing.push('episodeTiming');
+      const mobileVal = stringValue('mobile');
+      if (!mobileVal || !isValidPhone(mobileVal)) missing.push('mobile');
+      const emailVal = stringValue('email');
+      if (emailVal && !isValidEmail(emailVal)) missing.push('email');
+    }
     if (section === 'payers' && !booleanValue('mbiNA') && !isPresent(values.mbi)) missing.push('mbi');
     if (section === 'payers' && !booleanValue('medicaidNA') && !isPresent(values.medicaidNumber)) missing.push('medicaidNumber');
     if (section === 'physicians' && stringValue('attendingPhysician') === 'New Physician' && !isPresent(values.newPhysicianName)) missing.push('newPhysicianName');
     if (section === 'clinical' && !arrayValue('servicesRequired').length) missing.push('servicesRequired');
+    if (section === 'contacts') {
+      const contactMobile = stringValue('primaryContactMobile');
+      if (!contactMobile || !isValidPhone(contactMobile)) missing.push('primaryContactMobile');
+      const contactEmail = stringValue('primaryContactEmail');
+      if (contactEmail && !isValidEmail(contactEmail)) missing.push('primaryContactEmail');
+    }
     if (section === 'emergency' && !isPresent(values.evacuationZone)) missing.push('evacuationZone');
     if (section === 'referral' && stringValue('faceToFaceStatus') !== 'N/A' && !isPresent(values.faceToFaceDate)) missing.push('faceToFaceDate');
     return [...new Set(missing)];
@@ -356,9 +387,39 @@ export const AdmitPatientPage: React.FC<{
   const activeIndex = sections.findIndex((section) => section.id === activeSection);
   const isInvalid = (key: string) => showErrors && missingBySection[activeSection].includes(key);
 
-  const field = (key: string, label: string, options: Omit<Parameters<typeof Field>[0], 'value' | 'onChange' | 'label'> = {}) => (
-    <Field key={key} label={label} value={stringValue(key)} onChange={(value) => setValue(key, value)} invalid={isInvalid(key)} {...options} />
-  );
+  const getErrorMessage = (key: string) => {
+    if (key === 'mobile' || key === 'primaryContactMobile') {
+      const val = stringValue(key);
+      if (val && !isValidPhone(val)) return 'Please enter a valid 10-digit phone number';
+    }
+    if (key === 'email' || key === 'primaryContactEmail') {
+      const val = stringValue(key);
+      if (val && !isValidEmail(val)) return 'Please enter a valid email address';
+    }
+    if (key === 'mrn' && duplicateMrn) return 'This MRN is already assigned to an existing patient.';
+    return 'This field is required.';
+  };
+
+  const field = (key: string, label: string, options: Omit<Parameters<typeof Field>[0], 'value' | 'onChange' | 'label'> = {}) => {
+    const isTel = options.type === 'tel' || key.toLowerCase().includes('phone') || key.toLowerCase().includes('mobile');
+    return (
+      <Field
+        key={key}
+        label={label}
+        value={stringValue(key)}
+        onChange={(value) => {
+          if (isTel) {
+            setValue(key, formatPhoneNumber(value));
+          } else {
+            setValue(key, value);
+          }
+        }}
+        invalid={isInvalid(key)}
+        errorMessage={getErrorMessage(key)}
+        {...options}
+      />
+    );
+  };
   const choice = (label: string, key: string, options: string[], multiple = false, columns: 1 | 2 | 3 = 2, required = false, exclusiveOptions: string[] = []) => (
     <ChoiceGroup label={label} options={options} value={multiple ? arrayValue(key) : stringValue(key)} onChange={(value) => setValue(key, value)} multiple={multiple} columns={columns} invalid={isInvalid(key)} required={required} exclusiveOptions={exclusiveOptions} />
   );
@@ -468,7 +529,7 @@ export const AdmitPatientPage: React.FC<{
             <Field label="Patient ID / MRN (M0020)" value={stringValue('mrn')} onChange={(value) => setValue('mrn', value)} required invalid={isInvalid('mrn')} errorMessage={duplicateMrn ? 'This MRN is already in use. Enter a different ID.' : undefined} placeholder="Enter ID/MRN" />
             <p className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
               <span className="inline-flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400">
-                <Sparkles size={12} /> Generated by Axxess Intelligence
+                <Sparkles size={12} /> Generated by CareOrbit Intelligence
               </span>
               <span>Last MRN used: {lastMrnUsed}</span>
             </p>
@@ -557,7 +618,7 @@ export const AdmitPatientPage: React.FC<{
           {field('startOfCareDate', 'Start of Care Date', { type: 'date', required: true, invalid: isInvalid('startOfCareDate') })}
           {field('episodeStartDate', 'Episode Start Date', { type: 'date', required: true, invalid: isInvalid('episodeStartDate') })}
         </SectionGrid>
-        {choice('Create episode & schedule visit after saving — select all that apply', 'episodeActions', ['Create episode & schedule OASIS Start of Care visit', 'Create episode & schedule therapy evaluation', 'Create episode & schedule Non-OASIS Start of Care visit', 'Create episode & schedule initial OASIS Recert in Axxess', 'Create episode & schedule initial Non-OASIS Recert in Axxess', 'Track F2F Documentation'], true, 2)}
+        {choice('Create episode & schedule visit after saving — select all that apply', 'episodeActions', ['Create episode & schedule OASIS Start of Care visit', 'Create episode & schedule therapy evaluation', 'Create episode & schedule Non-OASIS Start of Care visit', 'Create episode & schedule initial OASIS Recert in CareOrbit', 'Create episode & schedule initial Non-OASIS Recert in CareOrbit', 'Track F2F Documentation'], true, 2)}
         {field('tags', 'Tags', { placeholder: 'Select or enter tags' })}
       </Panel>
     </div>
@@ -1125,14 +1186,18 @@ export const AdmitPatientPage: React.FC<{
                       </span>
                     </div>
                     {isComplete ? (
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400" title="Section complete">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 shadow-2xs" title="Section complete">
                         <Check size={12} strokeWidth={2.8} />
                       </span>
-                    ) : showErrors && missingCount > 0 ? (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-black text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                        {missingCount}
+                    ) : (
+                      <span
+                        className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 border border-amber-200 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 shadow-2xs"
+                        title={`${missingCount} required field(s) pending`}
+                      >
+                        <AlertTriangle size={11} className="shrink-0 text-amber-500" />
+                        <span>{missingCount}</span>
                       </span>
-                    ) : null}
+                    )}
                   </button>
                 );
               })}
@@ -1162,18 +1227,29 @@ export const AdmitPatientPage: React.FC<{
         <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-pearl-200/90 bg-white/80 px-3 py-2 backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-900/80 lg:hidden">
           {sections.map((section, idx) => {
             const active = activeSection === section.id;
+            const isComplete = sectionStatus(section.id);
+            const missingCount = missingBySection[section.id].length;
             return (
               <button
                 key={section.id}
                 type="button"
                 onClick={() => scrollToSection(section.id)}
-                className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
                   active
                     ? 'bg-rose-600 text-white shadow-2xs'
+                    : isComplete
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                     : 'bg-pearl-100 text-slate-600 dark:bg-charcoal-800 dark:text-slate-300'
                 }`}
               >
-                {idx + 1}. {section.label}
+                <span>{idx + 1}. {section.label}</span>
+                {isComplete ? (
+                  <Check size={12} className="text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                    <AlertTriangle size={11} /> {missingCount}
+                  </span>
+                )}
               </button>
             );
           })}

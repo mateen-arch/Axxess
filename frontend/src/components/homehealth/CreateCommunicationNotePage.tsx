@@ -87,16 +87,18 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
   const [physician, setPhysician] = useState<string>('');
   const [communicationText, setCommunicationText] = useState<string>('');
   const [sendAsMessage, setSendAsMessage] = useState<boolean>(false);
-  const [staffSignature, setStaffSignature] = useState<string>('Hilder Magessa, RN');
+  const [staffSignature, setStaffSignature] = useState<string>('');
   const [signatureDate, setSignatureDate] = useState<string>(getTodayFormatted());
   const [signatureTime, setSignatureTime] = useState<string>(getCurrentTimeFormatted());
 
   // UI Modals & State
   const [showNewPhysicianModal, setShowNewPhysicianModal] = useState(false);
+  const [showPhysicianDropdown, setShowPhysicianDropdown] = useState(false);
   const [newPhysicianName, setNewPhysicianName] = useState('');
   const [physicianSearchQuery, setPhysicianSearchQuery] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [showErrors, setShowErrors] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Selected Patient Object
@@ -144,26 +146,26 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
 
   // Physician directory list
   const physicianList = useMemo(() => {
-    const list = [
-      'Dr. Robert Vance, MD · Dallas Medical Center',
-      'Dr. Sarah Jenkins, MD · Baylor Scott & White',
-      'Dr. Michael Chen, DO · North Texas Health',
-      'Dr. Emily Larson, MD · Beverly Health Partners',
-      'Dr. Hilder Martinez, MD · Standards Home Care',
-      'Dr. Deborah Lollar, MD · North Shore Physicians Group',
-    ];
+    const set = new Set<string>();
     patients.forEach((p) => {
-      if (p.attendingPhysician && !list.includes(p.attendingPhysician)) {
-        list.push(p.attendingPhysician);
+      if (p.attendingPhysician && p.attendingPhysician.trim()) {
+        set.add(p.attendingPhysician.trim());
       }
     });
-    return list;
-  }, [patients]);
+    clinicians.forEach((c) => {
+      const cred = (c.credentials || c.title || '').toUpperCase();
+      if (cred.includes('MD') || cred.includes('DO') || cred.includes('PHYSICIAN')) {
+        set.add(`${c.name}, ${c.credentials || 'MD'}`.trim());
+      }
+    });
+    return Array.from(set);
+  }, [patients, clinicians]);
 
   const filteredPhysicians = useMemo(() => {
-    if (!physicianSearchQuery.trim()) return physicianList;
-    return physicianList.filter((doc) => doc.toLowerCase().includes(physicianSearchQuery.toLowerCase()));
-  }, [physicianList, physicianSearchQuery]);
+    const query = (physicianSearchQuery || physician).trim().toLowerCase();
+    if (!query) return physicianList;
+    return physicianList.filter((doc) => doc.toLowerCase().includes(query));
+  }, [physicianList, physicianSearchQuery, physician]);
 
   const handleTemplateInsert = (templateName: string) => {
     setSelectedTemplate(templateName);
@@ -190,59 +192,67 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
     if (!selectedPatientId) errs.patient = 'Patient Name is required';
     if (!episodeAssociated) errs.episode = 'Associated Episode is required';
     if (!communicationText.trim()) errs.text = 'Communication text is required';
+    if (!staffSignature.trim()) errs.signature = 'Staff signature is required';
     return errs;
-  }, [selectedPatientId, episodeAssociated, communicationText]);
+  }, [selectedPatientId, episodeAssociated, communicationText, staffSignature]);
 
   const isValid = Object.keys(errors).length === 0;
 
-  const handleSaveOrComplete = (status: 'Saved' | 'Complete') => {
+  const handleSaveOrComplete = async (status: 'Saved' | 'Complete') => {
     if (!isValid) {
       setShowErrors(true);
       return;
     }
 
-    const patientName = selectedPatient
-      ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
-      : 'Selected Patient';
+    try {
+      setIsSaving(true);
+      const patientName = selectedPatient
+        ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
+        : 'Selected Patient';
 
-    addCommunicationNote({
-      patientId: selectedPatientId,
-      patientName,
-      patientStatus,
-      episodeAssociated,
-      physician: physician || 'Attending Physician',
-      noteDate,
-      communicationText,
-      sendAsMessage,
-      staffSignature: staffSignature || 'Staff Clinician',
-      signatureDate,
-      signatureTime,
-      status,
-    });
-
-    // If "Send note as Message" is checked, dispatch to messages
-    if (sendAsMessage) {
-      addMessage({
-        senderName: staffSignature || 'Clinical Staff',
-        senderRole: 'Home Health Clinician',
-        subject: `Communication Note: ${patientName}`,
-        snippet: communicationText.slice(0, 140) + (communicationText.length > 140 ? '...' : ''),
-        serviceLine: 'home_health',
-        organizationName: organization.name,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        isRead: false,
-        priority: 'routine',
+      await addCommunicationNote({
+        patientId: selectedPatientId,
         patientName,
-        body: communicationText,
-        regardingPatientId: selectedPatientId,
+        patientStatus,
+        episodeAssociated,
+        physician: physician.trim() || (selectedPatient?.attendingPhysician || 'Attending Physician'),
+        noteDate,
+        communicationText: communicationText.trim(),
+        sendAsMessage,
+        staffSignature: staffSignature.trim(),
+        signatureDate,
+        signatureTime,
+        status,
       });
-    }
 
-    setIsSuccess(true);
-    setTimeout(() => {
-      if (onNoteCreated) onNoteCreated();
-      else onBack();
-    }, 1200);
+      // If "Send note as Message" is checked, dispatch to messages
+      if (sendAsMessage) {
+        await addMessage({
+          senderName: staffSignature.trim(),
+          senderRole: 'Home Health Clinician',
+          subject: `Communication Note: ${patientName}`,
+          snippet: communicationText.slice(0, 140) + (communicationText.length > 140 ? '...' : ''),
+          serviceLine: 'home_health',
+          organizationName: organization.name,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          isRead: false,
+          priority: 'routine',
+          patientName,
+          body: communicationText.trim(),
+          regardingPatientId: selectedPatientId,
+        } as any);
+      }
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (onNoteCreated) onNoteCreated();
+        else onBack();
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to create communication note:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const charactersRemaining = Math.max(0, 5000 - communicationText.length);
@@ -417,7 +427,7 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
           </div>
 
           <div className="pt-2 text-[10px] text-slate-400 text-center">
-            Axxess Home Health EHR • Release {organization.releaseVersion}
+            CareOrbit Home Health EHR • Release {organization.releaseVersion}
           </div>
         </aside>
 
@@ -555,17 +565,39 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
                     <label className="pt-2 text-xs font-bold text-slate-700 dark:text-slate-200">
                       Physician:
                     </label>
-                    <div className="space-y-3">
+                    <div className="space-y-3 relative">
                       <div className="relative flex items-center">
                         <Search size={15} className="absolute left-3 text-slate-400" />
                         <input
                           type="text"
                           value={physician}
-                          onChange={(e) => setPhysician(e.target.value)}
-                          placeholder="Search Physician..."
+                          onChange={(e) => {
+                            setPhysician(e.target.value);
+                            setShowPhysicianDropdown(true);
+                          }}
+                          onFocus={() => setShowPhysicianDropdown(true)}
+                          placeholder="Select or enter physician..."
                           className="h-10 w-full rounded-xl border border-pearl-200 bg-white pl-9 pr-3.5 text-xs font-medium text-slate-900 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100"
                         />
                       </div>
+
+                      {showPhysicianDropdown && filteredPhysicians.length > 0 && (
+                        <div className="absolute top-10 left-0 z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-pearl-200 bg-white p-1.5 shadow-lg dark:border-charcoal-700 dark:bg-charcoal-850">
+                          {filteredPhysicians.map((doc) => (
+                            <button
+                              key={doc}
+                              type="button"
+                              onClick={() => {
+                                setPhysician(doc);
+                                setShowPhysicianDropdown(false);
+                              }}
+                              className="w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-750"
+                            >
+                              {doc}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       <button
                         type="button"
@@ -668,15 +700,25 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
                 {/* Staff Signature */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                    Staff Signature:
+                    Staff Signature: <span className="text-rose-600 font-extrabold">*</span>
                   </label>
                   <input
                     type="text"
                     value={staffSignature}
                     onChange={(e) => setStaffSignature(e.target.value)}
-                    placeholder="Enter Staff Signature"
-                    className="h-10 w-full rounded-xl border border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                    placeholder="Enter Staff Signature (e.g. Jane Doe, RN)"
+                    className={`h-10 w-full rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
+                      showErrors && errors.signature
+                        ? 'border-rose-400 ring-1 ring-rose-400/30'
+                        : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                    }`}
                   />
+                  {showErrors && errors.signature && (
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                      <AlertTriangle size={12} className="shrink-0" />
+                      {errors.signature}
+                    </span>
+                  )}
                 </div>
 
                 {/* Signature Date */}
@@ -721,26 +763,27 @@ export const CreateCommunicationNotePage: React.FC<CreateCommunicationNotePagePr
                 <button
                   type="button"
                   onClick={onBack}
-                  className="h-10 rounded-xl border border-pearl-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-pearl-100 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:bg-charcoal-700"
+                  disabled={isSaving}
+                  className="h-10 rounded-xl border border-pearl-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-pearl-100 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:bg-charcoal-700 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSaveOrComplete('Saved')}
-                  disabled={isSuccess}
+                  disabled={isSuccess || isSaving}
                   className="h-10 rounded-xl border border-rose-200 bg-rose-50/70 px-5 text-xs font-bold text-rose-700 shadow-2xs transition hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300 disabled:opacity-50"
                 >
-                  Save Draft
+                  {isSaving ? 'Saving...' : 'Save Draft'}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSaveOrComplete('Complete')}
-                  disabled={isSuccess}
+                  disabled={isSuccess || isSaving}
                   className="flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-6 text-xs font-extrabold text-white shadow-sm shadow-rose-600/25 transition hover:-translate-y-0.5 hover:bg-rose-700 disabled:opacity-50"
                 >
                   <Check size={16} />
-                  <span>Complete</span>
+                  <span>{isSaving ? 'Completing...' : 'Complete'}</span>
                 </button>
               </div>
             </div>

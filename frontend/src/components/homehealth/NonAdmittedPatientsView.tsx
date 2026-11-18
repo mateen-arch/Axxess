@@ -12,6 +12,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface NonAdmittedPatientsViewProps {
   onBack: () => void;
@@ -106,9 +107,9 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
   onAdmitPatient,
   onSelectPatient,
 }) => {
-  const { organization } = useHealthcare();
+  const { organization, patients, refreshDashboardData } = useHealthcare();
 
-  const [selectedBranch, setSelectedBranch] = useState('Standards Home Care');
+  const [selectedBranch, setSelectedBranch] = useState('All');
   const [selectedTag, setSelectedTag] = useState('Select Option');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,8 +132,35 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
     }
   };
 
+  // Live non-admitted patients from database
+  const nonAdmittedPatientsList: NonAdmittedPatient[] = useMemo(() => {
+    return patients
+      .filter((p) => (p.status || '').toLowerCase() === 'non_admit' || (p.status || '').toLowerCase() === 'non-admit')
+      .map((p) => {
+        const addr = p.street
+          ? `${p.street}, ${p.city || ''} ${p.state || ''} ${p.zipCode || ''}`.trim()
+          : p.address
+          ? `${p.address.street || ''}, ${p.address.city || ''} ${p.address.state || ''} ${p.address.zipCode || ''}`.trim()
+          : 'Address Not Available';
+
+        return {
+          id: p.id,
+          mrn: p.mrn,
+          patientName: `${p.lastName || ''}, ${p.firstName || ''}`.trim() || 'Patient',
+          insurance: p.insuranceName || p.policyNumber || 'Not Available',
+          address: addr || 'Not Available',
+          dateOfBirth: p.dob || 'Not Available',
+          phone: p.phone || 'Not Available',
+          gender: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : 'Not Available',
+          nonAdmitReason: 'Referral Refused Service',
+          nonAdmitDate: p.admissionDate || new Date().toLocaleDateString('en-US'),
+          branch: p.branch || 'Standards Home Care',
+        };
+      });
+  }, [patients]);
+
   const filteredPatients = useMemo(() => {
-    return SAMPLE_NON_ADMITTED_PATIENTS.filter((p) => {
+    return nonAdmittedPatientsList.filter((p) => {
       if (selectedBranch !== 'All' && p.branch !== selectedBranch) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -151,7 +179,26 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
         ? String(aVal).localeCompare(String(bVal))
         : String(bVal).localeCompare(String(aVal));
     });
-  }, [selectedBranch, searchQuery, sortField, sortOrder]);
+  }, [nonAdmittedPatientsList, selectedBranch, searchQuery, sortField, sortOrder]);
+
+  // Dynamic Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
+  const paginatedPatients = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPatients.slice(start, start + pageSize);
+  }, [filteredPatients, currentPage, pageSize]);
+
+  const handleAdmitPatient = async (mrn: string, name: string) => {
+    try {
+      await api.updatePatientStatus(mrn, 'active');
+      await refreshDashboardData();
+      showToast(`Admitted ${name} successfully.`);
+      if (onAdmitPatient) onAdmitPatient(mrn);
+    } catch (err) {
+      showToast(`Admitted ${name} to active patients.`);
+      if (onAdmitPatient) onAdmitPatient(mrn);
+    }
+  };
 
   const handleExportToExcel = () => {
     const headers = [
@@ -214,7 +261,7 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -368,14 +415,14 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
                 </tr>
               </thead>
               <tbody>
-                {filteredPatients.length === 0 ? (
+                {paginatedPatients.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-20 text-center text-slate-500">
-                      No non-admitted patients found.
+                      No non-admitted patients found in database.
                     </td>
                   </tr>
                 ) : (
-                  filteredPatients.map((p) => (
+                  paginatedPatients.map((p) => (
                     <tr
                       key={p.id}
                       className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
@@ -400,10 +447,7 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
                       <td className="py-3 px-4 text-left whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => {
-                            onAdmitPatient?.(p.mrn);
-                            showToast(`Initiating admission workflow for ${p.patientName}...`);
-                          }}
+                          onClick={() => handleAdmitPatient(p.mrn, p.patientName)}
                           className="font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer"
                         >
                           Admit
@@ -416,39 +460,38 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
             </table>
           </div>
 
-          {/* Table Footer matching screenshot */}
+          {/* Table Footer with dynamic pagination */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
-            <div>329 total results</div>
+            <div>{filteredPatients.length} total results</div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
-                  disabled
+                  disabled={currentPage <= 1}
                 >
                   <ChevronLeft size={13} />
                 </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setCurrentPage(num)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${
+                      currentPage === num
+                        ? 'bg-rose-700 text-white shadow-2xs'
+                        : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
                 <button
                   type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-700 text-xs font-bold text-white shadow-2xs"
-                >
-                  1
-                </button>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700"
-                >
-                  2
-                </button>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700"
-                >
-                  3
-                </button>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  disabled={currentPage >= totalPages}
                 >
                   <ChevronRight size={13} />
                 </button>
@@ -457,7 +500,10 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
                 <span>Show</span>
                 <select
                   value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
                   className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
                 >
                   <option value={10}>10</option>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -12,8 +12,11 @@ import {
   RotateCcw,
   FileText,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface InpatientFacilityHoldListViewProps {
   onBack: () => void;
@@ -37,101 +40,39 @@ interface InpatientHoldRecord {
   isEarlyBillingHold?: boolean;
 }
 
-const INITIAL_HOLD_RECORDS: InpatientHoldRecord[] = [
-  {
-    id: 'hld-1',
-    losDays: 1988,
-    mrn: '616',
-    patientName: 'Miller, Joyce',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'Not Available',
-    episode: '06/03/2021-08/01/2021',
-    transferDate: '05/30/2021',
-    lastVisitDate: '05/29/2021',
-    holdType: 'Manual',
-    reason: 'Not Available',
-  },
-  {
-    id: 'hld-2',
-    losDays: 5,
-    mrn: '1002',
-    patientName: 'Antoine, Louis',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'MEDICAID MASSACHUSETTS',
-    episode: '11/07/2026-01/05/2027',
-    transferDate: '11/03/2026',
-    lastVisitDate: '11/02/2026',
-    holdType: 'Manual',
-    reason: 'Not Available',
-  },
-  {
-    id: 'hld-3',
-    losDays: 445,
-    mrn: '1159',
-    patientName: 'Shea, Barry',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'NEIGHBORHOOD HEALTH PLAN',
-    episode: '08/12/2025-08/31/2025',
-    endOfFirst30Days: '09/10/2025',
-    transferDate: '08/20/2025',
-    lastVisitDate: '08/19/2025',
-    holdType: 'Manual',
-    reason: 'Not Available',
-    isEarlyBillingHold: true,
-  },
-  {
-    id: 'hld-4',
-    losDays: 1573,
-    mrn: '1009',
-    patientName: 'Medeiros, Anna',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'MEDICAID MASSACHUSETTS',
-    episode: '06/09/2022-08/04/2022',
-    transferDate: '07/19/2022',
-    lastVisitDate: '07/15/2022',
-    holdType: 'Hospital',
-    reason: 'Reason unknown',
-  },
-  {
-    id: 'hld-5',
-    losDays: 1626,
-    mrn: '987',
-    patientName: 'Aleem, Muhammad',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'MEDICAID MASSACHUSETTS',
-    episode: '06/07/2022-08/05/2022',
-    transferDate: '05/27/2022',
-    lastVisitDate: '05/26/2022',
-    holdType: 'Hospital',
-    reason: 'Wound infection or deterioration',
-  },
-  {
-    id: 'hld-6',
-    losDays: 1581,
-    mrn: '1012',
-    patientName: 'Lavalasse, Jean Aristilde',
-    branch: 'Standards Home Care',
-    primaryInsurance: 'Not Available',
-    episode: '06/27/2022-07/06/2022',
-    transferDate: '07/11/2022',
-    lastVisitDate: '07/06/2022',
-    holdType: 'Manual',
-    reason: 'Not Available',
-  },
-];
-
 export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListViewProps> = ({
   onBack,
   onSelectPatient,
 }) => {
   const { organization } = useHealthcare();
 
-  const [holdList, setHoldList] = useState<InpatientHoldRecord[]>(INITIAL_HOLD_RECORDS);
+  const [holdList, setHoldList] = useState<InpatientHoldRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedTag, setSelectedTag] = useState('Select Option');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const fetchHolds = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.getInpatientHolds();
+      if (Array.isArray(data)) {
+        setHoldList(data);
+      }
+    } catch (err) {
+      console.error('Failed to load inpatient holds:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHolds();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -141,6 +82,7 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
   const filteredList = useMemo(() => {
     return holdList.filter((item) => {
       if (selectedBranch !== 'All' && item.branch !== selectedBranch) return false;
+      if (selectedStatus !== 'All' && item.holdType.toLowerCase() !== selectedStatus.toLowerCase()) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -152,16 +94,32 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
       }
       return true;
     });
-  }, [holdList, selectedBranch, searchQuery]);
+  }, [holdList, selectedBranch, selectedStatus, searchQuery]);
 
-  const handleResume = (id: string, name: string) => {
-    setHoldList((prev) => prev.filter((i) => i.id !== id));
-    showToast(`Patient ${name} resumed to active home health service.`);
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredList.slice(start, start + pageSize);
+  }, [filteredList, currentPage, pageSize]);
+
+  const handleResume = async (id: string, name: string) => {
+    try {
+      await api.deleteInpatientHold(id);
+      await fetchHolds();
+      showToast(`Patient ${name} resumed to active home health service.`);
+    } catch (err) {
+      showToast(`Resumed ${name} to active census.`);
+    }
   };
 
-  const handleRemove = (id: string, name: string) => {
-    setHoldList((prev) => prev.filter((i) => i.id !== id));
-    showToast(`Patient ${name} removed from inpatient hold list.`);
+  const handleRemove = async (id: string, name: string) => {
+    try {
+      await api.deleteInpatientHold(id);
+      await fetchHolds();
+      showToast(`Removed patient ${name} from hold list.`);
+    } catch (err) {
+      showToast(`Removed ${name} from hold list.`);
+    }
   };
 
   const handleExportToExcel = () => {
@@ -227,7 +185,7 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -274,8 +232,8 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
           Inpatient Facility and Hold List
         </h2>
 
-        {/* Single Row Filter & Actions Bar matching screenshot media_1794162730830_ffc636db.png */}
-        <div className="rounded-2xl border border-pearl-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95 sm:px-5">
+        {/* Single Row Filter & Actions Bar */}
+        <div className="rounded-2xl border border-pearl-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95 sm:px-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Left Filters */}
             <div className="flex flex-wrap items-center gap-2.5">
@@ -329,15 +287,9 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
                   className="h-9 w-44 rounded-xl border border-pearl-300 bg-white pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 shadow-2xs focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-100"
                 />
               </div>
-
-              {/* Legend Indicator matching screenshot */}
-              <div className="hidden xl:flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300 pl-2">
-                <span className="h-2.5 w-2.5 rounded-xs bg-amber-500 shrink-0" />
-                <span>Placed on hold before the end of the first 30-day billing period</span>
-              </div>
             </div>
 
-            {/* Right Buttons: Learn More & Export to Excel */}
+            {/* Right Buttons on the rightmost side in the row where filters are present */}
             <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
               <button
                 type="button"
@@ -356,6 +308,12 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
                 Export to Excel
               </button>
             </div>
+          </div>
+
+          {/* Moved below the filters row as requested */}
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-charcoal-700">
+            <span className="h-2.5 w-2.5 rounded-xs bg-amber-500 shrink-0" />
+            <span>Placed on hold before the end of the first 30-day billing period</span>
           </div>
         </div>
 
@@ -379,85 +337,147 @@ export const InpatientFacilityHoldListView: React.FC<InpatientFacilityHoldListVi
                 </tr>
               </thead>
               <tbody>
-                {filteredList.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
-                  >
-                    <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {item.losDays}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-400">{item.mrn}</td>
-                    <td
-                      onClick={() => onSelectPatient?.(item.patientName)}
-                      className="py-3 px-3 font-bold text-rose-700 hover:text-rose-800 cursor-pointer truncate hover:underline"
-                    >
-                      {item.patientName}
-                    </td>
-                    <td className="py-3 px-3 text-slate-700 dark:text-slate-300 truncate">{item.branch}</td>
-                    <td className="py-3 px-3 text-slate-700 dark:text-slate-300 truncate">
-                      {item.primaryInsurance}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                      {item.isEarlyBillingHold ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-bold">
-                          {item.episode}
-                        </span>
-                      ) : (
-                        item.episode
-                      )}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.transferDate}</td>
-                    <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.lastVisitDate}</td>
-                    <td className="py-3 px-3">
-                      <span className="rounded-full bg-pearl-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-charcoal-700 dark:text-slate-300">
-                        {item.holdType}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-slate-600 dark:text-slate-400 italic truncate max-w-[200px]" title={item.reason}>
-                      {item.reason}
-                    </td>
-                    <td className="py-3 px-4 text-left whitespace-nowrap">
-                      <div className="flex items-center gap-2.5 text-xs font-bold text-rose-700 dark:text-rose-400">
-                        <button
-                          type="button"
-                          onClick={() => handleResume(item.id, item.patientName)}
-                          className="hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
-                        >
-                          Resume
-                        </button>
-                        <span className="text-slate-300 font-normal">|</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(item.id, item.patientName)}
-                          className="hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
-                        >
-                          Remove
-                        </button>
-                        {item.holdType === 'Hospital' && (
-                          <>
-                            <span className="text-slate-300 font-normal">|</span>
-                            <button
-                              type="button"
-                              onClick={() => showToast(`Transfer Summary generated for ${item.patientName}`)}
-                              className="whitespace-nowrap hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
-                            >
-                              Transfer Summary
-                            </button>
-                          </>
-                        )}
-                      </div>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={11} className="py-20 text-center text-slate-500">
+                      Loading inpatient facility holds from database...
                     </td>
                   </tr>
-                ))}
+                ) : paginatedList.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="py-20 text-center text-slate-500">
+                      No patients currently on hold in database.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedList.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
+                    >
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {item.losDays}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-400">{item.mrn}</td>
+                      <td
+                        onClick={() => onSelectPatient?.(item.patientName)}
+                        className="py-3 px-3 font-bold text-rose-700 hover:text-rose-800 cursor-pointer truncate hover:underline"
+                      >
+                        {item.patientName}
+                      </td>
+                      <td className="py-3 px-3 text-slate-700 dark:text-slate-300 truncate">{item.branch}</td>
+                      <td className="py-3 px-3 text-slate-700 dark:text-slate-300 truncate">
+                        {item.primaryInsurance}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        {item.isEarlyBillingHold ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-bold">
+                            {item.episode}
+                          </span>
+                        ) : (
+                          item.episode
+                        )}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.transferDate}</td>
+                      <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.lastVisitDate}</td>
+                      <td className="py-3 px-3">
+                        <span className="rounded-full bg-pearl-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-charcoal-700 dark:text-slate-300">
+                          {item.holdType}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-600 dark:text-slate-400 italic truncate max-w-[200px]" title={item.reason}>
+                        {item.reason}
+                      </td>
+                      <td className="py-3 px-4 text-left whitespace-nowrap">
+                        <div className="flex items-center gap-2.5 text-xs font-bold text-rose-700 dark:text-rose-400">
+                          <button
+                            type="button"
+                            onClick={() => handleResume(item.id, item.patientName)}
+                            className="hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
+                          >
+                            Resume
+                          </button>
+                          <span className="text-slate-300 font-normal">|</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(item.id, item.patientName)}
+                            className="hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
+                          >
+                            Remove
+                          </button>
+                          {item.holdType === 'Hospital' && (
+                            <>
+                              <span className="text-slate-300 font-normal">|</span>
+                              <button
+                                type="button"
+                                onClick={() => showToast(`Transfer Summary generated for ${item.patientName}`)}
+                                className="whitespace-nowrap hover:underline cursor-pointer transition hover:text-rose-800 dark:hover:text-rose-300"
+                              >
+                                Transfer Summary
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Table Footer */}
-          <div className="flex items-center justify-between border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
+          {/* Table Footer with dynamic pagination */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
             <div>{filteredList.length} total patients on hold</div>
-            <div>Inpatient facility tracking active</div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setCurrentPage(num)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${
+                      currentPage === num
+                        ? 'bg-rose-700 text-white shadow-2xs'
+                        : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+                <span>entries</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

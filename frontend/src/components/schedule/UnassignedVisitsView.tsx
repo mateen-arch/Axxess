@@ -52,7 +52,7 @@ export const UnassignedVisitsView: React.FC = () => {
   ]);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Dropdown options matching Axxess
+  // Dropdown options matching CareOrbit
   const orgOptions = [
     { id: 'org-hh', label: 'Standards Home Care', category: 'Home Health' },
     { id: 'org-hc', label: 'Standards Home Care', category: 'Home Care' }
@@ -701,7 +701,7 @@ export const UnassignedVisitsView: React.FC = () => {
           </div>
 
           <div className="text-[11px] font-mono text-slate-400">
-            Axxess Intelligent Dispatcher v1.0
+            CareOrbit Intelligent Dispatcher v1.0
           </div>
         </div>
       </div>

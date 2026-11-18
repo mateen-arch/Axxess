@@ -30,7 +30,7 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
   initialData,
   onSuccess,
 }) => {
-  const { addNewReferral, addNewInquiry } = useHealthcare();
+  const { addNewReferral, addNewInquiry, updateReferral, updateInquiry } = useHealthcare();
 
   const isReferral = type === 'referral';
   const isEditing = Boolean(initialData);
@@ -156,16 +156,21 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
 
     if (isReferral) {
       if (initialData) {
-        // Edit existing referral
+        // Edit existing referral in PostgreSQL
         const ref = initialData as Referral;
-        ref.patientName = `${lastName.trim()}, ${firstName.trim()}`;
-        ref.patientPhone = phone;
-        ref.lineOfService = readableServiceLine;
-        ref.branch = branch;
-        ref.referralType = sourceOrService;
-        ref.requestedSoc = targetDate;
-        ref.notes = notes;
-        onSuccess?.(`Updated referral for ${ref.patientName}`);
+        const fullName = `${lastName.trim()}, ${firstName.trim()}`;
+        updateReferral(ref.id, {
+          patientName: fullName,
+          patientPhone: phone,
+          lineOfService: readableServiceLine,
+          branch: branch,
+          referralType: sourceOrService,
+          requestedSoc: targetDate,
+          notes: notes,
+          dob: dob,
+          sex: gender,
+        });
+        onSuccess?.(`Updated referral for ${fullName}`);
       } else {
         // Create new referral
         const newRef: Omit<Referral, 'id'> = {
@@ -191,18 +196,25 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
       }
     } else {
       if (initialData) {
-        // Edit existing inquiry
+        // Edit existing inquiry in PostgreSQL
         const inq = initialData as Inquiry;
-        inq.clientFirstName = firstName.trim();
-        inq.clientLastName = lastName.trim();
-        inq.clientPhone = phone;
-        inq.serviceLine = (serviceLine as ServiceLine) || 'home_health';
-        inq.branch = branch;
-        inq.serviceRequested = sourceOrService;
-        inq.followUpDate = targetDate;
-        inq.assignedTeamMember = assignedClinician;
-        inq.comments = notes;
-        onSuccess?.(`Updated inquiry for ${inq.clientFirstName} ${inq.clientLastName}`);
+        const contactParts = contactName.trim().split(' ');
+        updateInquiry(inq.id, {
+          clientFirstName: firstName.trim(),
+          clientLastName: lastName.trim(),
+          clientPhone: phone,
+          contactFirstName: contactParts[0] || inq.contactFirstName,
+          contactLastName: contactParts.slice(1).join(' ') || inq.contactLastName,
+          contactPhone: contactPhone || phone,
+          contactRelationship: contactRelation,
+          serviceLine: (serviceLine as ServiceLine) || 'home_health',
+          branch: branch,
+          serviceRequested: sourceOrService,
+          followUpDate: targetDate,
+          assignedTeamMember: assignedClinician,
+          comments: notes,
+        });
+        onSuccess?.(`Updated inquiry for ${firstName.trim()} ${lastName.trim()}`);
       } else {
         // Create new inquiry
         const contactParts = contactName.trim().split(' ');

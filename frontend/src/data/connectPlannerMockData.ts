@@ -163,7 +163,7 @@ export const initialMessagesMap: Record<string, ChatMessage[]> = {
       senderName: 'Dr. Mallishree Gupta',
       senderRole: 'Attending Physician',
       isCurrentUser: false,
-      content: 'Reviewing the photo now. Looks much cleaner than last week. Please renew the dressing order for 14 more days. Order signed in Axxess.',
+      content: 'Reviewing the photo now. Looks much cleaner than last week. Please renew the dressing order for 14 more days. Order signed in CareOrbit.',
       timestamp: '10:05 AM',
       date: 'Today',
       isRead: true

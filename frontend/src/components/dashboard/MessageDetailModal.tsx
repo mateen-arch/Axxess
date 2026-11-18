@@ -90,7 +90,7 @@ export const MessageDetailModal: React.FC = () => {
             className="btn-primary text-xs"
           >
             <Reply size={14} />
-            <span>Reply via Axxess Connect</span>
+            <span>Reply via CareOrbit Connect</span>
           </button>
         </div>
       </div>

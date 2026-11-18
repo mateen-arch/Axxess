@@ -44,7 +44,7 @@ export const PatientCalendarView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'weekly' | 'daily'>('weekly');
   const [activeDayIndex, setActiveDayIndex] = useState<number>(2); // 2 = Tuesday Nov 3 (Today)
 
-  // Filter States matching Axxess reference
+  // Filter States matching CareOrbit reference
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>(['org-hh', 'org-hc']);
   const [selectedBranches, setSelectedBranches] = useState<string[]>(['branch-1', 'branch-2']);
@@ -105,7 +105,10 @@ export const PatientCalendarView: React.FC = () => {
       d.setDate(currentSunday.getDate() + i);
       const dateNumber = String(d.getDate());
       const dateStr = `${monthNames[d.getMonth()]} ${d.getDate()}`;
-      const fullDate = d.toISOString().slice(0, 10);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(d.getDate()).padStart(2, '0');
+      const fullDate = `${year}-${month}-${dayNum}`;
       const isToday = weekOffset === 0 && i === 2; // Tue Nov 3
 
       return {
@@ -149,7 +152,7 @@ export const PatientCalendarView: React.FC = () => {
     return Array.from(map.values());
   }, [employeeVisits]);
 
-  // Filter Patients matching Axxess filters
+  // Filter Patients matching CareOrbit filters
   const filteredPatients = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
 
@@ -352,7 +355,7 @@ export const PatientCalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Tier 2: Search & Filter Controls matching Axxess reference */}
+        {/* Tier 2: Search & Filter Controls matching CareOrbit reference */}
         <div className="pt-3 border-t border-pearl-200/80 dark:border-charcoal-700/80">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 items-end">
             {/* Organization */}

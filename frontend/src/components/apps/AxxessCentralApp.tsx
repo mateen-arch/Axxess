@@ -3,13 +3,13 @@ import { useHealthcare } from '../../context/HealthcareContext';
 import { Sidebar } from '../layout/Sidebar';
 import { TopHeader } from '../layout/TopHeader';
 import { BentoGrid } from '../dashboard/BentoGrid';
-import { PatientsView } from '../patients/PatientsView';
+import { PatientChartsView } from '../patients/PatientChartsView';
 import { ScheduleView } from '../schedule/ScheduleView';
 import { IntakeView } from '../intake/IntakeView';
 import { ReportCenterView } from '../reports/ReportCenterView';
 import { ConnectAndPlannerSuite } from '../connect/ConnectAndPlannerSuite';
 
-export const AxxessCentralApp: React.FC = () => {
+export const CareOrbitCentralApp: React.FC = () => {
   const { activeNavTab, organization } = useHealthcare();
 
   const renderActiveView = () => {
@@ -17,7 +17,7 @@ export const AxxessCentralApp: React.FC = () => {
       case 'dashboard':
         return <BentoGrid />;
       case 'patients':
-        return <PatientsView />;
+        return <PatientChartsView />;
       case 'schedule':
         return <ScheduleView />;
       case 'intake':
@@ -51,7 +51,7 @@ export const AxxessCentralApp: React.FC = () => {
         {/* Modern Enterprise Status Footer */}
         <footer className="app-footer mt-auto py-3.5 px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] transition-colors">
           <div className="flex items-center gap-3">
-            <span className="font-extrabold text-slate-800 dark:text-slate-200">Axxess Central Healthcare</span>
+            <span className="font-extrabold text-slate-800 dark:text-slate-200">CareOrbit Central Healthcare</span>
             <span>•</span>
             <span>Release Version: {organization.releaseVersion}</span>
             <span>•</span>

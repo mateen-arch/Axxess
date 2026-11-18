@@ -1,9 +1,9 @@
 import React from 'react';
 import { HealthcareProvider, useHealthcare } from './context/HealthcareContext';
-import { AxxessHubLanding } from './components/portal/AxxessHubLanding';
-import { AxxessCentralApp } from './components/apps/AxxessCentralApp';
-import { AxxessHomeHealthApp } from './components/apps/AxxessHomeHealthApp';
-import { AxxessConnectApp } from './components/apps/AxxessConnectApp';
+import { CareOrbitHubLanding } from './components/portal/CareOrbitHubLanding';
+import { CareOrbitCentralApp } from './components/apps/CareOrbitCentralApp';
+import { CareOrbitHomeHealthApp } from './components/apps/CareOrbitHomeHealthApp';
+import { CareOrbitConnectApp } from './components/apps/CareOrbitConnectApp';
 import { CommandPaletteModal } from './components/layout/CommandPaletteModal';
 import { PatientDrawer } from './components/patients/PatientDrawer';
 import { NewPatientModal } from './components/patients/NewPatientModal';
@@ -17,15 +17,15 @@ const MainAppContent: React.FC = () => {
   const renderCurrentWebsite = () => {
     switch (currentWebsite) {
       case 'hub':
-        return <AxxessHubLanding />;
+        return <CareOrbitHubLanding />;
       case 'central':
-        return <AxxessCentralApp />;
+        return <CareOrbitCentralApp />;
       case 'home_health':
-        return <AxxessHomeHealthApp />;
+        return <CareOrbitHomeHealthApp />;
       case 'connect':
-        return <AxxessConnectApp />;
+        return <CareOrbitConnectApp />;
       default:
-        return <AxxessHubLanding />;
+        return <CareOrbitHubLanding />;
     }
   };
 

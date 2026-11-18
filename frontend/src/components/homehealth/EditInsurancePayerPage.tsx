@@ -86,7 +86,7 @@ export const EditInsurancePayerPage: React.FC<EditInsurancePayerPageProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -217,7 +217,7 @@ export const EditInsurancePayerPage: React.FC<EditInsurancePayerPageProps> = ({
                       <option value="Availity">Availity</option>
                       <option value="ZirMed">ZirMed</option>
                       <option value="Claimsnet">Claimsnet</option>
-                      <option value="Axxess">Axxess</option>
+                      <option value="CareOrbit">CareOrbit</option>
                       <option value="None">None</option>
                     </select>
                   </div>

@@ -9,8 +9,8 @@ import {
   Clock
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
-import { AxxessConnectView } from './AxxessConnectView';
-import { AxxessPlannerView } from '../planner/AxxessPlannerView';
+import { CareOrbitConnectView } from './CareOrbitConnectView';
+import { CareOrbitPlannerView } from '../planner/CareOrbitPlannerView';
 import { ActiveCallDialog } from './ActiveCallDialog';
 
 export const ConnectAndPlannerSuite: React.FC = () => {
@@ -71,11 +71,11 @@ export const ConnectAndPlannerSuite: React.FC = () => {
         </div>
 
         {/* ==================================================================== */}
-        {/* SUB-HEADER TABS: Axxess Connect vs Axxess Planner (Authentic look)   */}
+        {/* SUB-HEADER TABS: CareOrbit Connect vs CareOrbit Planner (Authentic look)   */}
         {/* ==================================================================== */}
         <div className="mt-3 pt-2 border-t border-pearl-200/80 dark:border-charcoal-700/80 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            {/* Axxess Connect Tab */}
+            {/* CareOrbit Connect Tab */}
             <button
               type="button"
               onClick={() => setConnectModule('connect')}
@@ -86,7 +86,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
               }`}
             >
               <MessageSquare size={14} />
-              <span>Axxess Connect</span>
+              <span>CareOrbit Connect</span>
               {unreadMessagesCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full font-mono text-[9px] font-black bg-rose-600 text-white">
                   {unreadMessagesCount}
@@ -97,7 +97,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
               )}
             </button>
 
-            {/* Axxess Planner Tab */}
+            {/* CareOrbit Planner Tab */}
             <button
               type="button"
               onClick={() => setConnectModule('planner')}
@@ -108,7 +108,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
               }`}
             >
               <Calendar size={14} />
-              <span>Axxess Planner</span>
+              <span>CareOrbit Planner</span>
               {pendingPlannerCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full font-mono text-[9px] font-black bg-amber-500 text-white">
                   {pendingPlannerCount}
@@ -126,7 +126,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
               type="button"
               onClick={() => setConnectModule('connect')}
               className="p-1.5 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-750 text-slate-500 hover:text-rose-600 transition-colors relative cursor-pointer"
-              title="Axxess Connect Messages"
+              title="CareOrbit Connect Messages"
             >
               <MessageSquare size={15} />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500" />
@@ -149,7 +149,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
       {/* ==================================================================== */}
       {/* 2. DYNAMIC WORKSPACE: Connect or Planner                             */}
       {/* ==================================================================== */}
-      {connectModule === 'connect' ? <AxxessConnectView /> : <AxxessPlannerView />}
+      {connectModule === 'connect' ? <CareOrbitConnectView /> : <CareOrbitPlannerView />}
 
       {/* ==================================================================== */}
       {/* 3. BOTTOM BANNER (Authentic dynamic banner from screenshots)         */}
@@ -163,7 +163,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
                 <Sparkles size={16} className="text-amber-300" />
               </div>
               <div className="text-xs">
-                <span className="font-extrabold text-white mr-2">Axxess Central</span>
+                <span className="font-extrabold text-white mr-2">CareOrbit Central</span>
                 <span className="text-rose-100 font-medium">Increase your revenue through streamlined Intake</span>
               </div>
             </div>
@@ -194,7 +194,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
                 <Sparkles size={16} className="text-amber-300" />
               </div>
               <div className="text-xs">
-                <span className="font-extrabold text-amber-300 mr-2">Axxess intelligence</span>
+                <span className="font-extrabold text-amber-300 mr-2">CareOrbit intelligence</span>
                 <span className="text-slate-200 font-medium">Looking for ways to streamline your operations?</span>
               </div>
             </div>
@@ -202,10 +202,10 @@ export const ConnectAndPlannerSuite: React.FC = () => {
             <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
               <button
                 type="button"
-                onClick={() => alert('Axxess AI Assistant activated!')}
+                onClick={() => alert('CareOrbit AI Assistant activated!')}
                 className="px-4 py-1.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs transition-colors cursor-pointer shadow-xs"
               >
-                Ask Axxess Now
+                Ask CareOrbit Now
               </button>
               <button
                 type="button"

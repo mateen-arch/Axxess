@@ -8,7 +8,6 @@ import {
   ChartLineUp,
   ChatCenteredText,
   CheckSquare,
-  VideoCamera,
   ClipboardText,
   NotePencil,
   Sparkle,
@@ -22,7 +21,7 @@ import {
   CaretDown,
   CaretRight,
 } from '@phosphor-icons/react';
-import { AxxessLogo } from '../../assets/AxxessLogo';
+import { CareOrbitLogo } from '../../assets/CareOrbitLogo';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { HOME_HEALTH_NAV_SECTIONS, type HomeHealthNavNode } from '../homehealth/homeHealthNavigation';
 
@@ -314,7 +313,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view: MagnifyingGlass,
     reports: ChartLineUp,
     help: Question,
-    'axxess-intelligence': Sparkle,
+    'careorbit-intelligence': Sparkle,
   };
 
   const toggleSection = (sectionId: string) => {
@@ -366,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'patients',
-      label: 'Patients Directory',
+      label: isHomeHealth ? 'Patients Directory' : 'Patient Charts',
       icon: UsersFour,
       color: '#E11D48',
       badge: `${census.total}`,
@@ -396,14 +395,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       color: '#E11D48',
       badge: '3',
       onAction: () => setConnectModule('planner'),
-    },
-    {
-      id: 'telehealth',
-      label: 'Telehealth Rooms',
-      icon: VideoCamera,
-      color: '#E11D48',
-      badge: 'Live',
-      onAction: () => setConnectModule('connect'),
     },
   ];
 
@@ -438,7 +429,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               aria-label="Return to Portal Hub"
               title="Return to Portal Hub"
             >
-              <AxxessLogo size="sm" collapsed={!isOpen} productLabel={productLabel} />
+              <CareOrbitLogo size="sm" collapsed={!isOpen} productLabel={productLabel} />
             </button>
 
             {/* Circular Collapse Toggle Button */}

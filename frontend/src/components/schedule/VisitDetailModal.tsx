@@ -22,13 +22,15 @@ interface VisitDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (msg: string) => void;
+  onStatusChange?: () => void;
 }
 
 export const VisitDetailModal: React.FC<VisitDetailModalProps> = ({
   visit,
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  onStatusChange
 }) => {
   const { updateEmployeeVisitStatus, deleteEmployeeVisit } = useHealthcare();
 
@@ -55,6 +57,7 @@ export const VisitDetailModal: React.FC<VisitDetailModalProps> = ({
 
   const handleStatusChange = (newStatus: EmployeeVisit['status']) => {
     updateEmployeeVisitStatus(visit.id, newStatus);
+    onStatusChange?.();
     onSuccess?.(`Visit status updated to ${newStatus}`);
     onClose();
   };

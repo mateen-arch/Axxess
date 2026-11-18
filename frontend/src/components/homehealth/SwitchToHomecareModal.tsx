@@ -30,15 +30,10 @@ export const SwitchToHomecareModal: React.FC<SwitchToHomecareModalProps> = ({
 
   const handleSwitch = () => {
     setIsSwitching(true);
+    setSwitchDone(true);
     setTimeout(() => {
-      setServiceFilter('home_care');
-      setIsSwitching(false);
-      setSwitchDone(true);
-      setTimeout(() => {
-        onSwitched?.();
-        onClose();
-      }, 1000);
-    }, 800);
+      window.location.href = 'https://homecare2.axxessweb.com/';
+    }, 600);
   };
 
   return (

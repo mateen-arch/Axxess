@@ -3,7 +3,7 @@ import { Sparkles, Activity, ShieldCheck, ArrowUpRight, TrendingUp, CheckCircle2
 import { useHealthcare } from '../../context/HealthcareContext';
 
 export const HeroWelcome: React.FC = () => {
-  const { organization, census, scheduledSummary, unreadCount, setActiveNavTab } = useHealthcare();
+  const { organization, census, scheduledSummary, unassignedVisits7Days, unreadCount, setActiveNavTab } = useHealthcare();
 
   return (
     <div className="glass-panel p-6 md:p-8 mb-6 relative overflow-hidden transition-colors">
@@ -17,7 +17,7 @@ export const HeroWelcome: React.FC = () => {
           <div className="space-y-2 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-rose-100/80 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 shadow-2xs">
               <span className="pulse-indicator red"></span>
-              <span>Axxess Healthcare Cloud</span>
+              <span>CareOrbit Healthcare Cloud</span>
               <span className="text-slate-400 dark:text-slate-500">•</span>
               <span className="font-extrabold text-slate-900 dark:text-white">{organization.name}</span>
             </div>
@@ -26,7 +26,7 @@ export const HeroWelcome: React.FC = () => {
               Clinical Operations Dashboard
             </h1>
             <p className="text-slate-700 dark:text-slate-300 text-xs md:text-sm font-semibold leading-relaxed">
-              Welcome back, Alexandria. You have <strong className="text-rose-700 dark:text-rose-400 font-extrabold">{census.total} active patients</strong> under active care with zero unassigned visits for the next 7 days.
+              Welcome back. You have <strong className="text-rose-700 dark:text-rose-400 font-extrabold">{census.total} active patients</strong> under active care with {unassignedVisits7Days.total === 0 ? 'zero' : unassignedVisits7Days.total} unassigned visits for the next 7 days.
             </p>
           </div>
 
@@ -60,7 +60,7 @@ export const HeroWelcome: React.FC = () => {
 
             <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
               <TrendingUp size={14} className="shrink-0 stroke-[2.5]" />
-              <span>75 Health • 12 Care</span>
+              <span>{census.homeHealth} Health • {census.homeCare} Care</span>
             </div>
           </div>
 
@@ -80,13 +80,13 @@ export const HeroWelcome: React.FC = () => {
 
             <div className="my-2">
               <div className="text-3xl md:text-4xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">
-                {scheduledSummary.unassigned}
+                {unassignedVisits7Days.total}
               </div>
             </div>
 
             <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 size={14} className="shrink-0 stroke-[2.5]" />
-              <span>100% Dispatched</span>
+              <span>{unassignedVisits7Days.total === 0 ? '100% Dispatched' : `${unassignedVisits7Days.total} Unassigned`}</span>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export const HeroWelcome: React.FC = () => {
 
             <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-700 dark:text-amber-400">
               <AlertCircle size={14} className="shrink-0 stroke-[2.5]" />
-              <span>Requires review</span>
+              <span>{unreadCount > 0 ? 'Requires review' : 'All caught up'}</span>
             </div>
           </div>
         </div>

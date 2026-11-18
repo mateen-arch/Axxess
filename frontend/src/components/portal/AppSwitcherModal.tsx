@@ -15,7 +15,7 @@ export const AppSwitcherModal: React.FC<AppSwitcherModalProps> = ({ isOpen, onCl
   const websites = [
     {
       id: 'central' as const,
-      title: 'Axxess Central',
+      title: 'CareOrbit Central',
       category: 'Enterprise, Intake & Operations Hub',
       icon: Building2,
       color: 'from-blue-600 to-indigo-600',
@@ -24,7 +24,7 @@ export const AppSwitcherModal: React.FC<AppSwitcherModalProps> = ({ isOpen, onCl
     },
     {
       id: 'connect' as const,
-      title: 'Axxess Connect',
+      title: 'CareOrbit Connect',
       category: 'Messaging & Route Planner',
       icon: MessageSquare,
       color: 'from-purple-600 to-pink-600',
@@ -33,7 +33,7 @@ export const AppSwitcherModal: React.FC<AppSwitcherModalProps> = ({ isOpen, onCl
     },
     {
       id: 'home_health' as const,
-      title: 'Axxess Home Health',
+      title: 'CareOrbit Home Health',
       category: 'Clinical Point-of-Care EHR',
       icon: Stethoscope,
       color: 'from-amber-600 to-rose-600',
@@ -60,7 +60,7 @@ export const AppSwitcherModal: React.FC<AppSwitcherModalProps> = ({ isOpen, onCl
               <LayoutGrid size={20} />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Axxess App Switcher</h3>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">CareOrbit App Switcher</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Switch workspace or return to the main portal</p>
             </div>
           </div>

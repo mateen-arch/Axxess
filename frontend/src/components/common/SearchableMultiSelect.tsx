@@ -15,7 +15,8 @@ interface SearchableMultiSelectProps {
   searchPlaceholder?: string;
   headerTitle?: string;
   options: (string | MultiSelectOption)[];
-  selectedValues: string[];
+  selectedValues?: string[];
+  selectedIds?: string[];
   onChange: (selected: string[]) => void;
   className?: string;
   allLabel?: string;
@@ -28,12 +29,14 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
   searchPlaceholder = 'Search...',
   headerTitle,
   options,
-  selectedValues,
+  selectedValues: propsSelectedValues,
+  selectedIds,
   onChange,
   className = '',
   allLabel = 'All Selected',
   showSelectAll = true
 }) => {
+  const selectedValues = propsSelectedValues || selectedIds || [];
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);

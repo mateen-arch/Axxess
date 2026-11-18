@@ -22,23 +22,29 @@ import { UnassignedVisitsView } from './UnassignedVisitsView';
 import { HuvSfvStatusReportView } from './HuvSfvStatusReportView';
 
 export const ScheduleView: React.FC = () => {
-  const { scheduleMode, setScheduleMode, employeeVisits, unassignedVisits, clinicians } = useHealthcare();
+  const { scheduleMode, setScheduleMode, employeeVisits, unassignedVisits, clinicians, huvSfvRecords, scheduleStats } = useHealthcare();
   const [scheduleSubTab, setScheduleSubTab] = useState<'employee' | 'patient' | 'unassigned' | 'huv_sfv'>('employee');
 
-  const totalWeeklyVisits = employeeVisits.length;
-  const completedVisits = employeeVisits.filter(v => v.status === 'completed').length;
-  const inProgressVisits = employeeVisits.filter(v => v.status === 'in_progress').length;
-  const activeCliniciansCount = clinicians.filter(c => c.status === 'active').length;
+  const totalWeeklyVisits = scheduleStats?.totalWeeklyVisits ?? employeeVisits.length;
+  const completedVisits = scheduleStats?.completedVisits ?? employeeVisits.filter(v => v.status === 'completed' || v.evvStatus === 'verified').length;
+  const inProgressVisits = scheduleStats?.inProgressVisits ?? employeeVisits.filter(v => v.status === 'in_progress').length;
+  const activeCliniciansCount = scheduleStats?.activeCliniciansCount ?? clinicians.filter(c => c.status === 'active').length;
+
+  const totalAuditTasks = scheduleStats?.huvSfvReport?.totalAuditTasks ?? huvSfvRecords.length;
+  const huvEncounters = scheduleStats?.huvSfvReport?.huvEncounters ?? huvSfvRecords.filter(r => r.type === 'HUV').length;
+  const sfvEncounters = scheduleStats?.huvSfvReport?.sfvEncounters ?? huvSfvRecords.filter(r => r.type === 'SFV').length;
+  const dueWithin3Days = scheduleStats?.huvSfvReport?.dueWithin3Days ?? huvSfvRecords.filter(r => r.daysRemaining <= 3).length;
 
   return (
     <div className="space-y-5 animate-fadeIn">
       {/* Top Header & Navigation Segment */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-1">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-            Schedule Center
+          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+            <CalendarDays className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+            <span>Schedule Center</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Field clinician rosters, territory routes, and Electronic Visit Verification (EVV)
           </p>
         </div>
@@ -256,7 +262,7 @@ export const ScheduleView: React.FC = () => {
                   Total Audit Tasks
                 </div>
                 <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  12
+                  {totalAuditTasks}
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
@@ -270,7 +276,7 @@ export const ScheduleView: React.FC = () => {
                   HUV Encounters
                 </div>
                 <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
-                  8
+                  {huvEncounters}
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
@@ -284,7 +290,7 @@ export const ScheduleView: React.FC = () => {
                   SFV Encounters
                 </div>
                 <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                  4
+                  {sfvEncounters}
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -298,7 +304,7 @@ export const ScheduleView: React.FC = () => {
                   Due Within 3 Days
                 </div>
                 <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                  3
+                  {dueWithin3Days}
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">

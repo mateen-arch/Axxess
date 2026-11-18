@@ -259,7 +259,7 @@ export const initialMessages: MessageItem[] = [
   },
   {
     id: 'msg-05',
-    senderName: 'Axxess Clinical Support',
+    senderName: 'CareOrbit Clinical Support',
     senderRole: 'System Alert',
     subject: 'Test Notification - Standards Home Care Gateway Synchronized',
     snippet: 'Daily EVV GPS coordinates and electronic signature audit trail completed with zero packet drops.',
@@ -873,15 +873,15 @@ export const initialVisits: ScheduledVisit[] = [
 export const initialAnnouncements: AnnouncementItem[] = [
   {
     id: 'ann-1',
-    title: 'Axxess Central Overview & Keynote',
-    summary: 'A deep-dive video into modern care delivery, palliative technology, and patient-first care models with Axxess.',
+    title: 'CareOrbit Central Overview & Keynote',
+    summary: 'A deep-dive video into modern care delivery, palliative technology, and patient-first care models with CareOrbit.',
     category: 'Care Leadership',
     videoEmbedUrl: 'https://www.youtube.com/embed/PvexmWMy--E',
     timestamp: 'Featured Keynote'
   },
   {
     id: 'ann-2',
-    title: 'How Axxess Intelligence Reduces Administrative Burden in Care at Home',
+    title: 'How CareOrbit Intelligence Reduces Administrative Burden in Care at Home',
     summary: 'Administrative responsibilities continue to grow within care at home. Discover how AI documentation, auto-scheduling, and smart QA validation give clinicians hours back.',
     category: 'Clinical AI',
     timestamp: '3 hours ago'

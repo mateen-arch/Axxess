@@ -12,7 +12,7 @@ export const MessagesView: React.FC = () => {
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <MessageSquareText className="text-rose-600 dark:text-rose-400" size={24} />
-            Axxess Connect (Secure Messaging)
+            CareOrbit Connect (Secure Messaging)
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
             HIPAA-compliant interdisciplinary messaging between clinical supervisors, physicians, and field nurses

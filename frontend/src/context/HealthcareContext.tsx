@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { api } from '../services/api';
 import {
   initialOrganization,
   initialCensus,
@@ -28,23 +29,65 @@ import {
   PlannerTaskItem,
   PlannerTaskStage
 } from '../types/connectAndPlanner';
-import { Patient, PatientChartTask, ScheduledVisit, MessageItem, AnnouncementItem, ServiceLine, Inquiry, Referral, EmployeeClinician, EmployeeVisit, UnassignedPatientVisit, HomeHealthEpisode, HomeHealthCommunicationNote, HomeHealthOrder, FaceToFaceEncounter, Facility, Pharmacy, InsurancePayer } from '../types';
+import { Patient, PatientChartTask, ScheduledVisit, MessageItem, AnnouncementItem, ServiceLine, Inquiry, Referral, EmployeeClinician, EmployeeVisit, UnassignedPatientVisit, HuvSfvRecord, HomeHealthEpisode, HomeHealthCommunicationNote, HomeHealthOrder, FaceToFaceEncounter, Facility, Pharmacy, InsurancePayer, IncidentLog } from '../types';
 
 interface HealthcareContextType {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  organization: typeof initialOrganization;
-  census: typeof initialCensus;
-  intakeMetrics: typeof initialIntakeMetrics;
-  scheduledSummary: typeof initialScheduledVisitsSummary;
+  organization: {
+    id: string;
+    name: string;
+    code: string;
+    environment: string;
+    releaseVersion: string;
+  };
+  census: {
+    total: number;
+    homeHealth: number;
+    homeCare: number;
+    hospice: number;
+    percentageHealth: number;
+    percentageCare: number;
+  };
+  unassignedVisits7Days: {
+    total: number;
+    homeHealth: number;
+    homeCare: number;
+  };
+  intakeMetrics: Array<{
+    service: string;
+    inquiry: number;
+    referral: number;
+    admitted: number;
+    conversionRate: string;
+  }>;
+  scheduledSummary: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    notYetStarted: number;
+    unassigned: number;
+    missed: number;
+    homeHealthTotal: number;
+    homeHealthCompleted: number;
+    homeHealthMissed: number;
+    homeHealthUnassigned: number;
+    homeCareTotal: number;
+    homeCareCompleted: number;
+    homeCareMissed: number;
+    homeCareUnassigned: number;
+  };
+  refreshDashboardData: () => Promise<void>;
   messages: MessageItem[];
-  addMessage: (message: Omit<MessageItem, 'id'>) => void;
+  addMessage: (message: Omit<MessageItem, 'id'>) => Promise<any> | void;
   homeHealthEpisodes: HomeHealthEpisode[];
-  addHomeHealthEpisode: (episode: Omit<HomeHealthEpisode, 'id'>) => void;
+  addHomeHealthEpisode: (episode: Omit<HomeHealthEpisode, 'id'>) => Promise<any> | void;
   communicationNotes: HomeHealthCommunicationNote[];
-  addCommunicationNote: (note: Omit<HomeHealthCommunicationNote, 'id'>) => void;
+  addCommunicationNote: (note: Omit<HomeHealthCommunicationNote, 'id'>) => Promise<any> | void;
   orders: HomeHealthOrder[];
-  addHomeHealthOrder: (order: Omit<HomeHealthOrder, 'id' | 'createdAt'>) => void;
+  addHomeHealthOrder: (order: Omit<HomeHealthOrder, 'id' | 'createdAt'>) => Promise<any> | void;
+  incidentLogs: IncidentLog[];
+  addIncidentLog: (log: Omit<IncidentLog, 'id' | 'createdAt'>) => Promise<any> | void;
   faceToFaceEncounters: FaceToFaceEncounter[];
   addFaceToFaceEncounter: (encounter: Omit<FaceToFaceEncounter, 'id' | 'createdAt'>) => void;
   facilities: Facility[];
@@ -61,6 +104,8 @@ interface HealthcareContextType {
   clinicians: EmployeeClinician[];
   employeeVisits: EmployeeVisit[];
   unassignedVisits: UnassignedPatientVisit[];
+  huvSfvRecords: HuvSfvRecord[];
+  scheduleStats: any;
   scheduleMode: 'calendar' | 'map';
   setScheduleMode: (mode: 'calendar' | 'map') => void;
   addEmployeeVisit: (visit: Omit<EmployeeVisit, 'id'>) => void;
@@ -103,18 +148,20 @@ interface HealthcareContextType {
   setIsCommandPaletteOpen: (open: boolean) => void;
   activeVideo: AnnouncementItem | null;
   setActiveVideo: (announcement: AnnouncementItem | null) => void;
-  addNewPatient: (patient: Omit<Patient, 'id' | 'mrn'> & { mrn?: string }) => void;
-  addNewInquiry: (inquiry: Omit<Inquiry, 'id'>) => void;
-  addNewReferral: (referral: Omit<Referral, 'id'>) => void;
-  deleteReferral: (id: string) => void;
-  convertInquiryToReferral: (id: string) => void;
-  deleteInquiry: (id: string) => void;
+  addNewPatient: (patient: Omit<Patient, 'id' | 'mrn'> & { mrn?: string }) => Promise<any> | void;
+  addNewInquiry: (inquiry: Omit<Inquiry, 'id'>) => Promise<void> | void;
+  updateInquiry: (id: string, inquiry: Partial<Inquiry>) => Promise<void> | void;
+  addNewReferral: (referral: Omit<Referral, 'id'>) => Promise<void> | void;
+  updateReferral: (id: string, referral: Partial<Referral>) => Promise<void> | void;
+  deleteReferral: (id: string) => Promise<void> | void;
+  convertInquiryToReferral: (id: string) => Promise<void> | void;
+  deleteInquiry: (id: string) => Promise<void> | void;
 
   // Platform Website Architecture ('hub' | 'central' | 'home_health' | 'connect')
   currentWebsite: 'hub' | 'central' | 'home_health' | 'connect';
   setCurrentWebsite: (site: 'hub' | 'central' | 'home_health' | 'connect') => void;
 
-  // Axxess Connect & Planner Suite
+  // CareOrbit Connect & Planner Suite
   connectModule: 'connect' | 'planner';
   setConnectModule: (module: 'connect' | 'planner') => void;
   conversations: ChatConversation[];
@@ -125,6 +172,9 @@ interface HealthcareContextType {
   markConversationRead: (conversationId: string) => void;
   callLogs: CallLogItem[];
   addCallLog: (call: Omit<CallLogItem, 'id'>) => void;
+  createNewConversation: (data: any) => Promise<any>;
+  fetchMessagesForConversation: (convId: string) => Promise<void>;
+  refreshConnectConversations: () => Promise<void>;
   plannerTasks: PlannerTaskItem[];
   addPlannerTask: (task: Omit<PlannerTaskItem, 'id'>) => void;
   updatePlannerTaskStage: (taskId: string, stage: PlannerTaskStage) => void;
@@ -154,55 +204,205 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const [organization] = useState(initialOrganization);
-  const [census] = useState(initialCensus);
-  const [intakeMetrics] = useState(initialIntakeMetrics);
-  const [scheduledSummary] = useState(initialScheduledVisitsSummary);
-  const [messages, setMessages] = useState<MessageItem[]>(initialMessages);
+  const [organization, setOrganization] = useState({
+    id: 'org-shc-01',
+    name: 'Standards Home Care',
+    code: 'SHC-001',
+    environment: 'production',
+    releaseVersion: 'v2.4.0-cloud',
+  });
+  const [census, setCensus] = useState({
+    total: 0,
+    homeHealth: 0,
+    homeCare: 0,
+    hospice: 0,
+    percentageHealth: 0,
+    percentageCare: 0,
+  });
+  const [unassignedVisits7Days, setUnassignedVisits7Days] = useState({
+    total: 0,
+    homeHealth: 0,
+    homeCare: 0,
+  });
+  const [intakeMetrics, setIntakeMetrics] = useState<Array<{
+    service: string;
+    inquiry: number;
+    referral: number;
+    admitted: number;
+    conversionRate: string;
+  }>>([]);
+  const [scheduledSummary, setScheduledSummary] = useState({
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    notYetStarted: 0,
+    unassigned: 0,
+    missed: 0,
+    homeHealthTotal: 0,
+    homeHealthCompleted: 0,
+    homeHealthMissed: 0,
+    homeHealthUnassigned: 0,
+    homeCareTotal: 0,
+    homeCareCompleted: 0,
+    homeCareMissed: 0,
+    homeCareUnassigned: 0,
+  });
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(initialAnnouncements);
+
+  const refreshDashboardData = useCallback(async () => {
+    try {
+      const [
+        orgRes, metricsRes, msgRes, annRes, inqRes, refRes,
+        patRes, clinRes, visitsRes, unassignedRes, huvSfvRes, schedStatsRes,
+        connectConvRes, connectCallLogsRes, episodesRes, commNotesRes, ordersRes, incidentLogsRes
+      ] = await Promise.allSettled([
+        api.getOrganization(),
+        api.getDashboardMetrics(),
+        api.getMessages(),
+        api.getAnnouncements(),
+        api.getInquiries(),
+        api.getReferrals(),
+        api.getPatients(),
+        api.getClinicians(),
+        api.getScheduleVisits(),
+        api.getUnassignedVisits(),
+        api.getHuvSfvRecords(),
+        api.getScheduleStats(),
+        api.getConnectConversations(),
+        api.getConnectCallLogs(),
+        api.getEpisodes(),
+        api.getCommunicationNotes(),
+        api.getOrders(),
+        api.getIncidentLogs(),
+      ]);
+
+      if (connectConvRes.status === 'fulfilled' && Array.isArray(connectConvRes.value)) {
+        setConversations(connectConvRes.value);
+      }
+
+      if (connectCallLogsRes.status === 'fulfilled' && Array.isArray(connectCallLogsRes.value)) {
+        setCallLogs(connectCallLogsRes.value);
+      }
+
+      if (inqRes.status === 'fulfilled') {
+        setInquiries(inqRes.value);
+      }
+
+      if (refRes.status === 'fulfilled') {
+        setReferrals(refRes.value);
+      }
+
+      if (patRes.status === 'fulfilled') {
+        setPatients(patRes.value);
+      }
+
+      if (clinRes.status === 'fulfilled') {
+        setClinicians(clinRes.value);
+      }
+
+      if (visitsRes.status === 'fulfilled') {
+        setEmployeeVisits(visitsRes.value);
+      }
+
+      if (unassignedRes.status === 'fulfilled') {
+        setUnassignedVisits(unassignedRes.value);
+      }
+
+      if (huvSfvRes.status === 'fulfilled') {
+        setHuvSfvRecords(huvSfvRes.value);
+      }
+
+      if (schedStatsRes.status === 'fulfilled') {
+        setScheduleStats(schedStatsRes.value);
+      }
+
+      if (orgRes.status === 'fulfilled') {
+        setOrganization(orgRes.value);
+      }
+
+      if (metricsRes.status === 'fulfilled') {
+        const m = metricsRes.value;
+        const total = m.activePatients?.total || 0;
+        const hh = m.activePatients?.homeHealth || 0;
+        const hc = m.activePatients?.homeCare || 0;
+        const hospice = m.activePatients?.hospice || 0;
+        const pctHealth = total > 0 ? Math.round((hh / total) * 100) : 0;
+        const pctCare = total > 0 ? Math.round((hc / total) * 100) : 0;
+
+        setCensus({
+          total,
+          homeHealth: hh,
+          homeCare: hc,
+          hospice,
+          percentageHealth: pctHealth,
+          percentageCare: pctCare,
+        });
+
+        if (m.unassignedVisits7Days) {
+          setUnassignedVisits7Days(m.unassignedVisits7Days);
+        }
+
+        if (m.intakeLast30Days) {
+          setIntakeMetrics(m.intakeLast30Days);
+        }
+
+        if (m.scheduledVisitsLast30Days) {
+          const s = m.scheduledVisitsLast30Days;
+          setScheduledSummary({
+            total: s.total || 0,
+            completed: s.completed || 0,
+            inProgress: s.inProgress || 0,
+            notYetStarted: s.scheduled || 0,
+            unassigned: s.unassigned || 0,
+            missed: s.missed || 0,
+            homeHealthTotal: s.homeHealthTotal || 0,
+            homeHealthCompleted: s.homeHealthCompleted || 0,
+            homeHealthMissed: s.homeHealthMissed || 0,
+            homeHealthUnassigned: s.homeHealthUnassigned || 0,
+            homeCareTotal: s.homeCareTotal || 0,
+            homeCareCompleted: s.homeCareCompleted || 0,
+            homeCareMissed: s.homeCareMissed || 0,
+            homeCareUnassigned: s.homeCareUnassigned || 0,
+          });
+        }
+      }
+
+      if (msgRes.status === 'fulfilled') {
+        setMessages(msgRes.value);
+      }
+
+      if (annRes.status === 'fulfilled' && annRes.value.length > 0) {
+        setAnnouncements(annRes.value);
+      }
+
+      if (episodesRes.status === 'fulfilled' && Array.isArray(episodesRes.value)) {
+        setHomeHealthEpisodes(episodesRes.value);
+      }
+
+      if (commNotesRes.status === 'fulfilled' && Array.isArray(commNotesRes.value)) {
+        setCommunicationNotes(commNotesRes.value);
+      }
+
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+        setOrders(ordersRes.value);
+      }
+
+      if (incidentLogsRes.status === 'fulfilled' && Array.isArray(incidentLogsRes.value)) {
+        setIncidentLogs(incidentLogsRes.value);
+      }
+    } catch (err) {
+      console.error('[HealthcareContext] Error fetching dashboard data from backend:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshDashboardData();
+  }, [refreshDashboardData]);
   const [homeHealthEpisodes, setHomeHealthEpisodes] = useState<HomeHealthEpisode[]>([]);
   const [communicationNotes, setCommunicationNotes] = useState<HomeHealthCommunicationNote[]>([]);
-  const [orders, setOrders] = useState<HomeHealthOrder[]>([
-    {
-      id: 'ord-101',
-      patientId: 'pat-1',
-      patientName: 'Lantigua Gonzalez, Scarlet',
-      episodeAssociated: '11/01/2026 - 12/30/2026',
-      attendingPhysician: 'Dr. Anita Gupta, MD',
-      sendTo: 'Dr. Anita Gupta, MD',
-      date: '2026-11-06',
-      time: '14:30',
-      effectiveDate: '2026-11-06',
-      orderIsForNextEpisode: false,
-      summaryTitle: 'Skilled Nursing: Wound Vac Dressing Change 3x/wk',
-      orderType: 'Discipline Frequency',
-      orderReadBackAndVerified: true,
-      clinicianSignature: 'Hilder M., RN',
-      signatureDate: '2026-11-06',
-      signatureTime: '14:32',
-      status: 'Created',
-      createdAt: '2026-11-06',
-    },
-    {
-      id: 'ord-102',
-      patientId: 'pat-2',
-      patientName: 'Doshi, N Kundanika',
-      episodeAssociated: '10/15/2026 - 12/13/2026',
-      attendingPhysician: 'Dr. Michael Chen, MD',
-      sendTo: 'Dr. Michael Chen, MD',
-      date: '2026-11-07',
-      time: '10:15',
-      effectiveDate: '2026-11-07',
-      orderIsForNextEpisode: false,
-      summaryTitle: 'Medication Order: Lisinopril 10mg Daily PO',
-      orderType: 'Medication Orders',
-      orderReadBackAndVerified: true,
-      clinicianSignature: 'Hilder M., RN',
-      signatureDate: '2026-11-07',
-      signatureTime: '10:18',
-      status: 'Created',
-      createdAt: '2026-11-07',
-    },
-  ]);
+  const [orders, setOrders] = useState<HomeHealthOrder[]>([]);
+  const [incidentLogs, setIncidentLogs] = useState<IncidentLog[]>([]);
   const [faceToFaceEncounters, setFaceToFaceEncounters] = useState<FaceToFaceEncounter[]>([
     {
       id: 'f2f-101',
@@ -363,16 +563,15 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       createdAt: '2026-11-01T08:00:00Z',
     },
   ]);
-  const [patients, setPatients] = useState<Patient[]>(initialPatients);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [visits] = useState<ScheduledVisit[]>(initialVisits);
-  const [announcements] = useState<AnnouncementItem[]>(initialAnnouncements);
   const [activeNavTab, setActiveNavTab] = useState<string>('dashboard');
   const [serviceFilter, setServiceFilter] = useState<'all' | ServiceLine>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMessage, setSelectedMessage] = useState<MessageItem | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [inquiries, setInquiries] = useState<Inquiry[]>(initialInquiries);
-  const [referrals, setReferrals] = useState<Referral[]>(initialReferrals);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
   const [intakeSubTab, setIntakeSubTab] = useState<'inquiries' | 'referrals' | 'pipeline'>('referrals');
   const [patientSubTab, setPatientSubTab] = useState<'charts' | 'directory'>('charts');
   const [chartTasks, setChartTasks] = useState<PatientChartTask[]>(initialPatientChartTasks);
@@ -383,14 +582,16 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [activeVideo, setActiveVideo] = useState<AnnouncementItem | null>(null);
 
-  const [clinicians] = useState<EmployeeClinician[]>(initialClinicians);
-  const [employeeVisits, setEmployeeVisits] = useState<EmployeeVisit[]>(initialEmployeeVisits);
-  const [unassignedVisits, setUnassignedVisits] = useState<UnassignedPatientVisit[]>(initialUnassignedVisits);
+  const [clinicians, setClinicians] = useState<EmployeeClinician[]>([]);
+  const [employeeVisits, setEmployeeVisits] = useState<EmployeeVisit[]>([]);
+  const [unassignedVisits, setUnassignedVisits] = useState<UnassignedPatientVisit[]>([]);
+  const [huvSfvRecords, setHuvSfvRecords] = useState<HuvSfvRecord[]>([]);
+  const [scheduleStats, setScheduleStats] = useState<any>(null);
 
   // Platform Website Switcher ('hub' | 'central' | 'home_health' | 'connect')
   const [currentWebsite, setCurrentWebsite] = useState<'hub' | 'central' | 'home_health' | 'connect'>('hub');
 
-  // Axxess Connect & Planner State
+  // CareOrbit Connect & Planner State
   const [connectModule, setConnectModule] = useState<'connect' | 'planner'>('connect');
   const [conversations, setConversations] = useState<ChatConversation[]>(initialConversations);
   const [activeConversationId, setActiveConversationId] = useState<string | null>('conv-care-abuissa');
@@ -399,55 +600,115 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [plannerTasks, setPlannerTasks] = useState<PlannerTaskItem[]>(initialPlannerTasks);
   const [activeCallModal, setActiveCallModal] = useState<{ isOpen: boolean; contactName: string; callType: 'audio' | 'video' } | null>(null);
 
-  const sendChatMessage = (conversationId: string, content: string, attachment?: ChatMessage['attachment']) => {
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: 'current-user',
-      senderName: 'Hilder M., RN',
-      senderRole: 'Clinical Supervisor',
-      isCurrentUser: true,
-      content,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: 'Today',
-      isRead: true,
-      attachment
-    };
+  const refreshConnectConversations = useCallback(async () => {
+    try {
+      const convs = await api.getConnectConversations();
+      if (Array.isArray(convs)) {
+        setConversations(convs);
+      }
+    } catch (err) {
+      console.error('Failed to refresh connect conversations:', err);
+    }
+  }, []);
 
-    setMessagesMap(prev => ({
-      ...prev,
-      [conversationId]: [...(prev[conversationId] || []), newMessage]
-    }));
+  const fetchMessagesForConversation = useCallback(async (conversationId: string) => {
+    try {
+      const msgs = await api.getConnectMessages(conversationId);
+      if (Array.isArray(msgs)) {
+        setMessagesMap(prev => ({ ...prev, [conversationId]: msgs }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages for conversation:', err);
+    }
+  }, []);
 
-    setConversations(prev =>
-      prev.map(c => {
-        if (c.id === conversationId) {
-          return {
-            ...c,
-            lastMessage: {
-              senderName: 'You',
-              content: attachment ? `[Attachment: ${attachment.name}] ${content}` : content,
-              timestamp: newMessage.timestamp,
-              isRead: true
-            }
-          };
-        }
-        return c;
-      })
-    );
+  const sendChatMessage = async (conversationId: string, content: string, attachment?: ChatMessage['attachment']) => {
+    try {
+      const createdMsg = await api.sendConnectMessage(conversationId, {
+        content,
+        senderId: 'current-user',
+        senderName: 'Hilder M., RN',
+        senderRole: 'Clinical Supervisor',
+        attachment
+      });
+
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), createdMsg]
+      }));
+
+      setConversations(prev =>
+        prev.map(c => {
+          if (c.id === conversationId) {
+            return {
+              ...c,
+              lastMessage: {
+                senderName: 'You',
+                content: attachment ? `[Attachment: ${attachment.name}] ${content}` : content,
+                timestamp: createdMsg.timestamp,
+                isRead: true
+              }
+            };
+          }
+          return c;
+        })
+      );
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      // Fallback local append
+      const newMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        senderId: 'current-user',
+        senderName: 'Hilder M., RN',
+        senderRole: 'Clinical Supervisor',
+        isCurrentUser: true,
+        content,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: 'Today',
+        isRead: true,
+        attachment
+      };
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), newMessage]
+      }));
+    }
   };
 
-  const markConversationRead = (conversationId: string) => {
+  const markConversationRead = async (conversationId: string) => {
+    try {
+      await api.markConnectConversationRead(conversationId);
+    } catch (err) {
+      console.error('Failed to mark conversation read on server:', err);
+    }
     setConversations(prev =>
       prev.map(c => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
     );
   };
 
-  const addCallLog = (call: Omit<CallLogItem, 'id'>) => {
-    const newCall: CallLogItem = {
-      ...call,
-      id: `call-${Date.now()}`
-    };
-    setCallLogs(prev => [newCall, ...prev]);
+  const createNewConversation = async (data: any) => {
+    try {
+      const newConv = await api.createConnectConversation(data);
+      setConversations(prev => [newConv, ...prev]);
+      setActiveConversationId(newConv.id);
+      return newConv;
+    } catch (err) {
+      console.error('Failed to create conversation:', err);
+      throw err;
+    }
+  };
+
+  const addCallLog = async (call: Omit<CallLogItem, 'id'>) => {
+    try {
+      const logged = await api.logConnectCall(call);
+      setCallLogs(prev => [logged, ...prev]);
+    } catch {
+      const fallback: CallLogItem = {
+        ...call,
+        id: `call-${Date.now()}`
+      };
+      setCallLogs(prev => [fallback, ...prev]);
+    }
   };
 
   const addPlannerTask = (task: Omit<PlannerTaskItem, 'id'>) => {
@@ -469,63 +730,53 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
   const [scheduleMode, setScheduleMode] = useState<'calendar' | 'map'>('calendar');
 
-  const addEmployeeVisit = (visitData: Omit<EmployeeVisit, 'id'>) => {
-    const newVisit: EmployeeVisit = {
-      id: `evst-${Date.now()}`,
-      ...visitData
-    };
-    setEmployeeVisits(prev => [newVisit, ...prev]);
+  const addEmployeeVisit = async (visitData: Omit<EmployeeVisit, 'id'>) => {
+    try {
+      const created = await api.createScheduleVisit(visitData);
+      setEmployeeVisits(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err: any) {
+      console.error('Failed to create visit in database:', err);
+      throw err;
+    }
   };
 
-  const updateEmployeeVisitStatus = (id: string, status: EmployeeVisit['status']) => {
-    setEmployeeVisits(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+  const updateEmployeeVisitStatus = async (id: string, status: EmployeeVisit['status']) => {
+    try {
+      await api.updateScheduleVisit(id, { status });
+      setEmployeeVisits(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to update visit status:', err);
+      setEmployeeVisits(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+    }
   };
 
-  const deleteEmployeeVisit = (id: string) => {
-    setEmployeeVisits(prev => prev.filter(v => v.id !== id));
+  const deleteEmployeeVisit = async (id: string) => {
+    try {
+      await api.deleteScheduleVisit(id);
+      setEmployeeVisits(prev => prev.filter(v => v.id !== id));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to delete visit:', err);
+      setEmployeeVisits(prev => prev.filter(v => v.id !== id));
+    }
   };
 
-  const assignVisitToClinician = (visitId: string, clinicianId: string) => {
-    const visit = unassignedVisits.find(v => v.id === visitId);
-    const clinician = clinicians.find(c => c.id === clinicianId);
-    if (!visit || !clinician) return;
-
-    const dateObj = new Date(visit.scheduledDate + 'T00:00:00');
-    const dayOfWeek = isNaN(dateObj.getDay()) ? 3 : dateObj.getDay();
-
-    const newEmpVisit: EmployeeVisit = {
-      id: `evst-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      employeeId: clinician.id,
-      employeeName: clinician.name,
-      patientName: visit.patientName,
-      patientMrn: visit.patientMrn,
-      visitType: visit.task,
-      serviceLine: visit.serviceLine,
-      dayOfWeek,
-      date: visit.scheduledDate,
-      timeSlot: visit.timeSlot,
-      status: 'scheduled',
-      locationType: 'home',
-      evvStatus: 'pending',
-      address: visit.patientAddress,
-      notes: visit.notes
-    };
-
-    setEmployeeVisits(prev => [newEmpVisit, ...prev]);
-    setUnassignedVisits(prev => prev.filter(v => v.id !== visitId));
-  };
-
-  const bulkAssignVisits = (visitIds: string[], clinicianId: string) => {
-    const clinician = clinicians.find(c => c.id === clinicianId);
-    if (!clinician) return;
-
-    const matchedVisits = unassignedVisits.filter(v => visitIds.includes(v.id));
-    const newEmpVisits: EmployeeVisit[] = matchedVisits.map((visit, idx) => {
+  const assignVisitToClinician = async (visitId: string, clinicianId: string) => {
+    try {
+      await api.assignUnassignedVisit(visitId, clinicianId);
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to assign visit:', err);
+      const visit = unassignedVisits.find(v => v.id === visitId);
+      const clinician = clinicians.find(c => c.id === clinicianId);
+      if (!visit || !clinician) return;
       const dateObj = new Date(visit.scheduledDate + 'T00:00:00');
       const dayOfWeek = isNaN(dateObj.getDay()) ? 3 : dateObj.getDay();
-
-      return {
-        id: `evst-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+      const newEmpVisit: EmployeeVisit = {
+        id: `evst-${Date.now()}`,
         employeeId: clinician.id,
         employeeName: clinician.name,
         patientName: visit.patientName,
@@ -541,14 +792,30 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         address: visit.patientAddress,
         notes: visit.notes
       };
-    });
-
-    setEmployeeVisits(prev => [...newEmpVisits, ...prev]);
-    setUnassignedVisits(prev => prev.filter(v => !visitIds.includes(v.id)));
+      setEmployeeVisits(prev => [newEmpVisit, ...prev]);
+      setUnassignedVisits(prev => prev.filter(v => v.id !== visitId));
+    }
   };
 
-  const deleteUnassignedVisit = (visitId: string) => {
-    setUnassignedVisits(prev => prev.filter(v => v.id !== visitId));
+  const bulkAssignVisits = async (visitIds: string[], clinicianId: string) => {
+    try {
+      await api.bulkAssignUnassignedVisits(visitIds, clinicianId);
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to bulk assign visits:', err);
+      refreshDashboardData();
+    }
+  };
+
+  const deleteUnassignedVisit = async (visitId: string) => {
+    try {
+      await api.deleteUnassignedVisit(visitId);
+      setUnassignedVisits(prev => prev.filter(v => v.id !== visitId));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to delete unassigned visit:', err);
+      setUnassignedVisits(prev => prev.filter(v => v.id !== visitId));
+    }
   };
 
   const addUnassignedVisit = (visitData: Omit<UnassignedPatientVisit, 'id'>) => {
@@ -559,27 +826,109 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setUnassignedVisits(prev => [newVisit, ...prev]);
   };
 
-  const unreadCount = 169;
+  const unreadCount = messages.filter(m => !m.isRead).length;
 
-  const markMessageRead = (id: string) => {
+  const markMessageRead = async (id: string) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, isRead: true } : m));
+    try {
+      await api.markMessageRead(id);
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to mark message read on server:', err);
+    }
   };
 
-  const addMessage = (message: Omit<MessageItem, 'id'>) => {
-    setMessages(prev => [{ ...message, id: `msg-${Date.now()}` }, ...prev]);
+  const addMessage = async (message: Omit<MessageItem, 'id'>) => {
+    try {
+      const payload = {
+        subject: message.subject,
+        body: message.body || message.snippet,
+        recipients: message.recipientNames || [message.patientName || 'Care Team'],
+        priority: message.priority || 'routine',
+        serviceLine: message.serviceLine || 'home_health',
+        patientId: message.regardingPatientId || null,
+        attachments: (message as any).attachments || (message.attachmentName ? [{ name: message.attachmentName, size: '24 KB', uploadedAt: new Date().toISOString() }] : []),
+      };
+      const res = await api.createMessage(payload);
+      const created = res.data || res;
+      setMessages(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to save message to database:', err);
+      const fallback: MessageItem = { ...message, id: `msg-${Date.now()}` };
+      setMessages(prev => [fallback, ...prev]);
+      return fallback;
+    }
   };
 
-  const addHomeHealthEpisode = (episode: Omit<HomeHealthEpisode, 'id'>) => {
-    setHomeHealthEpisodes(prev => [{ ...episode, id: `episode-${Date.now()}` }, ...prev]);
+  const addHomeHealthEpisode = async (episode: Omit<HomeHealthEpisode, 'id'>) => {
+    try {
+      const created = await api.createEpisode(episode);
+      setHomeHealthEpisodes(prev => [created, ...prev]);
+      // Update patient in patients state so all patient charts, lists, and active patients have updated episode dates
+      setPatients(prev => prev.map(p => {
+        if (p.id === episode.patientId || p.mrn === episode.patientId) {
+          return {
+            ...p,
+            startOfCareDate: episode.startOfCareDate,
+            episodeStart: episode.episodeStartDate,
+            episodeEnd: episode.episodeEndDate,
+            attendingPhysician: episode.primaryPhysician || p.attendingPhysician,
+            insuranceName: episode.primaryInsurance || p.insuranceName,
+          };
+        }
+        return p;
+      }));
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to save episode to database:', err);
+      const fallback = { ...episode, id: `episode-${Date.now()}` };
+      setHomeHealthEpisodes(prev => [fallback, ...prev]);
+      return fallback;
+    }
   };
 
-  const addCommunicationNote = (note: Omit<HomeHealthCommunicationNote, 'id'>) => {
-    setCommunicationNotes(prev => [{ ...note, id: `note-${Date.now()}` }, ...prev]);
+  const addCommunicationNote = async (note: Omit<HomeHealthCommunicationNote, 'id'>) => {
+    try {
+      const created = await api.createCommunicationNote(note);
+      setCommunicationNotes(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to create communication note via API, falling back to local:', err);
+      const fallback = { ...note, id: `note-${Date.now()}` };
+      setCommunicationNotes(prev => [fallback, ...prev]);
+      return fallback;
+    }
   };
 
-  const addHomeHealthOrder = (order: Omit<HomeHealthOrder, 'id' | 'createdAt'>) => {
-    const localDate = new Date().toISOString();
-    setOrders(prev => [{ ...order, id: `order-${Date.now()}`, createdAt: localDate }, ...prev]);
+  const addHomeHealthOrder = async (order: Omit<HomeHealthOrder, 'id' | 'createdAt'>) => {
+    try {
+      const created = await api.createOrder(order);
+      setOrders(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to create order via API, falling back to local:', err);
+      const fallback = { ...order, id: `order-${Date.now()}`, createdAt: new Date().toISOString() };
+      setOrders(prev => [fallback, ...prev]);
+      return fallback;
+    }
+  };
+
+  const addIncidentLog = async (log: Omit<IncidentLog, 'id' | 'createdAt'>) => {
+    try {
+      const created = await api.createIncidentLog(log);
+      setIncidentLogs(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('[HealthcareContext] Failed to create incident log via API, falling back to local:', err);
+      const fallback: IncidentLog = { ...log, id: `inc-${Date.now()}`, createdAt: new Date().toISOString() };
+      setIncidentLogs(prev => [fallback, ...prev]);
+      return fallback;
+    }
   };
 
   const addFaceToFaceEncounter = (encounter: Omit<FaceToFaceEncounter, 'id' | 'createdAt'>) => {
@@ -602,45 +951,108 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setInsurancePayers(prev => [{ ...payer, id: `payer-${Date.now()}`, createdAt: localDate }, ...prev]);
   };
 
-  const addNewPatient = (newPatData: Omit<Patient, 'id' | 'mrn'> & { mrn?: string }) => {
-    const id = `pat-${Date.now()}`;
-    const { mrn: requestedMrnValue, ...patientData } = newPatData;
-    const requestedMrn = requestedMrnValue?.trim();
-    const mrn = requestedMrn || `MRN-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newPat: Patient = {
-      id,
-      mrn,
-      ...patientData
-    };
-    setPatients(prev => [newPat, ...prev]);
+  const addNewPatient = async (newPatData: Omit<Patient, 'id' | 'mrn'> & { mrn?: string }) => {
+    try {
+      const created = await api.createPatient(newPatData);
+      setPatients(prev => [created, ...prev]);
+      refreshDashboardData();
+      return created;
+    } catch (err) {
+      console.error('Failed to create patient in database:', err);
+      const id = `pat-${Date.now()}`;
+      const { mrn: requestedMrnValue, ...patientData } = newPatData;
+      const requestedMrn = requestedMrnValue?.trim();
+      const mrn = requestedMrn || `MRN-${Math.floor(10000 + Math.random() * 90000)}`;
+      const newPat: Patient = {
+        id,
+        mrn,
+        ...patientData
+      };
+      setPatients(prev => [newPat, ...prev]);
+    }
   };
 
-  const addNewInquiry = (inquiryData: Omit<Inquiry, 'id'>) => {
-    const newInq: Inquiry = {
-      id: `inq-${Date.now()}`,
-      ...inquiryData
-    };
-    setInquiries(prev => [newInq, ...prev]);
+  const addNewInquiry = async (inquiryData: Omit<Inquiry, 'id'>) => {
+    try {
+      const created = await api.createInquiry(inquiryData);
+      setInquiries(prev => [created, ...prev]);
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to create inquiry in database:', err);
+      // Fallback optimistic
+      const newInq: Inquiry = { id: `inq-${Date.now()}`, ...inquiryData };
+      setInquiries(prev => [newInq, ...prev]);
+    }
   };
 
-  const addNewReferral = (referralData: Omit<Referral, 'id'>) => {
-    const newRef: Referral = {
-      id: `ref-${Date.now()}`,
-      ...referralData
-    };
-    setReferrals(prev => [newRef, ...prev]);
+  const updateInquiry = async (id: string, updatedData: Partial<Inquiry>) => {
+    try {
+      const updated = await api.updateInquiry(id, updatedData);
+      setInquiries(prev => prev.map(item => item.id === id ? { ...item, ...updated } : item));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to update inquiry in database:', err);
+      setInquiries(prev => prev.map(item => item.id === id ? { ...item, ...updatedData } : item));
+    }
   };
 
-  const deleteReferral = (id: string) => {
-    setReferrals(prev => prev.filter(r => r.id !== id));
+  const addNewReferral = async (referralData: Omit<Referral, 'id'>) => {
+    try {
+      const created = await api.createReferral(referralData);
+      setReferrals(prev => [created, ...prev]);
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to create referral in database:', err);
+      const newRef: Referral = { id: `ref-${Date.now()}`, ...referralData };
+      setReferrals(prev => [newRef, ...prev]);
+    }
   };
 
-  const convertInquiryToReferral = (id: string) => {
-    setInquiries(prev => prev.map(item => item.id === id ? { ...item, status: 'converted' } : item));
+  const updateReferral = async (id: string, updatedData: Partial<Referral>) => {
+    try {
+      const updated = await api.updateReferral(id, updatedData);
+      setReferrals(prev => prev.map(item => item.id === id ? { ...item, ...updated } : item));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to update referral in database:', err);
+      setReferrals(prev => prev.map(item => item.id === id ? { ...item, ...updatedData } : item));
+    }
   };
 
-  const deleteInquiry = (id: string) => {
-    setInquiries(prev => prev.filter(item => item.id !== id));
+  const deleteReferral = async (id: string) => {
+    try {
+      await api.deleteReferral(id);
+      setReferrals(prev => prev.filter(r => r.id !== id));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to delete referral in database:', err);
+      setReferrals(prev => prev.filter(r => r.id !== id));
+    }
+  };
+
+  const convertInquiryToReferral = async (id: string) => {
+    try {
+      const res = await api.convertInquiryToReferral(id);
+      setInquiries(prev => prev.map(item => item.id === id ? { ...item, status: 'converted' } : item));
+      if (res.convertedReferral) {
+        setReferrals(prev => [res.convertedReferral, ...prev]);
+      }
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to convert inquiry in database:', err);
+      setInquiries(prev => prev.map(item => item.id === id ? { ...item, status: 'converted' } : item));
+    }
+  };
+
+  const deleteInquiry = async (id: string) => {
+    try {
+      await api.deleteInquiry(id);
+      setInquiries(prev => prev.filter(item => item.id !== id));
+      refreshDashboardData();
+    } catch (err) {
+      console.error('Failed to delete inquiry in database:', err);
+      setInquiries(prev => prev.filter(item => item.id !== id));
+    }
   };
 
   const reassignPatientTask = (taskId: string, newClinicianName: string, newClinicianId?: string) => {
@@ -677,8 +1089,10 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleTheme,
         organization,
         census,
+        unassignedVisits7Days,
         intakeMetrics,
         scheduledSummary,
+        refreshDashboardData,
         messages,
         addMessage,
         homeHealthEpisodes,
@@ -687,6 +1101,8 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addCommunicationNote,
         orders,
         addHomeHealthOrder,
+        incidentLogs,
+        addIncidentLog,
         faceToFaceEncounters,
         addFaceToFaceEncounter,
         facilities,
@@ -703,6 +1119,8 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clinicians,
         employeeVisits,
         unassignedVisits,
+        huvSfvRecords,
+        scheduleStats,
         scheduleMode,
         setScheduleMode,
         addEmployeeVisit,
@@ -747,7 +1165,9 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActiveVideo,
         addNewPatient,
         addNewInquiry,
+        updateInquiry,
         addNewReferral,
+        updateReferral,
         deleteReferral,
         convertInquiryToReferral,
         deleteInquiry,
@@ -763,6 +1183,9 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         markConversationRead,
         callLogs,
         addCallLog,
+        createNewConversation,
+        fetchMessagesForConversation,
+        refreshConnectConversations,
         plannerTasks,
         addPlannerTask,
         updatePlannerTaskStage,

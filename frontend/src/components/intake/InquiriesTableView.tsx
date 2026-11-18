@@ -99,6 +99,10 @@ export const InquiriesTableView: React.FC = () => {
   };
 
   const followUpCount = inquiries.filter(i => i.status === 'contacted' || i.status === 'new').length;
+  const convertedCount = inquiries.filter(i => i.status === 'converted').length;
+  const leadConversionRate = inquiries.length > 0
+    ? `${((convertedCount / inquiries.length) * 100).toFixed(1)}%`
+    : '0.0%';
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -113,10 +117,11 @@ export const InquiriesTableView: React.FC = () => {
       {/* Top Header & Navigation Segment (Identical to Referrals) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-            Central Intake
+          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+            <UserCheck className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+            <span>Central Intake</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Incoming patient inquiries, lead screening, and automated field dispatch
           </p>
         </div>
@@ -184,7 +189,7 @@ export const InquiriesTableView: React.FC = () => {
               Lead Conversion
             </div>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-              78.5%
+              {leadConversionRate}
             </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">

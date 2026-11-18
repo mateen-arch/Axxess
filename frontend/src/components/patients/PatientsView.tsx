@@ -37,7 +37,7 @@ export const PatientsView: React.FC = () => {
   const filteredPatients = patients.filter((p) => {
     const matchesService = serviceFilter === 'all' || p.serviceLine === serviceFilter;
     const matchesSearch =
-      `${p.firstName} ${p.lastName} ${p.mrn} ${p.primaryDiagnosis} ${p.address.city}`
+      `${p.firstName} ${p.lastName} ${p.mrn} ${p.primaryDiagnosis} ${p.address?.city || ''}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
     return matchesService && matchesSearch;
@@ -266,7 +266,7 @@ export const PatientsView: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                        {patient.address.city}, {patient.address.state}
+                        {patient.address ? `${patient.address.city}, ${patient.address.state}` : 'N/A'}
                       </td>
 
                       <td className="py-3 px-4">

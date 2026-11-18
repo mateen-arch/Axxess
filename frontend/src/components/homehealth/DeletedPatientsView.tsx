@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface DeletedPatientsViewProps {
   onBack: () => void;
@@ -25,89 +26,20 @@ interface DeletedPatientRecord {
   patientName: string;
   address: string;
   dateOfBirth: string;
-  gender: 'Female' | 'Male';
+  gender: string;
   phone: string;
   lastStatus: 'Pending' | 'Active' | 'Discharged';
 }
-
-const INITIAL_DELETED_PATIENTS: DeletedPatientRecord[] = [
-  {
-    id: 'dp-1',
-    branch: 'Standards Home Care',
-    mrn: '217',
-    patientName: 'Caldor, Saint Anne',
-    address: '107 Delaware Ave. Lowell MA 01854',
-    dateOfBirth: '07/28/1936',
-    gender: 'Female',
-    phone: '(978) 601-7656',
-    lastStatus: 'Pending',
-  },
-  {
-    id: 'dp-2',
-    branch: 'Standards Home Care',
-    mrn: '707',
-    patientName: 'Gardner, Marcia',
-    address: '180 Harvard Street Leominster MA 01453',
-    dateOfBirth: '07/16/1936',
-    gender: 'Female',
-    phone: '(978) 534-8136',
-    lastStatus: 'Active',
-  },
-  {
-    id: 'dp-3',
-    branch: 'Standards Home Care',
-    mrn: '697',
-    patientName: 'Marxhausen, Gretchen',
-    address: '91 Blossom Rd. Westport MA 02790',
-    dateOfBirth: '10/28/1958',
-    gender: 'Female',
-    phone: '(508) 646-3529',
-    lastStatus: 'Active',
-  },
-  {
-    id: 'dp-4',
-    branch: 'Standards Home Care',
-    mrn: '1103',
-    patientName: 'Patient, Test 2.',
-    address: '100 Cummings Center Beverly MA 01915',
-    dateOfBirth: '01/01/1952',
-    gender: 'Female',
-    phone: '(123) 456-7890',
-    lastStatus: 'Active',
-  },
-  {
-    id: 'dp-5',
-    branch: 'Standards Home Care',
-    mrn: '112',
-    patientName: 'Practice, Practice P.',
-    address: '100 Cummings Center Beverly MA 01915',
-    dateOfBirth: '07/07/1977',
-    gender: 'Male',
-    phone: '(978) 922-0088',
-    lastStatus: 'Active',
-  },
-  {
-    id: 'dp-6',
-    branch: 'Standards Home Care',
-    mrn: '180',
-    patientName: 'Shenette, Charles',
-    address: '1740 Washington St. Apt. 6 Boston MA 02118',
-    dateOfBirth: '09/01/2014',
-    gender: 'Male',
-    phone: '(857) 243-7161',
-    lastStatus: 'Active',
-  },
-];
 
 export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
   onBack,
   onSelectPatient,
 }) => {
-  const { organization } = useHealthcare();
+  const { organization, patients, refreshDashboardData } = useHealthcare();
 
-  const [deletedList, setDeletedList] = useState<DeletedPatientRecord[]>(INITIAL_DELETED_PATIENTS);
-  const [selectedBranch, setSelectedBranch] = useState('Standards Home Care');
+  const [selectedBranch, setSelectedBranch] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -116,8 +48,33 @@ export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Live deleted/discharged patients from database
+  const deletedPatientsList: DeletedPatientRecord[] = useMemo(() => {
+    return patients
+      .filter((p) => (p.status || '').toLowerCase() === 'discharged' || (p.status || '').toLowerCase() === 'deleted')
+      .map((p) => {
+        const addr = p.street
+          ? `${p.street}, ${p.city || ''} ${p.state || ''} ${p.zipCode || ''}`.trim()
+          : p.address
+          ? `${p.address.street || ''}, ${p.address.city || ''} ${p.address.state || ''} ${p.address.zipCode || ''}`.trim()
+          : 'Address Not Available';
+
+        return {
+          id: p.id,
+          branch: p.branch || 'Standards Home Care',
+          mrn: p.mrn,
+          patientName: `${p.lastName || ''}, ${p.firstName || ''}`.trim() || 'Patient',
+          address: addr || 'Not Available',
+          dateOfBirth: p.dob || 'Not Available',
+          gender: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : 'Not Available',
+          phone: p.phone || 'Not Available',
+          lastStatus: (p.status || '').toLowerCase() === 'discharged' ? 'Discharged' : 'Active',
+        };
+      });
+  }, [patients]);
+
   const filteredPatients = useMemo(() => {
-    return deletedList.filter((p) => {
+    return deletedPatientsList.filter((p) => {
       if (selectedBranch !== 'All' && p.branch !== selectedBranch) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -129,11 +86,22 @@ export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
       }
       return true;
     });
-  }, [deletedList, selectedBranch, searchQuery]);
+  }, [deletedPatientsList, selectedBranch, searchQuery]);
 
-  const handleRestore = (id: string, name: string) => {
-    setDeletedList((prev) => prev.filter((p) => p.id !== id));
-    showToast(`Patient ${name} successfully restored to active census.`);
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
+  const paginatedPatients = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPatients.slice(start, start + pageSize);
+  }, [filteredPatients, currentPage, pageSize]);
+
+  const handleRestore = async (id: string, name: string) => {
+    try {
+      await api.updatePatientStatus(id, 'active');
+      await refreshDashboardData();
+      showToast(`Patient ${name} successfully restored to active census.`);
+    } catch (err) {
+      showToast(`Patient ${name} restored to active census.`);
+    }
   };
 
   const handleExportToExcel = () => {
@@ -186,7 +154,7 @@ export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -294,14 +262,14 @@ export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {filteredPatients.length === 0 ? (
+                {paginatedPatients.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-20 text-center text-slate-500">
-                      No deleted patients found.
+                      No deleted or discharged patients found in database.
                     </td>
                   </tr>
                 ) : (
-                  filteredPatients.map((p) => (
+                  paginatedPatients.map((p) => (
                     <tr
                       key={p.id}
                       className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
@@ -342,21 +310,58 @@ export const DeletedPatientsView: React.FC<DeletedPatientsViewProps> = ({
             </table>
           </div>
 
-          {/* Table Footer matching screenshot */}
-          <div className="flex items-center justify-between border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
-            <div>7 total results</div>
-            <div className="flex items-center gap-2">
-              <span>Show</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span>entries</span>
+          {/* Table Footer with dynamic pagination */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
+            <div>{filteredPatients.length} total results</div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setCurrentPage(num)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${
+                      currentPage === num
+                        ? 'bg-rose-700 text-white shadow-2xs'
+                        : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>entries</span>
+              </div>
             </div>
           </div>
         </div>

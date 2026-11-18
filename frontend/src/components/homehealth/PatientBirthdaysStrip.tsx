@@ -12,17 +12,20 @@ interface BirthdayPatient {
 
 const getNextBirthday = (patient: Patient, today: Date): BirthdayPatient | null => {
   if (!patient.dob) return null;
-  const parts = patient.dob.split(/[-/]/).map(Number);
-  const [month, day, birthYear] = patient.dob.includes('-')
-    ? [parts[1], parts[2], parts[0]]
-    : parts;
-  if (!month || !day || !birthYear) return null;
+  const birthDate = new Date(patient.dob);
+  if (isNaN(birthDate.getTime())) return null;
+
+  const month = birthDate.getUTCMonth();
+  const day = birthDate.getUTCDate();
+  const birthYear = birthDate.getUTCFullYear();
 
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  let birthday = new Date(today.getFullYear(), month - 1, day);
-  if (birthday < todayStart) birthday = new Date(today.getFullYear() + 1, month - 1, day);
+  let birthday = new Date(today.getFullYear(), month, day);
+  if (birthday < todayStart) {
+    birthday = new Date(today.getFullYear() + 1, month, day);
+  }
   const daysAway = Math.ceil((birthday.getTime() - todayStart.getTime()) / 86400000);
-  if (daysAway > 30) return null;
+  if (daysAway < 0 || daysAway > 30) return null;
 
   return {
     id: patient.id,

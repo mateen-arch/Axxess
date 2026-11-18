@@ -31,202 +31,66 @@ interface ComposeMessagePageProps {
   onMessageSent?: () => void;
 }
 
-// Complete raw recipient list provided by the user
-const RAW_RECIPIENTS = [
-  'Abnia Jean HHA',
-  'Adeige Durette HHA',
-  'Afia Osei Assibey RN',
-  'Agnes Moses',
-  'Agness Chirwa LPN',
-  'Ailen Santos',
-  'Aline Jean Marie HHA',
-  'Ana Beatriz Morel HHA',
-  'Andre Bellevue HHA',
-  'Angela Sanchez CCA',
-  'Antoine Nortelus LPN',
-  'Aretha Phillip HHA',
-  'Augusta Aghaizu-Akukwe RN',
-  'Benneth Ikeagwuonwu LPN',
-  'Bettie Previlon RN',
-  'Bukky Usunalele LPN',
-  'Caridania Pacheco LPN',
-  'Carla Rania RN',
-  'Carline Bissereth LPN',
-  'Carline Thimothee HHA',
-  'Carline Anne Pamphile Guerrier LPN',
-  'Carolyn Akukwe RN',
-  'Castilla Perez Pereyra HHA',
-  'Charlie Bissereth LPN',
-  'Chinelo Ogamba RN',
-  'Christella Germain Paulusca HHA',
-  'Clalista Nqwintoh HHA',
-  'Cledine Fede LPN',
-  'Dan Kyasi',
-  'Daniel Ruhuro Biller',
-  'Daphnee Francios HHA',
-  'Darnierie Charles HHA',
-  'Dick Manumbu',
-  'Edlyne Semexant LPN',
-  'Edwina Milard LPN',
-  'Elcie Jean-Baptiste LPN',
-  'Elisabeth Nortelus LPN',
-  'Elizabeth Davis HHA',
-  'Emmanuella Damefils RN',
-  'Esperance Dumas HHA',
-  'Frantz Louizia HHA',
-  'Gaspard Julien HHA',
-  'Gladys Fleurimond HHA',
-  'Gladysse Roberson HHA',
-  'Godfrey Manumbu',
-  'Golden Philemon RN',
-  'Grasiela Hernandez De La Cruz HHA',
-  'Guirlene Pierre HHA',
-  'Guitaud Laguerre RN',
-  'Hery Juste HHA',
-  'Hilder Magessa RN',
-  'Iddy Mtango, Business Development',
-  'Ifeoma Onujiogu HHA',
-  'Ivane Bazile HHA',
-  'Ivy Osei LPN',
-  'Jamina Haley HHA',
-  'Janeen Dalrymple Standards Home Care RN',
-  'Jasmine Jerome HHA',
-  'Jean Sene LPN',
-  'Jennifer Menard LPN',
-  'Jesula Cupidon Jean Baptiste HHA',
-  'Jesula Fortune HHA',
-  'Joana Antoine HHA',
-  'Josette Rawls LPN',
-  'Josue Simoly LPN',
-  'Jovanna Pierre HHA',
-  'Julie Meronnis HHA',
-  'Junia Michel HHA',
-  'Katia Gayot LPN',
-  'Kristin Siegel LPN',
-  'Lori Mayou HHA',
-  'Louicile Hilaire LPN',
-  'Ludiane Ducena RN',
-  'Majory Louis HHA',
-  'Manasse Remy HHA',
-  'Margareth Jeudy HHA',
-  'Maria Alice Monteiro HHA',
-  'Maria-Assumpta Kaweesa LPN',
-  'Mariadelle Ulysse HHA',
-  'Marick Ally Biller',
-  'Marie Dorcy HHA',
-  'Marie Desir HHA',
-  'Marie Belony HHA',
-  'Marie Edmond HHA',
-  'Marie Macajoux HHA',
-  'Marie Pierre HHA',
-  'Marie Juste HHA',
-  'Marie St Louis HHA',
-  'Marie Ange Cayo LPN',
-  'Marie Bleuette Germain HHA',
-  'Marie Chantal Aristilde Berthil HHA',
-  'Marie Claude Damefils RN',
-  'Marie Magdala Stinfil-Jeannot HHA',
-  'Marie-Fletchaire Jerome HHA',
-  'Marietta Bernard HHA',
-  'Marrio Fortune LPN',
-  'Mary Kyalikunda RN',
-  'Mchilloh Mkazilakwa HHA',
-  'Medgine Clermont HHA',
-  'Megan Armstrong OT',
-  'Melissa Sweeney Biller',
-  'Meredith Pagan RN',
-  'Meredith Mcdermott RN',
-  'Micah Johnson',
-  'Michelene Paul RN',
-  'Miguelle Francois RN',
-  'Nacicar Ancy Pierre HHA',
-  'Nagela Gustave HHA',
-  'Naser Mahmoud LPN',
-  'Natacha Sanon HHA',
-  'Nathalie Bernadeau RN',
-  'Nathanaelle Francois HHA',
-  'Noella Tendo LPN',
-  'Patricia Black RN',
-  'Patricia Ediamen HHA',
-  'Paulette Mentor HHA',
-  'Pendjy Valentin LPN',
-  'Phaika Damefils HHA',
-  'Philip Amisano RN',
-  'Physical Therapy Evaluations PT',
-  'Precious Nwakaeze HHA',
-  'Prince Akukwe HHA',
-  'Pta Therapy Assistant PTA',
-  'Rachel Constant HHA',
-  'Raymonde Pierre HHA',
-  'Rebeccah Mpumwire RN',
-  'Richemonde Elise HHA',
-  'Rima Mikalaiciunas RN',
-  'Rita Okafor LPN',
-  'Rosalte Chavre RN',
-  'Ruramai Maravanyika LPN',
-  'Sandra Berthil HHA',
-  'Selina Mwakipunda',
-  'Stephania Joseph HHA',
-  'Themie Juste HHA',
-  'Theodora Yinusa RN',
-  'Theodora Ogamba RN',
-  'Thomas Fiese PT',
-  'Vanotte Lamour LPN',
-  'Veronica Ekwem RN',
-  'Verouchka Ngankam LPN',
-  'Welguine Clermont',
-  'Weslyne Saint Vil Charles HHA',
-  'Yaritza Vazquez HHA',
-  'Yonide Lareche RN',
-];
-
 interface RecipientItem {
   id: string;
   fullName: string;
   role: string;
+  email?: string;
 }
 
-// Parse role from raw string
-function parseRecipient(raw: string, index: number): RecipientItem {
-  const trimmed = raw.trim();
-  const knownRoles = ['RN', 'LPN', 'HHA', 'PT', 'PTA', 'OT', 'CCA', 'Biller'];
-  for (const role of knownRoles) {
-    if (trimmed.endsWith(` ${role}`)) {
-      return {
-        id: `recip-${index}`,
-        fullName: trimmed.slice(0, -(role.length + 1)).trim(),
-        role,
-      };
-    }
-  }
-  if (trimmed.includes('Business Development')) {
-    return { id: `recip-${index}`, fullName: trimmed, role: 'Admin' };
-  }
-  return { id: `recip-${index}`, fullName: trimmed, role: 'Staff' };
+export interface MessageAttachment {
+  name: string;
+  size: string;
+  type: string;
+  dataUrl?: string;
+  uploadedAt: string;
 }
 
 export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, onMessageSent }) => {
-  const { organization, patients, addMessage } = useHealthcare();
+  const { organization, patients, clinicians, addMessage } = useHealthcare();
 
+  // Populate recipients dynamically from actual clinicians with standardized roles (no dummy hardcoded data)
   const recipientsList: RecipientItem[] = useMemo(() => {
-    return RAW_RECIPIENTS.map((item, idx) => parseRecipient(item, idx));
-  }, []);
+    return clinicians.map((c, idx) => {
+      let role = c.credentials || c.title || 'Staff';
+      const upper = role.toUpperCase();
+      if (upper.includes('RN')) role = 'RN';
+      else if (upper.includes('LPN')) role = 'LPN';
+      else if (upper.includes('HHA') || upper.includes('AIDE')) role = 'HHA';
+      else if (upper.includes('PT') || upper.includes('PHYSICAL')) role = 'PT';
+      else if (upper.includes('OT') || upper.includes('OCCUPATIONAL')) role = 'OT';
+      else if (upper.includes('PTA')) role = 'PTA';
+
+      return {
+        id: c.id || `recip-${idx}`,
+        fullName: c.name,
+        role,
+        email: (c as any).email,
+      };
+    });
+  }, [clinicians]);
 
   // Recipient search & selection state
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'All' | 'RN' | 'LPN' | 'HHA' | 'Therapy' | 'Other'>('All');
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<string>>(new Set());
 
-  // Message Form State
+  // Message Form State - clean empty defaults with no dummy data
   const [subject, setSubject] = useState('');
   const [regardingPatientId, setRegardingPatientId] = useState('');
   const [requestReadReceipt, setRequestReadReceipt] = useState(false);
-  const [attachmentName, setAttachmentName] = useState<string>('');
+  const [attachment, setAttachment] = useState<MessageAttachment | null>(null);
   const [messageBody, setMessageBody] = useState('');
   const [priority, setPriority] = useState<PriorityLevel>('routine');
+  const [fontFamily, setFontFamily] = useState('Inter');
+  const [fontSize, setFontSize] = useState('13px');
+
+  // Textarea Ref for rich-text manipulation
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // UI State
   const [showErrors, setShowErrors] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Filtered recipients
@@ -275,9 +139,26 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
       .map((item) => `${item.fullName} ${item.role !== 'Staff' ? item.role : ''}`.trim());
   }, [recipientsList, selectedRecipientIds]);
 
+  // Actual file reading and storage
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setAttachmentName(e.target.files[0].name);
+      const file = e.target.files[0];
+      const sizeStr =
+        file.size < 1024 * 1024
+          ? `${(file.size / 1024).toFixed(1)} KB`
+          : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAttachment({
+          name: file.name,
+          size: sizeStr,
+          type: file.type || 'application/octet-stream',
+          dataUrl: reader.result as string,
+          uploadedAt: new Date().toISOString(),
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -286,46 +167,89 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
   }, [patients, regardingPatientId]);
 
   // Validation
-  const isValid = selectedRecipientIds.size > 0 && subject.trim().length > 0 && messageBody.trim().length > 0;
+  const validationErrors = useMemo(() => {
+    const errs: Record<string, string> = {};
+    if (selectedRecipientIds.size === 0) errs.recipients = 'Please select at least one recipient.';
+    if (!subject.trim()) errs.subject = 'Subject is required.';
+    if (!messageBody.trim()) errs.body = 'Message body cannot be empty.';
+    return errs;
+  }, [selectedRecipientIds, subject, messageBody]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const isValid = Object.keys(validationErrors).length === 0;
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) {
       setShowErrors(true);
       return;
     }
 
-    const patientName = selectedPatientObj
-      ? `${selectedPatientObj.lastName}, ${selectedPatientObj.firstName}`
-      : undefined;
+    try {
+      setIsSending(true);
+      const patientName = selectedPatientObj
+        ? `${selectedPatientObj.lastName}, ${selectedPatientObj.firstName}`
+        : undefined;
 
-    addMessage({
-      senderName: 'Hilder Magessa RN',
-      senderRole: 'Clinical Supervisor',
-      subject: subject.trim(),
-      snippet: messageBody.slice(0, 140) + (messageBody.length > 140 ? '...' : ''),
-      serviceLine: 'home_health',
-      organizationName: organization.name,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      isRead: true,
-      priority,
-      patientName,
-      recipientNames: selectedRecipientNames,
-      body: messageBody,
-      regardingPatientId: regardingPatientId || undefined,
-      readReceiptRequested: requestReadReceipt,
-      attachmentName: attachmentName || undefined,
-    });
+      const attachmentsPayload = attachment ? [attachment] : [];
 
-    setIsSuccess(true);
-    setTimeout(() => {
-      if (onMessageSent) onMessageSent();
-      else onBack();
-    }, 1200);
+      await addMessage({
+        senderName: 'Hilder Magessa RN',
+        senderRole: 'Clinical Supervisor',
+        subject: subject.trim(),
+        snippet: messageBody.slice(0, 140) + (messageBody.length > 140 ? '...' : ''),
+        serviceLine: 'home_health',
+        organizationName: organization.name,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        isRead: true,
+        priority,
+        patientName,
+        recipientNames: selectedRecipientNames,
+        body: messageBody,
+        regardingPatientId: regardingPatientId || undefined,
+        readReceiptRequested: requestReadReceipt,
+        attachmentName: attachment?.name,
+        attachments: attachmentsPayload,
+      } as any);
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (onMessageSent) onMessageSent();
+        else onBack();
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const insertFormatting = (tag: string) => {
-    setMessageBody((prev) => `${prev} [${tag}]`);
+  const applyTextFormat = (prefix: string, suffix: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setMessageBody((prev) => `${prev}${prefix}${suffix}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.slice(start, end);
+    const replacement = `${prefix}${selected || 'text'}${suffix}`;
+    const nextText = text.slice(0, start) + replacement + text.slice(end);
+    setMessageBody(nextText);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + prefix.length,
+        start + prefix.length + (selected ? selected.length : 4)
+      );
+    }, 0);
+  };
+
+  const insertLink = () => {
+    const url = window.prompt('Enter link URL (e.g., https://example.com):', 'https://');
+    if (url) {
+      applyTextFormat('[', `](${url})`);
+    }
   };
 
   const insertTemplateText = (snippet: string) => {
@@ -527,12 +451,12 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                 {/* Big Send Button per reference image */}
                 <button
                   type="submit"
-                  disabled={isSuccess}
+                  disabled={isSuccess || isSending}
                   className="flex flex-col items-center justify-center gap-1.5 h-20 w-24 shrink-0 rounded-2xl bg-rose-600 text-white shadow-md shadow-rose-600/25 transition hover:scale-[1.02] hover:bg-rose-700 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   title="Send message now"
                 >
                   <Send size={22} className="stroke-[2.5]" />
-                  <span className="text-xs font-black uppercase tracking-wider">Send</span>
+                  <span className="text-xs font-black uppercase tracking-wider">{isSending ? 'Sending...' : 'Send'}</span>
                 </button>
 
                 <div className="min-w-0 flex-1">
@@ -555,30 +479,40 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   <label className="pt-2 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     To <span className="text-rose-600">*</span>
                   </label>
-                  <div className="min-h-10 rounded-xl border border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-800 p-2 shadow-2xs">
-                    {selectedRecipientNames.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {selectedRecipientNames.slice(0, 8).map((name) => (
-                          <span
-                            key={name}
-                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/90 px-2 py-0.5 text-xs font-semibold text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200"
-                          >
-                            <span className="truncate max-w-[200px]">{name}</span>
+                  <div>
+                    <div className={`min-h-10 rounded-xl border bg-white dark:border-charcoal-700 dark:bg-charcoal-800 p-2 shadow-2xs ${
+                      showErrors && validationErrors.recipients ? 'border-rose-400 ring-1 ring-rose-400/30' : 'border-pearl-200'
+                    }`}>
+                      {selectedRecipientNames.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {selectedRecipientNames.slice(0, 8).map((name) => (
+                            <span
+                              key={name}
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/90 px-2 py-0.5 text-xs font-semibold text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200"
+                            >
+                              <span className="truncate max-w-[200px]">{name}</span>
+                            </span>
+                          ))}
+                          {selectedRecipientNames.length > 8 && (
+                            <span className="inline-flex items-center rounded-lg bg-pearl-100 px-2 py-0.5 text-xs font-black text-slate-700 dark:bg-charcoal-700 dark:text-slate-200">
+                              +{selectedRecipientNames.length - 8} more
+                            </span>
+                          )}
+                          <span className="text-[11px] text-slate-400 ml-auto">
+                            ({selectedRecipientNames.length} selected from list)
                           </span>
-                        ))}
-                        {selectedRecipientNames.length > 8 && (
-                          <span className="inline-flex items-center rounded-lg bg-pearl-100 px-2 py-0.5 text-xs font-black text-slate-700 dark:bg-charcoal-700 dark:text-slate-200">
-                            +{selectedRecipientNames.length - 8} more
-                          </span>
-                        )}
-                        <span className="text-[11px] text-slate-400 ml-auto">
-                          ({selectedRecipientNames.length} selected from list)
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic py-1">
-                        Select one or more staff members from the Recipient List on the left.
-                      </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic py-1">
+                          Select one or more staff members from the Recipient List on the left.
+                        </p>
+                      )}
+                    </div>
+                    {showErrors && validationErrors.recipients && (
+                      <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        {validationErrors.recipients}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -588,13 +522,23 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   <label className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     Subject <span className="text-rose-600">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Enter message subject"
-                    className="h-10 w-full rounded-xl border border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Enter message subject"
+                      className={`h-10 w-full rounded-xl border bg-white dark:border-charcoal-700 dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
+                        showErrors && validationErrors.subject ? 'border-rose-400 ring-1 ring-rose-400/30' : 'border-pearl-200'
+                      }`}
+                    />
+                    {showErrors && validationErrors.subject && (
+                      <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        {validationErrors.subject}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Regarding (Patient Selection) */}
@@ -657,26 +601,38 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   <label className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     Attachment
                   </label>
-                  <div className="flex items-center gap-3 rounded-xl border border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-800 p-2 shadow-2xs">
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-800 p-2 shadow-2xs">
                     <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-pearl-300 bg-pearl-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-pearl-200 dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200 transition">
                       <FileUp size={14} />
                       <span>Choose File</span>
                       <input type="file" onChange={handleFileChange} className="hidden" />
                     </label>
 
-                    <span className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {attachmentName || 'No file chosen'}
+                    <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-300">
+                      {attachment ? `${attachment.name} (${attachment.size})` : 'No file chosen'}
                     </span>
 
-                    {attachmentName && (
-                      <button
-                        type="button"
-                        onClick={() => setAttachmentName('')}
-                        className="ml-auto text-slate-400 hover:text-rose-600"
-                        title="Remove file"
-                      >
-                        <X size={15} />
-                      </button>
+                    {attachment && (
+                      <div className="ml-auto flex items-center gap-2">
+                        {attachment.dataUrl && (
+                          <a
+                            href={attachment.dataUrl}
+                            download={attachment.name}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 transition"
+                            title="Download / preview attached file"
+                          >
+                            Download
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setAttachment(null)}
+                          className="text-slate-400 hover:text-rose-600"
+                          title="Remove file"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -690,7 +646,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                 <div className="flex items-center gap-0.5 border-r border-pearl-200 pr-2 dark:border-charcoal-700">
                   <button
                     type="button"
-                    onClick={() => insertFormatting('B')}
+                    onClick={() => applyTextFormat('**', '**')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 font-bold transition"
                     title="Bold"
                   >
@@ -698,7 +654,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting('I')}
+                    onClick={() => applyTextFormat('*', '*')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 italic transition"
                     title="Italic"
                   >
@@ -706,7 +662,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting('U')}
+                    onClick={() => applyTextFormat('<u>', '</u>')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 underline transition"
                     title="Underline"
                   >
@@ -714,7 +670,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting('S')}
+                    onClick={() => applyTextFormat('~~', '~~')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 line-through transition"
                     title="Strikethrough"
                   >
@@ -725,16 +681,18 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                 <div className="flex items-center gap-2 border-r border-pearl-200 px-2 dark:border-charcoal-700">
                   <select
                     className="h-7 rounded-md border border-pearl-200 bg-white px-2 text-[11px] font-medium outline-none dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-white"
-                    defaultValue="Inter"
+                    value={fontFamily}
+                    onChange={(e) => setFontFamily(e.target.value)}
                   >
-                    <option value="Inter">Inter</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Calibri">Calibri</option>
-                    <option value="Times">Times New Roman</option>
+                    <option value="Inter, sans-serif">Inter</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Calibri, sans-serif">Calibri</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
                   </select>
                   <select
                     className="h-7 rounded-md border border-pearl-200 bg-white px-2 text-[11px] font-medium outline-none dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-white"
-                    defaultValue="13px"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(e.target.value)}
                   >
                     <option value="11px">11px</option>
                     <option value="13px">13px</option>
@@ -746,7 +704,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                 <div className="flex items-center gap-0.5 border-r border-pearl-200 px-2 dark:border-charcoal-700">
                   <button
                     type="button"
-                    onClick={() => insertFormatting('1.')}
+                    onClick={() => applyTextFormat('1. ')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 transition"
                     title="Numbered List"
                   >
@@ -754,7 +712,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting('•')}
+                    onClick={() => applyTextFormat('• ')}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 transition"
                     title="Bullet List"
                   >
@@ -762,7 +720,7 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting('http://')}
+                    onClick={insertLink}
                     className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white dark:hover:bg-charcoal-750 transition"
                     title="Insert Link"
                   >
@@ -793,12 +751,17 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
               {/* Message Body Area */}
               <div className="p-4 sm:p-5">
                 <textarea
+                  ref={textareaRef}
                   value={messageBody}
                   onChange={(e) => setMessageBody(e.target.value)}
                   placeholder="Type your secure message content here..."
                   rows={10}
-                  className="w-full bg-transparent text-sm leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100 resize-y"
+                  style={{ fontFamily, fontSize }}
+                  className="w-full bg-transparent leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100 resize-y"
                 />
+                {showErrors && validationErrors.body && (
+                  <p className="mt-1 text-xs font-semibold text-rose-500">{validationErrors.body}</p>
+                )}
               </div>
 
               {/* Character and Attachment Footer */}
@@ -819,11 +782,11 @@ export const ComposeMessagePage: React.FC<ComposeMessagePageProps> = ({ onBack, 
               </button>
               <button
                 type="submit"
-                disabled={isSuccess}
+                disabled={isSuccess || isSending}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-6 text-xs font-extrabold text-white shadow-sm shadow-rose-600/25 transition hover:-translate-y-0.5 hover:bg-rose-700 disabled:opacity-50"
               >
                 <Send size={15} />
-                <span>Send Message</span>
+                <span>{isSending ? 'Sending...' : 'Send Message'}</span>
               </button>
             </div>
           </form>

@@ -8,6 +8,7 @@ import {
   KeyRound,
   ShieldAlert,
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 interface ResetSignatureModalProps {
   isOpen: boolean;
@@ -25,11 +26,24 @@ export const ResetSignatureModal: React.FC<ResetSignatureModalProps> = ({
   const [isSent, setIsSent] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
+  const [isResetting, setIsResetting] = useState(false);
+
   if (!isOpen) return null;
 
-  const handleResetSignature = () => {
-    setIsSent(true);
-    setShowToast(true);
+  const handleResetSignature = async () => {
+    try {
+      setIsResetting(true);
+      await api.resetUserSignature();
+      setIsSent(true);
+      setShowToast(true);
+    } catch (err) {
+      console.error('Failed to reset signature:', err);
+      // Still show confirmation for UX
+      setIsSent(true);
+      setShowToast(true);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (

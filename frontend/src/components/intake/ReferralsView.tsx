@@ -10,7 +10,8 @@ import {
   Sparkles,
   ChevronRight,
   Trash2,
-  Edit2
+  Edit2,
+  UserCheck
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { Referral } from '../../types';
@@ -86,6 +87,10 @@ export const ReferralsView: React.FC = () => {
   };
 
   const pendingSocCount = referrals.filter(r => r.status === 'pending').length;
+  const admittedCount = referrals.filter(r => r.status === 'admitted').length;
+  const referralConversionRate = referrals.length > 0
+    ? `${((admittedCount / referrals.length) * 100).toFixed(1)}%`
+    : '0.0%';
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -100,10 +105,12 @@ export const ReferralsView: React.FC = () => {
       {/* Top Header & Navigation Segment (Identical to Inquiries) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-            Central Intake
+
+          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+            <UserCheck className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+            <span>Central Intake</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Incoming patient referrals, hospital handoffs, and admission readiness
           </p>
         </div>
@@ -113,22 +120,20 @@ export const ReferralsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setIntakeSubTab('inquiries')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              intakeSubTab === 'inquiries'
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${intakeSubTab === 'inquiries'
                 ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                 : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-            }`}
+              }`}
           >
             Inquiries ({inquiries.length})
           </button>
           <button
             type="button"
             onClick={() => setIntakeSubTab('referrals')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              intakeSubTab === 'referrals'
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${intakeSubTab === 'referrals'
                 ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                 : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-            }`}
+              }`}
           >
             Referrals ({referrals.length})
           </button>
@@ -171,7 +176,7 @@ export const ReferralsView: React.FC = () => {
               Avg. Conversion
             </div>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-              88.4%
+              {referralConversionRate}
             </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -288,13 +293,12 @@ export const ReferralsView: React.FC = () => {
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                              isHospice
+                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${isHospice
                                 ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                                 : isHomeHealth
-                                ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                : 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                            }`}
+                                  ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                  : 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                              }`}
                           >
                             {initials || 'PT'}
                           </div>
@@ -329,13 +333,12 @@ export const ReferralsView: React.FC = () => {
                       {/* Column 3: Service & Source */}
                       <td className="py-3.5 px-5">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${
-                            isHospice
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${isHospice
                               ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
                               : isHomeHealth
-                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                          }`}
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                            }`}
                         >
                           {item.lineOfService}
                         </span>

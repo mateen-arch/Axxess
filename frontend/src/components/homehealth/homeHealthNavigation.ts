@@ -139,13 +139,13 @@ export const HOME_HEALTH_NAV_SECTIONS: HomeHealthNavNode[] = [
       { id: 'on-demand-training', label: 'On-Demand Training' },
       { id: 'recent-software-updates', label: 'Recent Software Updates' },
       { id: 'covid-19-resource-center', label: 'COVID-19 Resource Center' },
-      { id: 'follow-axxess', label: 'Follow Axxess' },
+      { id: 'follow-careorbit', label: 'Follow CareOrbit' },
     ],
   },
   {
-    id: 'axxess-intelligence',
-    label: 'Axxess Intelligence',
-    children: [{ id: 'ask-axxess', label: 'Ask Axxess' }],
+    id: 'careorbit-intelligence',
+    label: 'CareOrbit Intelligence',
+    children: [{ id: 'ask-careorbit', label: 'Ask CareOrbit' }],
   },
 ];
 

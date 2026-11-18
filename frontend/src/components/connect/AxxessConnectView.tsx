@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   MessageSquare,
   Phone,
@@ -9,7 +9,6 @@ import {
   MoreVertical,
   Paperclip,
   Send,
-  PhoneCall,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
@@ -18,13 +17,18 @@ import {
   ExternalLink,
   ShieldCheck,
   Download,
-  Users
+  Users,
+  Check,
+  Sparkles,
+  Info,
+  X
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 import { ChatMessage } from '../../types/connectAndPlanner';
 import { NewChatModal } from './NewChatModal';
 
-export const AxxessConnectView: React.FC = () => {
+export const CareOrbitConnectView: React.FC = () => {
   const {
     conversations,
     activeConversationId,
@@ -35,7 +39,11 @@ export const AxxessConnectView: React.FC = () => {
     callLogs,
     setActiveCallModal,
     setActiveNavTab,
-    clinicians
+    setCurrentWebsite,
+    patients,
+    setSelectedPatient,
+    fetchMessagesForConversation,
+    refreshConnectConversations
   } = useHealthcare();
 
   // Rail State: 'chat' | 'calls'
@@ -44,6 +52,9 @@ export const AxxessConnectView: React.FC = () => {
   // Filter & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'care_team' | 'direct' | 'urgent'>('all');
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [selectedAttachment, setSelectedAttachment] = useState<ChatMessage['attachment'] | null>(null);
@@ -52,27 +63,51 @@ export const AxxessConnectView: React.FC = () => {
 
   // Active Conversation Object
   const activeConversation = useMemo(() => {
-    if (!activeConversationId) return null;
-    return conversations.find(c => c.id === activeConversationId) || null;
+    if (!activeConversationId) return conversations[0] || null;
+    return conversations.find(c => c.id === activeConversationId) || conversations[0] || null;
   }, [conversations, activeConversationId]);
+
+  // Direct active messages state with real-time sync
+  const [conversationMessages, setConversationMessages] = useState<ChatMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  const loadConversationMessages = useCallback(async (convId: string) => {
+    try {
+      const msgs = await api.getConnectMessages(convId);
+      if (Array.isArray(msgs)) {
+        setConversationMessages(msgs);
+      }
+    } catch (err) {
+      console.error('Failed to load conversation messages:', err);
+    }
+  }, []);
+
+  // Load messages from database whenever active conversation changes + 3s live polling
+  useEffect(() => {
+    if (activeConversation?.id) {
+      loadConversationMessages(activeConversation.id);
+      markConversationRead(activeConversation.id);
+
+      const interval = setInterval(() => {
+        loadConversationMessages(activeConversation.id);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [activeConversation?.id, loadConversationMessages, markConversationRead]);
 
   // Active Messages list
   const activeMessages = useMemo(() => {
-    if (!activeConversationId) return [];
-    return messagesMap[activeConversationId] || [];
-  }, [messagesMap, activeConversationId]);
+    if (conversationMessages.length > 0) return conversationMessages;
+    if (activeConversation?.id && messagesMap[activeConversation.id]) {
+      return messagesMap[activeConversation.id];
+    }
+    return [];
+  }, [conversationMessages, messagesMap, activeConversation?.id]);
 
   // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages.length]);
-
-  // Mark as read when conversation is selected
-  useEffect(() => {
-    if (activeConversationId) {
-      markConversationRead(activeConversationId);
-    }
-  }, [activeConversationId]);
 
   // Filtered Conversations
   const filteredConversations = useMemo(() => {
@@ -83,28 +118,90 @@ export const AxxessConnectView: React.FC = () => {
 
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
-        const matchesTitle = c.title.toLowerCase().includes(query);
-        const matchesSubtitle = c.subtitle.toLowerCase().includes(query);
-        const matchesLastMsg = c.lastMessage.content.toLowerCase().includes(query);
+        const matchesTitle = (c.title || '').toLowerCase().includes(query);
+        const matchesSubtitle = (c.subtitle || '').toLowerCase().includes(query);
+        const matchesLastMsg = (c.lastMessage?.content || '').toLowerCase().includes(query);
         if (!matchesTitle && !matchesSubtitle && !matchesLastMsg) return false;
       }
       return true;
     });
   }, [conversations, filterType, searchTerm]);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
+  // Total Unread Count for Chat Badge
+  const totalUnreadCount = useMemo(() => {
+    return conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  }, [conversations]);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!activeConversationId) return;
+    if (!activeConversation?.id) return;
     if (!messageInput.trim() && !selectedAttachment) return;
 
-    sendChatMessage(activeConversationId, messageInput.trim(), selectedAttachment || undefined);
+    const content = messageInput.trim();
+    const attachment = selectedAttachment || undefined;
     setMessageInput('');
     setSelectedAttachment(null);
+    setIsAttachmentPickerOpen(false);
+
+    // Instant optimistic message append
+    const optimisticMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: 'current-user',
+      senderName: 'Hilder M., RN',
+      senderRole: 'Clinical Supervisor',
+      isCurrentUser: true,
+      content,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: 'Today',
+      isRead: true,
+      attachment
+    };
+
+    setConversationMessages(prev => [...prev, optimisticMsg]);
+
+    try {
+      const savedMsg = await api.sendConnectMessage(activeConversation.id, {
+        content,
+        senderId: 'current-user',
+        senderName: 'Hilder M., RN',
+        senderRole: 'Clinical Supervisor',
+        attachment
+      });
+
+      setConversationMessages(prev => prev.map(m => m.id === optimisticMsg.id ? savedMsg : m));
+      refreshConnectConversations();
+    } catch (err) {
+      console.error('Failed to send message to database:', err);
+    }
   };
 
-  const handleQuickReply = (text: string) => {
-    if (!activeConversationId) return;
-    sendChatMessage(activeConversationId, text);
+  const handleQuickReply = async (text: string) => {
+    if (!activeConversation?.id) return;
+    const optimisticMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: 'current-user',
+      senderName: 'Hilder M., RN',
+      senderRole: 'Clinical Supervisor',
+      isCurrentUser: true,
+      content: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: 'Today',
+      isRead: true
+    };
+    setConversationMessages(prev => [...prev, optimisticMsg]);
+
+    try {
+      const savedMsg = await api.sendConnectMessage(activeConversation.id, {
+        content: text,
+        senderId: 'current-user',
+        senderName: 'Hilder M., RN',
+        senderRole: 'Clinical Supervisor'
+      });
+      setConversationMessages(prev => prev.map(m => m.id === optimisticMsg.id ? savedMsg : m));
+      refreshConnectConversations();
+    } catch (err) {
+      console.error('Failed to send quick reply:', err);
+    }
   };
 
   const handleStartCall = (contactName: string, callType: 'audio' | 'video') => {
@@ -115,10 +212,80 @@ export const AxxessConnectView: React.FC = () => {
     });
   };
 
+  // Real Download handler for message attachments
+  const handleDownloadAttachment = (attachment: { name: string; url?: string }) => {
+    const downloadUrl = attachment.url || `http://localhost:5000/api/connect/attachments/${encodeURIComponent(attachment.name)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = attachment.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Route directly to Patient Chart in CareOrbit Central
+  const handleRouteToPatientChart = () => {
+    if (!activeConversation) return;
+
+    if (activeConversation.patientId) {
+      const matched = patients.find(p => p.id === activeConversation.patientId || p.mrn === '1061');
+      if (matched) {
+        setSelectedPatient(matched);
+      }
+    } else if (activeConversation.patientName) {
+      const matched = patients.find(p => 
+        `${p.firstName} ${p.lastName}`.toLowerCase().includes(activeConversation.patientName!.toLowerCase())
+      );
+      if (matched) {
+        setSelectedPatient(matched);
+      }
+    } else {
+      // Default to Heather Abuissa if care team
+      const matched = patients.find(p => p.mrn === '1061');
+      if (matched) setSelectedPatient(matched);
+    }
+
+    setCurrentWebsite('central');
+    setActiveNavTab('patients');
+  };
+
+  // Export Chat Transcript as File
+  const handleExportTranscript = () => {
+    if (!activeConversation) return;
+    const lines = [
+      `============================================================`,
+      `CAREORBIT SECURE CARE TEAM CHAT TRANSCRIPT`,
+      `Conversation: ${activeConversation.title}`,
+      `Date: ${new Date().toLocaleString()}`,
+      `Service Line: ${activeConversation.serviceLine || 'Home Health'}`,
+      `============================================================\n`
+    ];
+
+    activeMessages.forEach(m => {
+      lines.push(`[${m.timestamp}] ${m.senderName} (${m.senderRole || 'Care Team'}):`);
+      lines.push(`  ${m.content}`);
+      if (m.attachment) {
+        lines.push(`  [Attachment: ${m.attachment.name} (${m.attachment.size})]`);
+      }
+      lines.push('');
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${activeConversation.title.replace(/[^a-zA-Z0-9]/g, '_')}_Transcript.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsMoreMenuOpen(false);
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row h-[750px] max-h-[82vh] bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[760px] max-h-[82vh] bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden animate-fadeIn">
       {/* ================================================================= */}
-      {/* 1. LEFT NARROW ICON RAIL (Matching media_1793908270616_4a3a5326) */}
+      {/* 1. LEFT NARROW ICON RAIL                                          */}
       {/* ================================================================= */}
       <div className="w-full lg:w-20 bg-pearl-50/90 dark:bg-charcoal-900 border-b lg:border-b-0 lg:border-r border-pearl-200 dark:border-charcoal-700 p-2.5 flex lg:flex-col items-center justify-between lg:justify-start gap-3 shrink-0">
         <div className="flex lg:flex-col items-center gap-2 w-full">
@@ -134,9 +301,11 @@ export const AxxessConnectView: React.FC = () => {
           >
             <div className="relative">
               <MessageSquare size={20} className={activeRailTab === 'chat' ? 'text-rose-600' : 'text-slate-500'} />
-              <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black flex items-center justify-center ring-2 ring-white dark:ring-charcoal-900">
-                3
-              </span>
+              {totalUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black flex items-center justify-center ring-2 ring-white dark:ring-charcoal-900">
+                  {totalUnreadCount}
+                </span>
+              )}
             </div>
             <span className="text-[10px] font-extrabold tracking-tight">Chat</span>
             {activeRailTab === 'chat' && (
@@ -165,7 +334,7 @@ export const AxxessConnectView: React.FC = () => {
         {/* Security Badge at bottom of rail */}
         <div className="hidden lg:flex flex-col items-center mt-auto text-slate-400 p-1" title="Encrypted HIPAA Chat">
           <ShieldCheck size={18} className="text-emerald-500" />
-          <span className="text-[8px] font-mono mt-1">HIPAA</span>
+          <span className="text-[8px] font-mono mt-1 font-bold">HIPAA</span>
         </div>
       </div>
 
@@ -177,39 +346,107 @@ export const AxxessConnectView: React.FC = () => {
           {/* Conversation Roster List (Left pane) */}
           <div className="w-full md:w-80 lg:w-96 border-r border-pearl-200 dark:border-charcoal-700 flex flex-col shrink-0 bg-pearl-50/40 dark:bg-charcoal-850/60">
             {/* Roster Header with Title & Action Icons */}
-            <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between">
+            <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between relative">
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-slate-900 dark:text-white">Chat</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-gradient-to-r from-purple-500/15 to-rose-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25">
-                  Premium
+                <h3 className="font-black text-base text-slate-900 dark:text-white">Care Team Chat</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                  Live DB
                 </span>
               </div>
 
-              {/* Action Icons matching screenshot */}
+              {/* Action Icons */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setIsNewChatModalOpen(true)}
                   className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                  title="New Conversation"
+                  title="New Conversation or Group"
                 >
                   <Plus size={16} />
                 </button>
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-pearl-100 dark:hover:bg-charcoal-700 transition-colors cursor-pointer"
+                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    isFilterMenuOpen ? 'bg-rose-50 text-rose-600' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-pearl-100'
+                  }`}
                   title="Filter Chats"
                 >
                   <Filter size={15} />
                 </button>
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-pearl-100 dark:hover:bg-charcoal-700 transition-colors cursor-pointer"
+                  onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    isMoreMenuOpen ? 'bg-pearl-200 text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-pearl-100'
+                  }`}
                   title="More Options"
                 >
                   <MoreVertical size={15} />
                 </button>
               </div>
+
+              {/* Filter Dropdown Menu */}
+              {isFilterMenuOpen && (
+                <div className="absolute right-4 top-14 z-30 w-48 bg-white dark:bg-charcoal-800 rounded-xl shadow-xl border border-pearl-200 dark:border-charcoal-650 py-1 text-xs animate-fadeIn">
+                  <div className="px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider text-slate-400 border-b border-pearl-100 dark:border-charcoal-700">
+                    Filter Conversations
+                  </div>
+                  {[
+                    { id: 'all', label: 'All Conversations' },
+                    { id: 'care_team', label: 'Care Teams Only' },
+                    { id: 'direct', label: 'Direct Messages' },
+                    { id: 'urgent', label: 'Urgent / Priority' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => { setFilterType(f.id as any); setIsFilterMenuOpen(false); }}
+                      className="w-full px-3 py-2 text-left hover:bg-pearl-50 dark:hover:bg-charcoal-700 flex items-center justify-between cursor-pointer"
+                    >
+                      <span className={filterType === f.id ? 'font-bold text-rose-600' : 'text-slate-700 dark:text-slate-200'}>
+                        {f.label}
+                      </span>
+                      {filterType === f.id && <Check size={13} className="text-rose-600" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* More Menu Dropdown */}
+              {isMoreMenuOpen && (
+                <div className="absolute right-4 top-14 z-30 w-52 bg-white dark:bg-charcoal-800 rounded-xl shadow-xl border border-pearl-200 dark:border-charcoal-650 py-1 text-xs animate-fadeIn">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeConversation) markConversationRead(activeConversation.id);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-pearl-50 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer"
+                  >
+                    <CheckCheck size={14} className="text-emerald-500" />
+                    <span>Mark Conversation Read</span>
+                  </button>
+                  {activeConversation?.patientId && (
+                    <button
+                      type="button"
+                      onClick={() => { handleRouteToPatientChart(); setIsMoreMenuOpen(false); }}
+                      className="w-full px-3 py-2 text-left hover:bg-pearl-50 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ExternalLink size={14} className="text-rose-600" />
+                      <span>View Linked Patient Chart</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExportTranscript}
+                    className="w-full px-3 py-2 text-left hover:bg-pearl-50 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Download size={14} className="text-blue-500" />
+                    <span>Export Chat Transcript</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Search Input */}
@@ -248,61 +485,66 @@ export const AxxessConnectView: React.FC = () => {
             <div className="flex-1 overflow-y-auto divide-y divide-pearl-100 dark:divide-charcoal-750 p-2 space-y-1">
               {filteredConversations.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                  <div className="font-bold">New Conversations will live here</div>
-                  <p className="text-[11px]">Select the New Chat icon above to start a new conversation.</p>
+                  <p>No conversations found.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewChatModalOpen(true)}
+                    className="text-xs text-rose-600 font-bold hover:underline cursor-pointer"
+                  >
+                    + Start New Conversation
+                  </button>
                 </div>
               ) : (
                 filteredConversations.map(conv => {
-                  const isSelected = activeConversationId === conv.id;
-                  const isCareTeam = conv.type === 'care_team';
-
+                  const isSelected = activeConversation?.id === conv.id;
                   return (
                     <div
                       key={conv.id}
                       onClick={() => setActiveConversationId(conv.id)}
                       className={`p-3 rounded-xl transition-all cursor-pointer flex items-start gap-3 relative ${
                         isSelected
-                          ? 'bg-white dark:bg-charcoal-750 shadow-xs border border-pearl-300 dark:border-charcoal-600'
+                          ? 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/40 shadow-xs'
                           : 'hover:bg-pearl-100/60 dark:hover:bg-charcoal-800/60 border border-transparent'
                       }`}
                     >
                       {/* Avatar */}
-                      <div className="relative shrink-0 mt-0.5">
+                      <div className="relative shrink-0">
                         <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs text-white shadow-2xs ${
-                            isCareTeam
-                              ? 'bg-gradient-to-tr from-purple-600 to-indigo-500'
-                              : 'bg-gradient-to-tr from-rose-600 to-rose-400'
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${
+                            conv.type === 'care_team'
+                              ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300'
+                              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'
                           }`}
                         >
-                          {isCareTeam ? <Users size={16} /> : conv.title[0]}
+                          {conv.type === 'care_team' ? <Users size={16} /> : conv.title.charAt(0)}
                         </div>
-                        {conv.participants[0]?.status === 'online' && (
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-800" />
+                        {conv.type === 'direct' && (
+                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-850" />
                         )}
                       </div>
 
-                      {/* Info & Snippet */}
+                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">
                             {conv.title}
-                          </span>
+                          </h4>
                           <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                            {conv.lastMessage.timestamp}
+                            {conv.lastMessage?.timestamp || 'Today'}
                           </span>
                         </div>
 
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          {conv.subtitle}
-                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          {conv.lastMessage?.content || conv.subtitle || 'Conversation ready'}
+                        </p>
 
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate font-medium">
-                            {conv.lastMessage.content}
-                          </p>
+                        <div className="flex items-center justify-between gap-2 mt-1.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-pearl-100 dark:bg-charcoal-700 text-slate-600 dark:text-slate-300">
+                            {conv.type === 'care_team' ? 'Care Team' : 'Direct'}
+                          </span>
+
                           {conv.unreadCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-mono text-[9.5px] font-black shrink-0">
+                            <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black shrink-0">
                               {conv.unreadCount}
                             </span>
                           )}
@@ -315,40 +557,40 @@ export const AxxessConnectView: React.FC = () => {
             </div>
           </div>
 
-          {/* Center Chat View or Empty State */}
-          <div className="flex-1 flex flex-col min-w-0 h-full bg-white dark:bg-charcoal-850">
+          {/* Chat Message Active Pane (Right pane) */}
+          <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-charcoal-850 h-full">
             {activeConversation ? (
               <>
                 {/* Active Chat Header */}
-                <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between gap-3 bg-pearl-50/50 dark:bg-charcoal-800/40 shrink-0">
+                <div className="p-3.5 px-5 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/50 dark:bg-charcoal-800/50">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-extrabold flex items-center justify-center text-xs shrink-0 shadow-2xs">
-                      {activeConversation.title[0]}
+                    <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 font-black flex items-center justify-center shrink-0">
+                      {activeConversation.type === 'care_team' ? <Users size={18} /> : activeConversation.title.charAt(0)}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
                           {activeConversation.title}
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                          Active Encounter
+                        <span className="px-2 py-0.2 rounded text-[9.5px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 shrink-0">
+                          {activeConversation.serviceLine?.replace('_', ' ') || 'Home Health'}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {activeConversation.subtitle}
+                        {activeConversation.subtitle || 'Active Secure Channel'}
                       </p>
                     </div>
                   </div>
 
-                  {/* Header Calling & Navigation Actions */}
+                  {/* Header Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* View Patient Chart shortcut button */}
-                    {activeConversation.patientId && (
+                    {/* Routing to Patient Chart button */}
+                    {(activeConversation.patientId || activeConversation.type === 'care_team') && (
                       <button
                         type="button"
-                        onClick={() => setActiveNavTab('patients')}
-                        className="px-2.5 py-1.5 rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 hover:bg-pearl-100 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                        title="Open Clinical Patient Chart"
+                        onClick={handleRouteToPatientChart}
+                        className="px-2.5 py-1.5 rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                        title="Route to Patient EHR Chart in CareOrbit Central"
                       >
                         <ExternalLink size={13} className="text-rose-600" />
                         <span className="hidden sm:inline">Patient Chart</span>
@@ -360,7 +602,7 @@ export const AxxessConnectView: React.FC = () => {
                       type="button"
                       onClick={() => handleStartCall(activeConversation.title, 'audio')}
                       className="p-2 rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer shadow-2xs"
-                      title="Start Audio Call"
+                      title="Start 1-to-1 Audio Call"
                     >
                       <Phone size={15} />
                     </button>
@@ -382,128 +624,168 @@ export const AxxessConnectView: React.FC = () => {
                   {/* Date Divider */}
                   <div className="flex items-center justify-center my-2">
                     <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-pearl-100 dark:bg-charcoal-750 text-slate-500 dark:text-slate-400 border border-pearl-200 dark:border-charcoal-650">
-                      Today • Encrypted Clinical Thread
+                      Encrypted Clinical Record • HIPAA Verified
                     </span>
                   </div>
 
-                  {activeMessages.map(msg => {
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex flex-col ${msg.isCurrentUser ? 'items-end' : 'items-start'} space-y-1`}
-                      >
-                        <div className="flex items-center gap-2 px-1 text-[10px] text-slate-400">
-                          <span className="font-bold text-slate-600 dark:text-slate-300">{msg.senderName}</span>
-                          <span>•</span>
-                          <span className="font-mono">{msg.timestamp}</span>
-                        </div>
-
-                        {/* Bubble */}
+                  {activeMessages.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 dark:text-slate-500 text-xs italic">
+                      No messages yet in this conversation. Start the discussion below.
+                    </div>
+                  ) : (
+                    activeMessages.map(msg => {
+                      const isMe = (msg as any).isOutgoing || msg.isCurrentUser || msg.senderId === 'current-user' || msg.senderName === 'You' || msg.senderName === 'Hilder M., RN';
+                      return (
                         <div
-                          className={`p-3.5 rounded-2xl max-w-lg text-xs font-medium shadow-xs ${
-                            msg.isCurrentUser
-                              ? 'bg-rose-600 text-white rounded-br-xs'
-                              : 'bg-pearl-100/80 dark:bg-charcoal-800 text-slate-900 dark:text-slate-100 rounded-bl-xs border border-pearl-200/80 dark:border-charcoal-700'
-                          }`}
+                          key={msg.id}
+                          className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
                         >
-                          <p className="leading-relaxed">{msg.content}</p>
+                          <div className="flex items-center gap-2 px-1 text-[10px] text-slate-400">
+                            <span className="font-bold text-slate-600 dark:text-slate-300">{isMe ? 'You' : msg.senderName}</span>
+                            <span>•</span>
+                            <span className="font-mono">{msg.timestamp}</span>
+                          </div>
 
-                          {/* Attachment Card if any */}
-                          {msg.attachment && (
-                            <div
-                              className={`mt-2.5 p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
-                                msg.isCurrentUser
-                                  ? 'bg-rose-700/60 border-rose-500/50 text-white'
-                                  : 'bg-white dark:bg-charcoal-750 border-pearl-200 dark:border-charcoal-650 text-slate-800 dark:text-slate-200'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <FileText size={18} className={msg.isCurrentUser ? 'text-white' : 'text-rose-600'} />
-                                <div className="min-w-0">
-                                  <div className="font-bold text-xs truncate">{msg.attachment.name}</div>
-                                  <div className="text-[10px] opacity-80 font-mono">{msg.attachment.size} • Encrypted PDF</div>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="p-1 rounded-lg hover:bg-black/10 transition-colors cursor-pointer"
-                                title="Download"
+                          {/* Bubble */}
+                          <div
+                            className={`p-3.5 rounded-2xl max-w-lg text-xs font-medium shadow-xs ${
+                              isMe
+                                ? 'bg-rose-600 text-white rounded-br-xs'
+                                : 'bg-pearl-100/80 dark:bg-charcoal-800 text-slate-900 dark:text-slate-100 rounded-bl-xs border border-pearl-200/80 dark:border-charcoal-700'
+                            }`}
+                          >
+                            <p className="leading-relaxed">{msg.content}</p>
+
+                            {/* Downloadable Attachment Card */}
+                            {msg.attachment && (
+                              <div
+                                onClick={() => handleDownloadAttachment(msg.attachment!)}
+                                className={`mt-2.5 p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01] ${
+                                  isMe
+                                    ? 'bg-rose-700/80 border-rose-500/50 text-white hover:bg-rose-700'
+                                    : 'bg-white dark:bg-charcoal-750 border-pearl-200 dark:border-charcoal-650 text-slate-800 dark:text-slate-200 hover:bg-pearl-50'
+                                }`}
+                                title="Click to download verified clinical document"
                               >
-                                <Download size={14} />
-                              </button>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText size={18} className={isMe ? 'text-white' : 'text-rose-600'} />
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-xs truncate">{msg.attachment.name}</div>
+                                    <div className="text-[10px] opacity-80 font-mono">{msg.attachment.size || '380 KB'} • Downloadable PDF</div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadAttachment(msg.attachment!);
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-black/15 transition-colors cursor-pointer shrink-0"
+                                  title="Download Attachment"
+                                >
+                                  <Download size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Read Receipts */}
+                          {isMe && (
+                            <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1 font-mono">
+                              <CheckCheck size={12} className="text-emerald-500" />
+                              <span>Sent & Delivered</span>
                             </div>
                           )}
                         </div>
-
-                        {/* Read Receipts */}
-                        {msg.isCurrentUser && (
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400 px-1 font-mono">
-                            <CheckCheck size={12} className="text-emerald-500" />
-                            <span>Read</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Quick Reply Clinical Chips */}
-                <div className="px-4 py-2 border-t border-pearl-100 dark:border-charcoal-750 bg-pearl-50/40 dark:bg-charcoal-850/40 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Quick:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickReply('Order Signed & Verified in Axxess ✓')}
-                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-300 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-400 whitespace-nowrap transition-all cursor-pointer shadow-2xs"
-                  >
-                    Order Signed ✓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickReply('Arriving in 15 mins for scheduled encounter 🚗')}
-                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-300 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-400 whitespace-nowrap transition-all cursor-pointer shadow-2xs"
-                  >
-                    On My Way 🚗
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickReply('Vital signs elevated. Requesting immediate physician callback 📞')}
-                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 whitespace-nowrap transition-all cursor-pointer shadow-2xs"
-                  >
-                    Vital Alert ⚠️
-                  </button>
-                </div>
-
-                {/* Message Input Composer */}
-                <div className="p-3 sm:p-4 border-t border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shrink-0">
-                  {selectedAttachment && (
-                    <div className="mb-2 px-3 py-1.5 rounded-xl bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 text-xs flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText size={14} className="text-rose-600" />
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAttachment.name}</span>
-                        <span className="text-[10px] text-slate-400">({selectedAttachment.size})</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAttachment(null)}
-                        className="text-slate-400 hover:text-rose-600 text-xs font-bold cursor-pointer"
-                      >
-                        Remove
-                      </button>
+                {/* Selected Attachment Preview Chip */}
+                {selectedAttachment && (
+                  <div className="px-4 py-2 bg-pearl-50 dark:bg-charcoal-800 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-rose-600">
+                      <FileText size={14} />
+                      <span>Attached: {selectedAttachment.name}</span>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAttachment(null)}
+                      className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Attachment Preset Picker Drawer */}
+                {isAttachmentPickerOpen && (
+                  <div className="p-3 bg-pearl-50/90 dark:bg-charcoal-800 border-t border-pearl-200 dark:border-charcoal-700 animate-fadeIn">
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Attach Clinical Document:
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { name: 'Care_Plan_Summary.pdf', type: 'pdf', size: '420 KB' },
+                        { name: 'Wound_Progress_Photo.jpg', type: 'image', size: '1.2 MB' },
+                        { name: 'Medication_Recon_Protocol.pdf', type: 'pdf', size: '310 KB' },
+                        { name: 'OASIS_Recert_Assessment.pdf', type: 'pdf', size: '680 KB' },
+                      ].map(doc => (
+                        <button
+                          key={doc.name}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAttachment({
+                              name: doc.name,
+                              type: doc.type as any,
+                              size: doc.size,
+                              url: `/api/connect/attachments/${doc.name}`
+                            });
+                            setIsAttachmentPickerOpen(false);
+                          }}
+                          className="p-2 rounded-xl bg-white dark:bg-charcoal-750 border border-pearl-200 dark:border-charcoal-650 hover:border-rose-500 text-left text-xs font-medium cursor-pointer shadow-2xs"
+                        >
+                          <div className="font-bold truncate text-[11px] text-slate-900 dark:text-white">{doc.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{doc.size}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Input Footer */}
+                <div className="p-3 sm:p-4 border-t border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850">
+                  <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0 flex items-center gap-1">
+                      <Sparkles size={11} className="text-amber-500" />
+                      Quick:
+                    </span>
+                    {[
+                      'Order signed & verified',
+                      'Encounter note completed',
+                      'Vitals within normal limits',
+                      'Please reschedule 30 mins'
+                    ].map(txt => (
+                      <button
+                        key={txt}
+                        type="button"
+                        onClick={() => handleQuickReply(txt)}
+                        className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-pearl-100 hover:bg-rose-50 hover:text-rose-600 dark:bg-charcoal-750 text-slate-600 dark:text-slate-300 whitespace-nowrap transition-colors cursor-pointer border border-pearl-200 dark:border-charcoal-650"
+                      >
+                        {txt}
+                      </button>
+                    ))}
+                  </div>
 
                   <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        setSelectedAttachment({
-                          name: 'Encounter_Documentation_Note.pdf',
-                          type: 'pdf',
-                          size: '1.2 MB'
-                        })
-                      }
-                      className="p-2.5 rounded-xl border border-pearl-300 dark:border-charcoal-600 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-pearl-100 dark:hover:bg-charcoal-750 transition-colors cursor-pointer"
+                      onClick={() => setIsAttachmentPickerOpen(!isAttachmentPickerOpen)}
+                      className={`p-2.5 rounded-xl border border-pearl-300 dark:border-charcoal-600 text-slate-500 hover:text-rose-600 hover:bg-pearl-100 dark:hover:bg-charcoal-750 transition-colors cursor-pointer shadow-2xs ${
+                        isAttachmentPickerOpen ? 'bg-rose-50 text-rose-600' : ''
+                      }`}
                       title="Attach Clinical Document"
                     >
                       <Paperclip size={16} />
@@ -511,16 +793,16 @@ export const AxxessConnectView: React.FC = () => {
 
                     <input
                       type="text"
-                      placeholder="Type a secure HIPAA message..."
+                      placeholder="Type a secure HIPAA encrypted message..."
                       value={messageInput}
                       onChange={e => setMessageInput(e.target.value)}
-                      className="flex-1 px-4 py-2.5 text-xs rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-pearl-50/50 dark:bg-charcoal-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-rose-500 shadow-inner"
+                      className="flex-1 px-4 py-2.5 text-xs rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-rose-500 shadow-2xs"
                     />
 
                     <button
                       type="submit"
                       disabled={!messageInput.trim() && !selectedAttachment}
-                      className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white shadow-sm transition-all cursor-pointer flex items-center justify-center"
+                      className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white shadow-md transition-all cursor-pointer"
                       title="Send Message"
                     >
                       <Send size={16} />
@@ -529,172 +811,93 @@ export const AxxessConnectView: React.FC = () => {
                 </div>
               </>
             ) : (
-              /* ============================================================= */
-              /* AUTHENTIC WELCOME SCREEN (Direct match to media_1793908270616)*/
-              /* ============================================================= */
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-xl mx-auto space-y-5 animate-fadeIn">
-                <div className="w-20 h-20 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-inner">
-                  <MessageSquare size={36} />
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                    Welcome to Axxess Connect — your internal messaging solution.
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Start a conversation to share updates, ask questions, or connect with your team.
-                  </p>
-                </div>
-
-                <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed max-w-md">
-                  Clear communication drives great teamwork — and this is where it happens. Stay connected anywhere.
-                </p>
-
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsNewChatModalOpen(true)}
-                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    <Plus size={15} />
-                    <span>Start a New Conversation</span>
-                  </button>
-                </div>
-
-                <div className="pt-4 border-t border-pearl-200 dark:border-charcoal-700 w-full text-[11px] text-slate-400">
-                  Download the <span className="font-bold text-slate-700 dark:text-slate-300">Axxess Central Mobile App</span> to message your team on the go.
-                </div>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                <MessageSquare size={36} className="text-slate-300 mb-2" />
+                <h4 className="font-bold text-slate-700 dark:text-slate-200">No conversation selected</h4>
+                <p className="text-xs mt-1">Select a care team or clinician from the left roster.</p>
               </div>
             )}
           </div>
         </div>
       ) : (
         /* ================================================================= */
-        /* 3. CALLS TAB VIEW                                                 */
+        /* 3. CALLS LOGS TAB VIEW                                            */
         /* ================================================================= */
-        <div className="flex-1 p-6 space-y-6 overflow-y-auto animate-fadeIn">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-pearl-200 dark:border-charcoal-700">
+        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+          <div className="flex items-center justify-between pb-4 border-b border-pearl-200 dark:border-charcoal-700 mb-4">
             <div>
-              <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                <PhoneCall className="text-rose-600" size={20} />
-                <span>Axxess Voice & Video Telehealth Calls</span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Encrypted direct peer-to-peer and patient consultation audio/video calling
-              </p>
+              <h3 className="font-black text-lg text-slate-900 dark:text-white">Call History & Telehealth Log</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Encrypted 1-to-1 voice and video teleconsultation records</p>
             </div>
-
             <button
               type="button"
-              onClick={() => handleStartCall('Melissa Sweeney, RN', 'video')}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-2 shadow-2xs cursor-pointer transition-all self-start sm:self-auto"
+              onClick={() => handleStartCall('Alexandria Nelson, RN', 'audio')}
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
-              <Video size={14} />
-              <span>Start Instant Telehealth Call</span>
+              <Phone size={14} />
+              <span>Start Quick Call</span>
             </button>
           </div>
 
-          {/* Quick Call Directory */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {clinicians.slice(0, 4).map(c => (
+          <div className="divide-y divide-pearl-100 dark:divide-charcoal-750">
+            {callLogs.map(log => (
               <div
-                key={c.id}
-                className="p-3.5 rounded-2xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 flex items-center justify-between gap-3 hover:border-rose-300 dark:hover:border-rose-800 transition-all"
+                key={log.id}
+                className="py-3.5 flex items-center justify-between hover:bg-pearl-50/50 dark:hover:bg-charcoal-800/40 px-3 rounded-xl transition-colors"
               >
-                <div className="min-w-0">
-                  <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{c.name}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{c.title}</div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                      log.direction === 'inbound'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : log.direction === 'outbound'
+                        ? 'bg-blue-100 text-blue-600'
+                        : 'bg-rose-100 text-rose-600'
+                    }`}
+                  >
+                    {log.direction === 'inbound' ? (
+                      <PhoneIncoming size={15} />
+                    ) : log.direction === 'outbound' ? (
+                      <PhoneOutgoing size={15} />
+                    ) : (
+                      <PhoneMissed size={15} />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-bold text-xs text-slate-900 dark:text-white">
+                      {log.contactName}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {log.contactRole || 'Field Clinician'} • {log.callType === 'video' ? 'Video' : 'Voice'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+
+                <div className="flex items-center gap-4 text-xs font-mono">
+                  <span className="text-slate-400">{log.duration}</span>
                   <button
                     type="button"
-                    onClick={() => handleStartCall(c.name, 'audio')}
-                    className="p-2 rounded-lg bg-white dark:bg-charcoal-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-pearl-200 dark:border-charcoal-650 transition-colors cursor-pointer"
-                    title={`Call ${c.name}`}
+                    onClick={() => handleStartCall(log.contactName, log.callType || 'audio')}
+                    className="p-2 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-700 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Call Back"
                   >
-                    <Phone size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleStartCall(c.name, 'video')}
-                    className="p-2 rounded-lg bg-white dark:bg-charcoal-700 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-pearl-200 dark:border-charcoal-650 transition-colors cursor-pointer"
-                    title={`Video Call ${c.name}`}
-                  >
-                    <Video size={13} />
+                    <Phone size={14} />
                   </button>
                 </div>
               </div>
             ))}
           </div>
-
-          {/* Call Logs Table */}
-          <div className="glass-panel rounded-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between">
-              <span className="font-extrabold text-sm text-slate-900 dark:text-white">Recent Call History</span>
-              <span className="text-xs text-slate-400 font-mono">{callLogs.length} Records</span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
-                    <th className="py-3 px-5">Contact</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Direction</th>
-                    <th className="py-3 px-4">Duration</th>
-                    <th className="py-3 px-4">Patient Context</th>
-                    <th className="py-3 px-4">Time</th>
-                    <th className="py-3 px-5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
-                  {callLogs.map(call => (
-                    <tr key={call.id} className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/40 transition-colors">
-                      <td className="py-3 px-5">
-                        <div className="font-bold text-slate-900 dark:text-white">{call.contactName}</div>
-                        <div className="text-[10px] text-slate-400">{call.contactRole}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pearl-100 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300">
-                          {call.callType === 'video' ? <Video size={11} className="text-purple-500" /> : <Phone size={11} className="text-emerald-500" />}
-                          <span className="capitalize">{call.callType}</span>
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          {call.direction === 'inbound' && <PhoneIncoming size={12} className="text-emerald-500" />}
-                          {call.direction === 'outbound' && <PhoneOutgoing size={12} className="text-blue-500" />}
-                          {call.direction === 'missed' && <PhoneMissed size={12} className="text-rose-500" />}
-                          <span className="capitalize">{call.direction}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">{call.duration}</td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{call.patientContext || 'General Triage'}</td>
-                      <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400">{call.timestamp}</td>
-                      <td className="py-3 px-5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleStartCall(call.contactName, call.callType)}
-                          className="px-2.5 py-1 rounded-lg bg-pearl-100 dark:bg-charcoal-700 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
-                        >
-                          Call Back
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* New Chat Modal */}
+      {/* New Conversation / Group Modal */}
       <NewChatModal
         isOpen={isNewChatModalOpen}
         onClose={() => setIsNewChatModalOpen(false)}
-        onSelectConversation={id => setActiveConversationId(id)}
+        onSelectConversation={(id) => {
+          setActiveConversationId(id);
+          setActiveRailTab('chat');
+        }}
       />
     </div>
   );

@@ -29,27 +29,33 @@ export const IntakePipelineCard: React.FC = () => {
 
       {/* Table / Metric Rows */}
       <div className="my-auto py-3.5 space-y-3.5">
-        {intakeMetrics.map((item, idx) => (
-          <div key={idx} className="p-3.5 rounded-xl theme-card-subtle transition-colors">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="font-black text-xs text-slate-950 dark:text-white">{item.service}</span>
-              <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
-                {item.conversionRate} Admitted
-              </span>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div className="flex items-center justify-between theme-stat-tile px-3 py-2 rounded-lg">
-                <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">Inquiries:</span>
-                <span className="font-black text-slate-950 dark:text-white text-sm">{item.inquiry}</span>
-              </div>
-              <div className="flex items-center justify-between theme-stat-tile px-3 py-2 rounded-lg">
-                <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">Referrals:</span>
-                <span className="font-black text-rose-600 dark:text-rose-400 text-sm">{item.referral}</span>
-              </div>
-            </div>
+        {intakeMetrics.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-500 italic">
+            No intake records logged in the past 30 days.
           </div>
-        ))}
+        ) : (
+          intakeMetrics.map((item, idx) => (
+            <div key={idx} className="p-3.5 rounded-xl theme-card-subtle transition-colors">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="font-black text-xs text-slate-950 dark:text-white">{item.service}</span>
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                  {item.conversionRate} Admitted
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="flex items-center justify-between theme-stat-tile px-3 py-2 rounded-lg">
+                  <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">Inquiries:</span>
+                  <span className="font-black text-slate-950 dark:text-white text-sm">{item.inquiry}</span>
+                </div>
+                <div className="flex items-center justify-between theme-stat-tile px-3 py-2 rounded-lg">
+                  <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">Referrals:</span>
+                  <span className="font-black text-rose-600 dark:text-rose-400 text-sm">{item.referral}</span>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Footer */}

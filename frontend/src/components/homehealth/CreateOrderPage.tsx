@@ -54,16 +54,8 @@ interface SupplyRow {
   justification: string;
 }
 
-const DEFAULT_PHYSICIANS = [
-  { id: 'dr-gupta', name: 'Dr. Anita Gupta, MD', npi: '1487920194', phone: '(978) 555-0182', fax: '(978) 555-0199', address: '100 Cummings Center, Suite 120, Beverly, MA 01915' },
-  { id: 'dr-chen', name: 'Dr. Michael Chen, MD', npi: '1928374651', phone: '(978) 555-0144', fax: '(978) 555-0149', address: '450 Essex St, Salem, MA 01970' },
-  { id: 'dr-patel', name: 'Dr. Sarah Patel, DO', npi: '1192837462', phone: '(978) 555-0165', fax: '(978) 555-0169', address: '85 Constitution Way, Danvers, MA 01923' },
-  { id: 'dr-adams', name: 'Dr. John Adams, MD', npi: '1728394012', phone: '(978) 555-0111', fax: '(978) 555-0119', address: '200 Highland Ave, Peabody, MA 01960' },
-  { id: 'dr-ross', name: 'Dr. Emily Ross, MD', npi: '1839201948', phone: '(978) 555-0133', fax: '(978) 555-0139', address: '500 Boston St, Lynn, MA 01905' },
-];
-
 export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrderCreated }) => {
-  const { patients, homeHealthEpisodes, addHomeHealthOrder, organization } = useHealthcare();
+  const { patients, clinicians, homeHealthEpisodes, addHomeHealthOrder, organization } = useHealthcare();
 
   // Active home health patients
   const homeHealthPatients = useMemo(() => {
@@ -72,11 +64,44 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
     );
   }, [patients]);
 
-  // Form State
+  // Dynamic physician directory
+  const physicianList = useMemo(() => {
+    const list: Array<{ id: string; name: string; npi?: string; phone?: string; fax?: string }> = [];
+    const seen = new Set<string>();
+
+    patients.forEach((p) => {
+      if (p.attendingPhysician && !seen.has(p.attendingPhysician.trim())) {
+        seen.add(p.attendingPhysician.trim());
+        list.push({
+          id: `phy-${list.length + 1}`,
+          name: p.attendingPhysician.trim(),
+        });
+      }
+    });
+
+    clinicians.forEach((c) => {
+      const cred = (c.credentials || c.title || '').toUpperCase();
+      if (cred.includes('MD') || cred.includes('DO') || cred.includes('PHYSICIAN')) {
+        const docName = `${c.name}, ${c.credentials || 'MD'}`;
+        if (!seen.has(docName)) {
+          seen.add(docName);
+          list.push({
+            id: c.id,
+            name: docName,
+            phone: c.phone,
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [patients, clinicians]);
+
+  // Form State - start clean with no dummy data
   const [patientId, setPatientId] = useState<string>('');
   const [episodeAssociated, setEpisodeAssociated] = useState<string>('');
-  const [attendingPhysician, setAttendingPhysician] = useState<string>('Dr. Anita Gupta, MD');
-  const [sendToPhysician, setSendToPhysician] = useState<string>('Dr. Anita Gupta, MD');
+  const [attendingPhysician, setAttendingPhysician] = useState<string>('');
+  const [sendToPhysician, setSendToPhysician] = useState<string>('');
   const [copyToPhysician, setCopyToPhysician] = useState<string>('');
 
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -88,67 +113,16 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
   const [orderType, setOrderType] = useState<OrderType>('Medication Orders');
   const [orderReadBackAndVerified, setOrderReadBackAndVerified] = useState<boolean>(true);
 
-  // Clinician Signature Section
-  const [clinicianSignature, setClinicianSignature] = useState<string>('Hilder M., RN');
+  // Clinician Signature Section - start clean
+  const [clinicianSignature, setClinicianSignature] = useState<string>('');
   const [signatureDate, setSignatureDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [signatureTime, setSignatureTime] = useState<string>('14:32');
 
-  // Dynamic Clinical Content
+  // Dynamic Clinical Content - clean arrays with no dummy data
   const [orderNarrative, setOrderNarrative] = useState<string>('');
-  const [medications, setMedications] = useState<MedicationRow[]>([
-    {
-      id: 'med-1',
-      name: 'Furosemide (Lasix)',
-      dose: '40 mg',
-      route: 'Oral',
-      frequency: 'Daily in morning',
-      action: 'Change',
-      indication: 'Congestive Heart Failure / Fluid Overload',
-    },
-    {
-      id: 'med-2',
-      name: 'Potassium Chloride (Klor-Con)',
-      dose: '20 mEq',
-      route: 'Oral',
-      frequency: 'Daily with food',
-      action: 'New',
-      indication: 'Hypokalemia Prophylaxis',
-    },
-  ]);
-
-  const [disciplines, setDisciplines] = useState<DisciplineRow[]>([
-    {
-      id: 'disc-1',
-      discipline: 'SN',
-      frequency: '2w4, 1w5',
-      duration: '9 weeks',
-      goals: 'Wound care to left lower extremity ulcer; medication reconciliation; diabetic education.',
-    },
-    {
-      id: 'disc-2',
-      discipline: 'PT',
-      frequency: '2w6',
-      duration: '6 weeks',
-      goals: 'Gait training with rolling walker, transfer training, lower extremity strengthening.',
-    },
-  ]);
-
-  const [supplies, setSupplies] = useState<SupplyRow[]>([
-    {
-      id: 'sup-1',
-      item: 'Hydrocolloid Wound Dressing 4x4',
-      quantity: '10',
-      frequency: 'Monthly',
-      justification: 'Exudate management for stage 2 sacral ulcer.',
-    },
-    {
-      id: 'sup-2',
-      item: 'Normal Saline 0.9% 500ml irrigation bottle',
-      quantity: '4',
-      frequency: 'Monthly',
-      justification: 'Wound bed cleansing prior to dressing changes.',
-    },
-  ]);
+  const [medications, setMedications] = useState<MedicationRow[]>([]);
+  const [disciplines, setDisciplines] = useState<DisciplineRow[]>([]);
+  const [supplies, setSupplies] = useState<SupplyRow[]>([]);
 
   // Autocomplete dropdowns & Modals
   const [showSearchAttending, setShowSearchAttending] = useState(false);
@@ -165,11 +139,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
 
   // Alerts & Toast
   const [showErrors, setShowErrors] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const selectedPatient = useMemo<Patient | undefined>(() => {
     return homeHealthPatients.find((p) => p.id === patientId);
   }, [homeHealthPatients, patientId]);
+
+  const patientEpisodes = useMemo(() => {
+    if (!patientId) return [];
+    return homeHealthEpisodes.filter((ep) => ep.patientId === patientId);
+  }, [homeHealthEpisodes, patientId]);
 
   const handleSelectPatient = (id: string) => {
     setPatientId(id);
@@ -183,7 +163,11 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
       if (ep) {
         setEpisodeAssociated(`${ep.episodeStartDate} to ${ep.episodeEndDate}`);
       } else {
-        setEpisodeAssociated('11/01/2026 to 12/30/2026 (Cert Episode)');
+        const soc = pat.startOfCareDate || pat.admissionDate || new Date().toISOString().split('T')[0];
+        const socDate = new Date(soc + 'T00:00:00');
+        const end = new Date(socDate);
+        end.setDate(end.getDate() + 59);
+        setEpisodeAssociated(`${soc} to ${end.toISOString().split('T')[0]}`);
       }
     }
   };
@@ -251,62 +235,69 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
     patientId && summaryTitle.trim() && clinicianSignature.trim()
   );
 
-  const handleSubmit = (action: 'draft' | 'create') => {
+  const handleSubmit = async (action: 'draft' | 'create') => {
     if (action === 'create' && !isValid) {
       setShowErrors(true);
       return;
     }
 
-    const patName = selectedPatient
-      ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
-      : 'Patient';
+    try {
+      setIsSaving(true);
+      const patName = selectedPatient
+        ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
+        : 'Patient';
 
-    let orderDetailsText = orderNarrative;
-    if (orderType === 'Medication Orders') {
-      orderDetailsText = medications
-        .map(
-          (m) =>
-            `[${m.action.toUpperCase()}] ${m.name} ${m.dose} ${m.route} ${m.frequency} (Indication: ${m.indication})`
-        )
-        .join('\n');
-    } else if (orderType === 'Discipline Frequency') {
-      orderDetailsText = disciplines
-        .map((d) => `[${d.discipline}] Frequency: ${d.frequency} for ${d.duration}. Goals: ${d.goals}`)
-        .join('\n');
-    } else if (orderType === 'Supply Manager') {
-      orderDetailsText = supplies
-        .map((s) => `[SUPPLY] ${s.item} - Qty: ${s.quantity} (${s.frequency}). Justification: ${s.justification}`)
-        .join('\n');
+      let orderDetailsText = orderNarrative;
+      if (orderType === 'Medication Orders') {
+        orderDetailsText = medications
+          .map(
+            (m) =>
+              `[${m.action.toUpperCase()}] ${m.name} ${m.dose} ${m.route} ${m.frequency} (Indication: ${m.indication})`
+          )
+          .join('\n');
+      } else if (orderType === 'Discipline Frequency') {
+        orderDetailsText = disciplines
+          .map((d) => `[${d.discipline}] Frequency: ${d.frequency} for ${d.duration}. Goals: ${d.goals}`)
+          .join('\n');
+      } else if (orderType === 'Supply Manager') {
+        orderDetailsText = supplies
+          .map((s) => `[SUPPLY] ${s.item} - Qty: ${s.quantity} (${s.frequency}). Justification: ${s.justification}`)
+          .join('\n');
+      }
+
+      const newOrder: Omit<HomeHealthOrder, 'id' | 'createdAt'> = {
+        patientId,
+        patientName: patName,
+        episodeAssociated: episodeAssociated || 'Current Active Episode',
+        attendingPhysician: attendingPhysician || (selectedPatient?.attendingPhysician || 'Attending Physician'),
+        sendTo: sendToPhysician || attendingPhysician || (selectedPatient?.attendingPhysician || 'Attending Physician'),
+        copyTo: copyToPhysician || undefined,
+        date,
+        time,
+        effectiveDate,
+        orderIsForNextEpisode,
+        summaryTitle: summaryTitle.trim(),
+        orderType,
+        orderContent: orderDetailsText,
+        orderReadBackAndVerified,
+        clinicianSignature: clinicianSignature.trim(),
+        signatureDate,
+        signatureTime,
+        status: action === 'create' ? 'Created' : 'Draft',
+      };
+
+      await addHomeHealthOrder(newOrder);
+      setIsSuccess(true);
+
+      setTimeout(() => {
+        onOrderCreated?.();
+        onBack();
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to create order:', err);
+    } finally {
+      setIsSaving(false);
     }
-
-    const newOrder: Omit<HomeHealthOrder, 'id' | 'createdAt'> = {
-      patientId,
-      patientName: patName,
-      episodeAssociated: episodeAssociated || '11/01/2026 to 12/30/2026',
-      attendingPhysician: attendingPhysician || 'Dr. Anita Gupta, MD',
-      sendTo: sendToPhysician || attendingPhysician || 'Dr. Anita Gupta, MD',
-      copyTo: copyToPhysician || undefined,
-      date,
-      time,
-      effectiveDate,
-      orderIsForNextEpisode,
-      summaryTitle: summaryTitle.trim(),
-      orderType,
-      orderContent: orderDetailsText,
-      orderReadBackAndVerified,
-      clinicianSignature: clinicianSignature.trim(),
-      signatureDate,
-      signatureTime,
-      status: action === 'create' ? 'Created' : 'Draft',
-    };
-
-    addHomeHealthOrder(newOrder);
-    setIsSuccess(true);
-
-    setTimeout(() => {
-      onOrderCreated?.();
-      onBack();
-    }, 1200);
   };
 
   return (
@@ -326,7 +317,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -452,7 +443,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
           </div>
 
           <div className="rounded-xl bg-pearl-100 p-3 text-[11px] text-slate-500 dark:bg-charcoal-800/80 dark:text-slate-400">
-            Axxess Order Engine • CMS-485 Plan of Care Compliant
+            CareOrbit Order Engine • CMS-485 Plan of Care Compliant
           </div>
         </aside>
 
@@ -473,7 +464,11 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
                 <select
                   value={patientId}
                   onChange={(e) => handleSelectPatient(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-pearl-200 bg-white px-3 text-xs font-medium text-slate-900 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                  className={`w-full h-10 rounded-xl border bg-white px-3 text-xs font-medium text-slate-900 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
+                    showErrors && !patientId
+                      ? 'border-rose-400 ring-1 ring-rose-400/30'
+                      : 'border-pearl-200 dark:border-charcoal-700'
+                  }`}
                 >
                   <option value="">-- Select Patient --</option>
                   {homeHealthPatients.map((p) => (
@@ -482,6 +477,11 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
                     </option>
                   ))}
                 </select>
+                {showErrors && !patientId && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                    <AlertTriangle size={12} /> Patient is required.
+                  </span>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -493,8 +493,16 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
                   onChange={(e) => setEpisodeAssociated(e.target.value)}
                   className="w-full h-10 rounded-xl border border-pearl-200 bg-white px-3 text-xs font-medium text-slate-900 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
                 >
-                  <option value="11/01/2026 to 12/30/2026">11/01/2026 to 12/30/2026 (Active Cert Period)</option>
-                  <option value="12/31/2026 to 02/28/2027">12/31/2026 to 02/28/2027 (Next Recert Episode)</option>
+                  <option value="">-- Select or confirm episode --</option>
+                  {patientEpisodes.length > 0 ? (
+                    patientEpisodes.map((ep) => (
+                      <option key={ep.id} value={`${ep.episodeStartDate} to ${ep.episodeEndDate}`}>
+                        {ep.episodeStartDate} to {ep.episodeEndDate} (SOC: {ep.startOfCareDate})
+                      </option>
+                    ))
+                  ) : episodeAssociated ? (
+                    <option value={episodeAssociated}>{episodeAssociated}</option>
+                  ) : null}
                 </select>
               </div>
 
@@ -520,20 +528,24 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
 
                     {showSearchAttending && (
                       <div className="absolute left-0 right-0 top-11 z-30 max-h-40 overflow-y-auto rounded-xl border border-pearl-200 bg-white p-1 shadow-lg dark:border-charcoal-700 dark:bg-charcoal-850">
-                        {DEFAULT_PHYSICIANS.map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => {
-                              setAttendingPhysician(doc.name);
-                              setShowSearchAttending(false);
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
-                          >
-                            <span>{doc.name}</span>
-                            <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>
-                          </button>
-                        ))}
+                        {physicianList.length > 0 ? (
+                          physicianList.map((doc) => (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setAttendingPhysician(doc.name);
+                                setShowSearchAttending(false);
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
+                            >
+                              <span>{doc.name}</span>
+                              {doc.npi && <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-2 text-xs text-slate-400 text-center">No physicians found. Use &quot;New Physician&quot; to add.</div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -571,20 +583,24 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
 
                     {showSearchSendTo && (
                       <div className="absolute left-0 right-0 top-11 z-30 max-h-40 overflow-y-auto rounded-xl border border-pearl-200 bg-white p-1 shadow-lg dark:border-charcoal-700 dark:bg-charcoal-850">
-                        {DEFAULT_PHYSICIANS.map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => {
-                              setSendToPhysician(doc.name);
-                              setShowSearchSendTo(false);
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
-                          >
-                            <span>{doc.name}</span>
-                            <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>
-                          </button>
-                        ))}
+                        {physicianList.length > 0 ? (
+                          physicianList.map((doc) => (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setSendToPhysician(doc.name);
+                                setShowSearchSendTo(false);
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
+                            >
+                              <span>{doc.name}</span>
+                              {doc.npi && <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-2 text-xs text-slate-400 text-center">No physicians found. Use &quot;New Physician&quot; to add.</div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -622,20 +638,24 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
 
                     {showSearchCopyTo && (
                       <div className="absolute left-0 right-0 top-11 z-30 max-h-40 overflow-y-auto rounded-xl border border-pearl-200 bg-white p-1 shadow-lg dark:border-charcoal-700 dark:bg-charcoal-850">
-                        {DEFAULT_PHYSICIANS.map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => {
-                              setCopyToPhysician(doc.name);
-                              setShowSearchCopyTo(false);
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
-                          >
-                            <span>{doc.name}</span>
-                            <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>
-                          </button>
-                        ))}
+                        {physicianList.length > 0 ? (
+                          physicianList.map((doc) => (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setCopyToPhysician(doc.name);
+                                setShowSearchCopyTo(false);
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:text-slate-200 dark:hover:bg-charcoal-800"
+                            >
+                              <span>{doc.name}</span>
+                              {doc.npi && <span className="font-mono text-[11px] text-slate-400">NPI: {doc.npi}</span>}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-2 text-xs text-slate-400 text-center">No physicians found. Use &quot;New Physician&quot; to add.</div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -712,8 +732,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({ onBack, onOrde
                 value={summaryTitle}
                 onChange={(e) => setSummaryTitle(e.target.value)}
                 placeholder="e.g. Change in Lasix dosage / Add Physical Therapy evaluation"
-                className="w-full h-10 rounded-xl border border-pearl-200 bg-white px-3 text-xs font-medium text-slate-900 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                className={`w-full h-10 rounded-xl border bg-white px-3 text-xs font-medium text-slate-900 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
+                  showErrors && !summaryTitle.trim()
+                    ? 'border-rose-400 ring-1 ring-rose-400/30'
+                    : 'border-pearl-200 dark:border-charcoal-700'
+                }`}
               />
+              {showErrors && !summaryTitle.trim() && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                  <AlertTriangle size={12} /> Summary title is required.
+                </span>
+              )}
             </div>
 
             {/* Order Types Selector Bar */}

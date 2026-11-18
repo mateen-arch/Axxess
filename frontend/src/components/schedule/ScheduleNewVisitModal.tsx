@@ -22,30 +22,37 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
   defaultDate,
   onSuccess
 }) => {
-  const { clinicians, addEmployeeVisit } = useHealthcare();
+  const { clinicians, addEmployeeVisit, employeeVisits } = useHealthcare();
 
-  const [selectedClinicianId, setSelectedClinicianId] = useState(defaultClinicianId || (clinicians[0]?.id ?? 'emp-01'));
+  const [selectedClinicianId, setSelectedClinicianId] = useState(defaultClinicianId || (clinicians[0]?.id ?? ''));
   const [patientName, setPatientName] = useState(defaultPatientName);
   const [serviceLine, setServiceLine] = useState<ServiceLine>('home_health');
   const [visitType, setVisitType] = useState('Skilled Nurse Visit');
   const [scheduledDate, setScheduledDate] = useState<string>(defaultDate || '2026-11-03');
   const [timeSlot, setTimeSlot] = useState('09:30 AM');
-  const [address, setAddress] = useState('1420 Harvard St, Boston MA');
+  const [address, setAddress] = useState('1420 Harvard St, Dallas TX');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       if (defaultClinicianId) setSelectedClinicianId(defaultClinicianId);
+      else if (clinicians.length > 0 && !selectedClinicianId) setSelectedClinicianId(clinicians[0].id);
       if (defaultPatientName) setPatientName(defaultPatientName);
       if (defaultDate) setScheduledDate(defaultDate);
       setError('');
     }
-  }, [isOpen, defaultClinicianId, defaultPatientName, defaultDate]);
+  }, [isOpen, defaultClinicianId, defaultPatientName, defaultDate, clinicians]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Detect booked slots for the selected clinician on the chosen date
+  const clinicianBookedSlots = employeeVisits
+    .filter(v => v.employeeId === selectedClinicianId && v.date === scheduledDate && v.status !== 'cancelled')
+    .map(v => v.timeSlot);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientName.trim()) {
       setError('Please provide patient name.');
@@ -53,6 +60,24 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
     }
 
     const clinician = clinicians.find(c => c.id === selectedClinicianId) || clinicians[0];
+    if (!clinician) {
+      setError('Please select an active clinician.');
+      return;
+    }
+
+    // Time slot collision check
+    const isConflict = employeeVisits.some(v => 
+      v.employeeId === clinician.id &&
+      v.date === scheduledDate &&
+      v.timeSlot.trim().toLowerCase() === timeSlot.trim().toLowerCase() &&
+      v.status !== 'cancelled'
+    );
+
+    if (isConflict) {
+      setError(`Time Slot Conflict: ${clinician.name} is already booked for another patient at ${timeSlot} on ${scheduledDate}. Please select a different time slot.`);
+      return;
+    }
+
     const dateObj = new Date(scheduledDate + 'T00:00:00');
     const dayOfWeek = isNaN(dateObj.getDay()) ? defaultDay : dateObj.getDay();
 
@@ -64,7 +89,7 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
       serviceLine: serviceLine,
       dayOfWeek: dayOfWeek,
       date: scheduledDate,
-      timeSlot: timeSlot,
+      timeSlot: timeSlot.trim(),
       status: 'scheduled',
       locationType: 'home',
       evvStatus: 'pending',
@@ -72,9 +97,17 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
       notes: notes.trim()
     };
 
-    addEmployeeVisit(newVisit);
-    onSuccess?.(`Scheduled visit for ${newVisit.patientName} with ${clinician.name}`);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      setError('');
+      await addEmployeeVisit(newVisit);
+      onSuccess?.(`Scheduled visit for ${newVisit.patientName} with ${clinician.name}`);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to schedule visit in database.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -195,13 +228,21 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Time Slot
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Time Slot</span>
+                {clinicianBookedSlots.length > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                    Booked: {clinicianBookedSlots.join(', ')}
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value)}
+                onChange={(e) => {
+                  setTimeSlot(e.target.value);
+                  setError('');
+                }}
                 placeholder="e.g. 09:30 AM or PM"
                 className="w-full h-10 px-3 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 font-mono"
               />

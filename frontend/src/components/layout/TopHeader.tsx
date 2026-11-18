@@ -30,13 +30,13 @@ export const TopHeader: React.FC = () => {
             type="button"
             onClick={() => setIsAppSwitcherOpen(true)}
             className="h-9 px-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer shadow-2xs"
-            title="Switch Axxess Apps"
+            title="Switch CareOrbit Apps"
           >
             <LayoutGrid size={14} className="text-rose-600 dark:text-rose-400" />
             <span className="hidden md:inline">Apps</span>
           </button>
 
-          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap">Axxess Central</h1>
+          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap">CareOrbit Central</h1>
         </div>
 
       {/* Search */}

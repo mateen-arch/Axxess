@@ -74,7 +74,7 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
   onBack,
   onIncidentLogged,
 }) => {
-  const { patients, clinicians, organization } = useHealthcare();
+  const { patients, clinicians, organization, addIncidentLog } = useHealthcare();
 
   const homeHealthPatients = useMemo(() => {
     const hh = patients.filter((p) => p.serviceLine === 'home_health');
@@ -83,30 +83,30 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
 
   // Section 1: Patient Information
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [episodePeriod, setEpisodePeriod] = useState('11/01/2026 - 12/30/2026');
+  const [episodePeriod, setEpisodePeriod] = useState('');
   const [dateOfIncident, setDateOfIncident] = useState(getTodayFormatted());
   const [timeOfIncident, setTimeOfIncident] = useState(getCurrentTimeFormatted());
   const [mrn, setMrn] = useState('');
   const [primaryDiagnosis, setPrimaryDiagnosis] = useState('');
   const [secondaryDiagnosis, setSecondaryDiagnosis] = useState('');
-  const [clinicalManager, setClinicalManager] = useState('Hilder M., RN');
-  const [caseManager, setCaseManager] = useState('Alexandria Nelson, RN');
+  const [clinicalManager, setClinicalManager] = useState('');
+  const [caseManager, setCaseManager] = useState('');
   const [attendingPhysician, setAttendingPhysician] = useState('');
-  const [familyNotified, setFamilyNotified] = useState<'Yes' | 'No'>('Yes');
-  const [physicianNotified, setPhysicianNotified] = useState<'Yes' | 'No'>('Yes');
+  const [familyNotified, setFamilyNotified] = useState<'Yes' | 'No'>('No');
+  const [physicianNotified, setPhysicianNotified] = useState<'Yes' | 'No'>('No');
 
   // Section 2: Individuals Involved
-  const [individualsInvolved, setIndividualsInvolved] = useState<string[]>(['Patient']);
+  const [individualsInvolved, setIndividualsInvolved] = useState<string[]>([]);
 
   // Section 3: Type of Incident
-  const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>(['Fall Without Injury']);
+  const [selectedIncidentTypes, setSelectedIncidentTypes] = useState<string[]>([]);
 
   // Section 4: Evaluation and Actions
-  const [severity, setSeverity] = useState('Level 1: Minor');
-  const [injuryLevel, setInjuryLevel] = useState('N/A');
+  const [severity, setSeverity] = useState('');
+  const [injuryLevel, setInjuryLevel] = useState('');
   const [witnessed, setWitnessed] = useState<'Yes' | 'No' | 'N/A'>('No');
   const [sentinelEvent, setSentinelEvent] = useState<'Yes' | 'No' | 'N/A'>('No');
-  const [interventionsProvided, setInterventionsProvided] = useState<'Yes' | 'No' | 'N/A'>('Yes');
+  const [interventionsProvided, setInterventionsProvided] = useState<'Yes' | 'No' | 'N/A'>('No');
   const [physicianOrderNeeded, setPhysicianOrderNeeded] = useState(false);
 
   // Section 5: Description & Comments
@@ -117,13 +117,15 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
   const [followUpComments, setFollowUpComments] = useState('');
 
   // Section 7: Signature
-  const [clinicianSignature, setClinicianSignature] = useState('Hilder M., RN');
+  const [clinicianSignature, setClinicianSignature] = useState('');
   const [signatureDate, setSignatureDate] = useState(getTodayFormatted());
   const [signatureTime, setSignatureTime] = useState(getCurrentTimeFormatted());
 
   // UI state
   const [showErrors, setShowErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const selectedPatient = useMemo<Patient | undefined>(() => {
     return patients.find((p) => p.id === selectedPatientId || p.mrn === selectedPatientId);
@@ -135,8 +137,11 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
     if (pat) {
       setMrn(pat.mrn);
       setPrimaryDiagnosis(pat.primaryDiagnosis || '');
-      setAttendingPhysician(pat.attendingPhysician || 'Dr. Anita Gupta, MD');
+      setAttendingPhysician(pat.attendingPhysician || '');
       if (pat.assignedNurseName) setCaseManager(pat.assignedNurseName);
+      if (pat.episodeStart && pat.episodeEnd) {
+        setEpisodePeriod(`${pat.episodeStart} - ${pat.episodeEnd}`);
+      }
     }
   };
 
@@ -152,18 +157,56 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
     );
   };
 
-  const isValid = Boolean(selectedPatientId && dateOfIncident && description.trim());
+  const isValid = Boolean(
+    selectedPatientId &&
+    dateOfIncident &&
+    selectedIncidentTypes.length > 0 &&
+    description.trim() &&
+    clinicianSignature.trim()
+  );
 
-  const handleSubmit = (action: 'draft' | 'complete') => {
+  const handleSubmit = async (action: 'draft' | 'complete') => {
+    setSubmitError(null);
     if (action === 'complete' && !isValid) {
       setShowErrors(true);
       return;
     }
-    setIsSuccess(true);
-    setTimeout(() => {
-      onIncidentLogged?.();
-      onBack();
-    }, 1200);
+    if (!selectedPatientId || !description.trim()) {
+      setShowErrors(true);
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await addIncidentLog({
+        patientId: selectedPatientId,
+        patientName: selectedPatient ? `${selectedPatient.lastName}, ${selectedPatient.firstName}` : 'Unknown Patient',
+        mrn: mrn || selectedPatient?.mrn || 'MRN-PENDING',
+        incidentDate: dateOfIncident,
+        incidentTime: timeOfIncident,
+        incidentType: selectedIncidentTypes.length > 0 ? selectedIncidentTypes.join(', ') : 'Clinical Safety Incident',
+        location: 'Patient Home',
+        injurySustained: injuryLevel !== '' && injuryLevel !== 'None' && injuryLevel !== 'N/A',
+        injuryDescription: injuryLevel ? `Injury Level: ${injuryLevel}. Severity: ${severity}` : (severity ? `Severity: ${severity}` : ''),
+        narrative: description.trim(),
+        actionTaken: followUpComments.trim() || (interventionsProvided === 'Yes' ? 'Clinical interventions provided to patient' : ''),
+        physicianNotified: physicianNotified === 'Yes',
+        supervisorNotified: Boolean(clinicalManager.trim()),
+        reporterName: clinicianSignature.trim() || 'Staff Clinician',
+        reporterRole: 'Staff Clinician',
+        status: action === 'draft' ? 'Under Review' : 'Logged & Submitted',
+      });
+      setIsSuccess(true);
+      setTimeout(() => {
+        onIncidentLogged?.();
+        onBack();
+      }, 900);
+    } catch (err: any) {
+      console.error('Error saving incident log:', err);
+      setSubmitError(err?.message || 'Failed to save incident log to database');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -181,7 +224,7 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -735,28 +778,38 @@ export const CreateIncidentLogPage: React.FC<CreateIncidentLogPageProps> = ({
               </div>
             </div>
 
+            {/* Error Message if API fails */}
+            {submitError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+                {submitError}
+              </div>
+            )}
+
             {/* Action Bar */}
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={onBack}
-                className="h-10 rounded-xl border border-pearl-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-pearl-50 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 dark:hover:bg-charcoal-750 cursor-pointer"
+                disabled={isSubmitting}
+                className="h-10 rounded-xl border border-pearl-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-pearl-50 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 dark:hover:bg-charcoal-750 cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleSubmit('draft')}
-                className="h-10 rounded-xl border border-rose-300 bg-rose-50 px-5 text-xs font-bold text-rose-700 shadow-2xs transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300 cursor-pointer"
+                disabled={isSubmitting}
+                className="h-10 rounded-xl border border-rose-300 bg-rose-50 px-5 text-xs font-bold text-rose-700 shadow-2xs transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300 cursor-pointer disabled:opacity-50"
               >
-                Save Draft
+                {isSubmitting ? 'Saving...' : 'Save Draft'}
               </button>
               <button
                 type="button"
                 onClick={() => handleSubmit('complete')}
-                className="h-10 rounded-xl bg-rose-600 px-6 text-xs font-extrabold text-white shadow-xs transition hover:-translate-y-0.5 hover:bg-rose-700 cursor-pointer"
+                disabled={isSubmitting}
+                className="h-10 rounded-xl bg-rose-600 px-6 text-xs font-extrabold text-white shadow-xs transition hover:-translate-y-0.5 hover:bg-rose-700 cursor-pointer disabled:opacity-50"
               >
-                Complete Incident Log
+                {isSubmitting ? 'Submitting...' : 'Complete Incident Log'}
               </button>
             </div>
           </div>

@@ -9,8 +9,9 @@ export const ActivePatientsChart: React.FC = () => {
   // SVG Donut calculation
   const radius = 64;
   const circumference = 2 * Math.PI * radius;
-  const healthRatio = census.homeHealth / census.total;
-  const careRatio = census.homeCare / census.total;
+  const total = census.total || 0;
+  const healthRatio = total > 0 ? census.homeHealth / total : 0;
+  const careRatio = total > 0 ? census.homeCare / total : 0;
 
   const healthStrokeDash = `${healthRatio * circumference} ${circumference}`;
   const careStrokeDash = `${careRatio * circumference} ${circumference}`;
@@ -175,7 +176,7 @@ export const ActivePatientsChart: React.FC = () => {
           {/* Hospice Item */}
           <div className="p-2.5 rounded-xl bg-pearl-100/50 dark:bg-charcoal-800/50 border border-dashed border-pearl-300 dark:border-charcoal-700 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>Hospice</span>
-            <span className="font-bold">0 (Inactive)</span>
+            <span className="font-bold">{census.hospice > 0 ? `${census.hospice} Active` : '0 (Inactive)'}</span>
           </div>
         </div>
       </div>
@@ -184,9 +185,9 @@ export const ActivePatientsChart: React.FC = () => {
       <div className="pt-3.5 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-semibold">
         <span className="flex items-center gap-1.5">
           <Activity size={14} className="text-rose-600 dark:text-rose-400 stroke-[2.5]" />
-          Census growth: +4.2% this quarter
+          Real-time patient census
         </span>
-        <span className="text-slate-500 dark:text-slate-400 font-medium">Updated 5m ago</span>
+        <span className="text-slate-500 dark:text-slate-400 font-medium">PostgreSQL Connected</span>
       </div>
     </div>
   );

@@ -87,12 +87,12 @@ const pageContent: Record<
   'help-center': {
     title: 'Help Center & Documentation',
     description:
-      'Knowledge base, regulatory guides, video tutorials, and Axxess compliance handbooks.',
+      'Knowledge base, regulatory guides, video tutorials, and CareOrbit compliance handbooks.',
     icon: HelpCircle,
     features: ['Step-by-step guides', 'Video walkthroughs', 'CMS regulation updates'],
   },
-  'ask-axxess': {
-    title: 'Ask Axxess (AI Assistant)',
+  'ask-careorbit': {
+    title: 'Ask CareOrbit (AI Assistant)',
     description:
       'Clinical generative AI assistant designed to summarize complex chart histories, OASIS responses, and Medicare guidelines.',
     icon: Sparkles,
@@ -116,7 +116,7 @@ export const HomeHealthComingSoon: React.FC<{
 
   const content = matched || {
     title: displayTitle,
-    description: `The ${displayTitle} module is scheduled for implementation. We are designing it specifically for Axxess Home Health workflows.`,
+    description: `The ${displayTitle} module is scheduled for implementation. We are designing it specifically for CareOrbit Home Health workflows.`,
     icon: Sparkles,
     features: [
       'Built for modern Home Health workflows',

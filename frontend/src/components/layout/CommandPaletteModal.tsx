@@ -47,7 +47,7 @@ export const CommandPaletteModal: React.FC = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search patients by name or MRN, visits, modules, or ask Axxess AI..."
+            placeholder="Search patients by name or MRN, visits, modules, or ask CareOrbit AI..."
             className="flex-1 bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm focus:outline-none"
             autoFocus
           />
@@ -110,7 +110,7 @@ export const CommandPaletteModal: React.FC = () => {
                   <span className="p-1.5 rounded-lg bg-rose-100/60 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
                     <MessageSquare size={16} />
                   </span>
-                  <span>Axxess Connect Secure Messages (169 Unread)</span>
+                  <span>CareOrbit Connect Secure Messages (169 Unread)</span>
                 </div>
                 <ArrowRight size={14} className="text-slate-500 dark:text-slate-400" />
               </button>

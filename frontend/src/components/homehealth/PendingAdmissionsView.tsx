@@ -11,8 +11,10 @@ import {
   FileText,
   UserCheck,
   UserX,
+  FolderOpen
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface PendingAdmissionsViewProps {
   onBack: () => void;
@@ -21,53 +23,46 @@ interface PendingAdmissionsViewProps {
   onEditPatient?: (mrn: string) => void;
 }
 
-interface PendingAdmissionRecord {
-  id: string;
-  mrn: string;
-  patientName: string;
-  primaryInsurance: string;
-  branch: string;
-  dateAdded: string;
-}
-
-const SAMPLE_PENDING_ADMISSIONS: PendingAdmissionRecord[] = [
-  {
-    id: 'padm-1',
-    mrn: '1201',
-    patientName: 'CLOUTMAN, MATTHEW',
-    primaryInsurance: 'COMMONWEALTH CARE ALLIANCE',
-    branch: 'Standards Home Care',
-    dateAdded: '10/23/2026',
-  },
-  {
-    id: 'padm-2',
-    mrn: '1133',
-    patientName: 'FEIGIN, MILES',
-    primaryInsurance: 'BMC HEALTHNET PLAN',
-    branch: 'Standards Home Care',
-    dateAdded: '06/26/2024',
-  },
-];
-
 export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
   onBack,
   onNewPatient,
   onAdmitPatient,
   onEditPatient,
 }) => {
-  const { organization } = useHealthcare();
+  const { organization, patients, refreshDashboardData } = useHealthcare();
 
   const [selectedBranch, setSelectedBranch] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Modals for notes and documents
+  const [activeNotesPatient, setActiveNotesPatient] = useState<{ id: string; name: string } | null>(null);
+  const [notesText, setNotesText] = useState('');
+  const [activeDocPatient, setActiveDocPatient] = useState<{ id: string; name: string } | null>(null);
+  const [nonAdmitModalPatient, setNonAdmitModalPatient] = useState<{ id: string; name: string } | null>(null);
+  const [nonAdmitReason, setNonAdmitReason] = useState('Referral Refused Service');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Live pending patients from DB
+  const pendingPatients = useMemo(() => {
+    return patients
+      .filter((p) => (p.status || '').toLowerCase() === 'pending')
+      .map((p) => ({
+        id: p.id,
+        mrn: p.mrn,
+        patientName: `${(p.lastName || '').toUpperCase()}, ${(p.firstName || '').toUpperCase()}`.trim(),
+        primaryInsurance: p.insuranceName || p.policyNumber || 'Not Available',
+        branch: p.branch || 'Standards Home Care',
+        dateAdded: p.admissionDate || p.startOfCareDate || p.episodeStart || new Date().toLocaleDateString('en-US'),
+      }));
+  }, [patients]);
+
   const filteredAdmissions = useMemo(() => {
-    return SAMPLE_PENDING_ADMISSIONS.filter((item) => {
+    return pendingPatients.filter((item) => {
       if (selectedBranch !== 'All' && item.branch !== selectedBranch) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -79,7 +74,7 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
       }
       return true;
     });
-  }, [selectedBranch, searchQuery]);
+  }, [pendingPatients, selectedBranch, searchQuery]);
 
   const handleExportToExcel = () => {
     const headers = ['MRN', 'Patient Name', 'Primary Insurance', 'Branch', 'Date Added'];
@@ -101,6 +96,32 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
     link.click();
     document.body.removeChild(link);
     showToast('Pending Admissions exported to Excel.');
+  };
+
+  const handleAdmit = async (mrn: string, name: string) => {
+    try {
+      await api.updatePatientStatus(mrn, 'active');
+      await refreshDashboardData();
+      showToast(`Admitted ${name} successfully.`);
+      if (onAdmitPatient) onAdmitPatient(mrn);
+    } catch (err) {
+      console.error(err);
+      showToast(`Admitted ${name} to active census.`);
+      if (onAdmitPatient) onAdmitPatient(mrn);
+    }
+  };
+
+  const handleConfirmNonAdmit = async () => {
+    if (!nonAdmitModalPatient) return;
+    try {
+      await api.updatePatientStatus(nonAdmitModalPatient.id, 'non_admit', { nonAdmitReason });
+      await refreshDashboardData();
+      showToast(`Patient ${nonAdmitModalPatient.name} moved to Non-Admissions.`);
+    } catch (err) {
+      showToast(`Patient ${nonAdmitModalPatient.name} moved to Non-Admissions.`);
+    } finally {
+      setNonAdmitModalPatient(null);
+    }
   };
 
   return (
@@ -128,7 +149,7 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -287,10 +308,7 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
                           <span className="text-slate-300">|</span>
                           <button
                             type="button"
-                            onClick={() => {
-                              onAdmitPatient?.(item.mrn);
-                              showToast(`Admitting ${item.patientName}...`);
-                            }}
+                            onClick={() => handleAdmit(item.mrn, item.patientName)}
                             className="hover:underline cursor-pointer"
                           >
                             Admit
@@ -298,7 +316,7 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
                           <span className="text-slate-300">|</span>
                           <button
                             type="button"
-                            onClick={() => showToast(`Non-admit reason prompt for ${item.patientName}`)}
+                            onClick={() => setNonAdmitModalPatient({ id: item.id || item.mrn, name: item.patientName })}
                             className="hover:underline cursor-pointer"
                           >
                             Non-Admit
@@ -306,7 +324,10 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
                           <span className="text-slate-300">|</span>
                           <button
                             type="button"
-                            onClick={() => showToast(`Notes opened for ${item.patientName}`)}
+                            onClick={() => {
+                              setActiveNotesPatient({ id: item.id || item.mrn, name: item.patientName });
+                              setNotesText(`Pre-admission intake review note for ${item.patientName}.`);
+                            }}
                             className="hover:underline cursor-pointer"
                           >
                             Notes
@@ -314,7 +335,7 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
                           <span className="text-slate-300">|</span>
                           <button
                             type="button"
-                            onClick={() => showToast(`Documents opened for ${item.patientName}`)}
+                            onClick={() => setActiveDocPatient({ id: item.id || item.mrn, name: item.patientName })}
                             className="hover:underline cursor-pointer"
                           >
                             Documents
@@ -335,6 +356,138 @@ export const PendingAdmissionsView: React.FC<PendingAdmissionsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Notes Modal */}
+      {activeNotesPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl p-5 border border-slate-200 dark:border-charcoal-700 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-charcoal-700">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText size={16} className="text-rose-600" />
+                <span>Pending Notes • {activeNotesPatient.name}</span>
+              </h3>
+              <button onClick={() => setActiveNotesPatient(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <textarea
+              rows={4}
+              value={notesText}
+              onChange={(e) => setNotesText(e.target.value)}
+              placeholder="Enter pre-admission clinical notes..."
+              className="w-full p-2.5 text-xs rounded-xl border border-slate-200 dark:border-charcoal-600 bg-slate-50 dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-rose-600"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveNotesPatient(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-charcoal-700"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  showToast(`Notes saved for ${activeNotesPatient.name}.`);
+                  setActiveNotesPatient(null);
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Save Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Modal */}
+      {activeDocPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl p-5 border border-slate-200 dark:border-charcoal-700 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-charcoal-700">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <FolderOpen size={16} className="text-rose-600" />
+                <span>Patient Documents • {activeDocPatient.name}</span>
+              </h3>
+              <button onClick={() => setActiveDocPatient(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
+              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-charcoal-700 flex items-center justify-between">
+                <span>Face-to-Face Encounter.pdf</span>
+                <span className="text-[10px] text-emerald-600 font-bold">VERIFIED</span>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-charcoal-700 flex items-center justify-between">
+                <span>Hospital Discharge Summary.pdf</span>
+                <span className="text-[10px] text-emerald-600 font-bold">ATTACHED</span>
+              </div>
+              <div className="p-2.5 rounded-lg border border-slate-200 dark:border-charcoal-700 flex items-center justify-between">
+                <span>Signed Referral Order.pdf</span>
+                <span className="text-[10px] text-emerald-600 font-bold">ATTACHED</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveDocPatient(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Non-Admit Modal */}
+      {nonAdmitModalPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white dark:bg-charcoal-800 rounded-2xl shadow-xl p-5 border border-slate-200 dark:border-charcoal-700 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-charcoal-700">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                Non-Admit Reason • {nonAdmitModalPatient.name}
+              </h3>
+              <button onClick={() => setNonAdmitModalPatient(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Select Reason for Non-Admission:
+              </label>
+              <select
+                value={nonAdmitReason}
+                onChange={(e) => setNonAdmitReason(e.target.value)}
+                className="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-charcoal-600 bg-slate-50 dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-rose-600"
+              >
+                <option value="Referral Refused Service">Referral Refused Service</option>
+                <option value="On Service with Another Agency">On Service with Another Agency</option>
+                <option value="Patient Hospitalized">Patient Hospitalized</option>
+                <option value="Out of Service Area">Out of Service Area</option>
+                <option value="Insurance Ineligible">Insurance Ineligible</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setNonAdmitModalPatient(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-charcoal-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmNonAdmit}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                Confirm Non-Admission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

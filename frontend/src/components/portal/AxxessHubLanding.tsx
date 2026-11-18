@@ -19,14 +19,14 @@ import {
   UsersRound,
   Workflow,
 } from 'lucide-react';
-import { AxxessLogo } from '../../assets/AxxessLogo';
+import { CareOrbitLogo } from '../../assets/CareOrbitLogo';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { Healthcare3DHero } from './Healthcare3DHero';
-import './AxxessHubLanding.css';
+import './CareOrbitHubLanding.css';
 
 type WorkspaceId = 'central' | 'connect' | 'home_health';
 
-export const AxxessHubLanding: React.FC = () => {
+export const CareOrbitHubLanding: React.FC = () => {
   const {
     setCurrentWebsite,
     organization,
@@ -41,7 +41,7 @@ export const AxxessHubLanding: React.FC = () => {
     {
       id: 'central' as WorkspaceId,
       number: '01',
-      title: 'Axxess Central',
+      title: 'CareOrbit Central',
       category: 'Operations & intake',
       badge: 'Available now',
       icon: Building2,
@@ -55,7 +55,7 @@ export const AxxessHubLanding: React.FC = () => {
     {
       id: 'connect' as WorkspaceId,
       number: '02',
-      title: 'Axxess Connect',
+      title: 'CareOrbit Connect',
       category: 'Care team & planning',
       badge: 'Available now',
       icon: MessageSquareText,
@@ -69,7 +69,7 @@ export const AxxessHubLanding: React.FC = () => {
     {
       id: 'home_health' as WorkspaceId,
       number: '03',
-      title: 'Axxess Home Health',
+      title: 'CareOrbit Home Health',
       category: 'Clinical EHR & Operations',
       badge: 'Available now',
       icon: Stethoscope,
@@ -87,8 +87,8 @@ export const AxxessHubLanding: React.FC = () => {
   return (
     <div className="portal-site">
       <header className="portal-header">
-        <a className="portal-brand" href="#top" aria-label="Axxess home">
-          <AxxessLogo size="sm" />
+        <a className="portal-brand" href="#top" aria-label="CareOrbit home">
+          <CareOrbitLogo size="sm" />
         </a>
 
         <nav className="portal-nav" aria-label="Main navigation">
@@ -128,11 +128,11 @@ export const AxxessHubLanding: React.FC = () => {
               <div className="portal-eyebrow"><span className="portal-eyebrow-icon"><HeartPulse size={14} /></span> Connected care, made clearer</div>
               <h1 id="portal-hero-title">A better way<br />to <span>care together.</span></h1>
               <p className="portal-hero-description">
-                Bring your care operations into focus. Axxess connects the people, plans, and details behind every home health journey.
+                Bring your care operations into focus. CareOrbit connects the people, plans, and details behind every home health journey.
               </p>
               <div className="portal-hero-buttons">
                 <button className="portal-button-primary" type="button" onClick={() => launchWorkspace('central')}>
-                  Explore Axxess Central <ArrowRight size={17} />
+                  Explore CareOrbit Central <ArrowRight size={17} />
                 </button>
                 <a className="portal-button-link" href="#products">Meet the platform <ArrowDown size={16} /></a>
               </div>
@@ -146,10 +146,10 @@ export const AxxessHubLanding: React.FC = () => {
               </div>
             </div>
 
-            <div className="portal-hero-visual" aria-label="Axxess operations dashboard preview">
+            <div className="portal-hero-visual" aria-label="CareOrbit operations dashboard preview">
               <div className="portal-preview-card">
                 <div className="portal-preview-topbar">
-                  <div className="portal-preview-brand"><span className="portal-preview-mark"><Activity size={14} /></span><span>Axxess <b>Central</b></span></div>
+                  <div className="portal-preview-brand"><span className="portal-preview-mark"><Activity size={14} /></span><span>CareOrbit <b>Central</b></span></div>
                   <span className="portal-preview-network"><i />Care network</span>
                 </div>
                 <div className="portal-preview-heading">
@@ -202,8 +202,8 @@ export const AxxessHubLanding: React.FC = () => {
           </div>
         </section>
 
-        <section className="portal-trust-strip" aria-label="Axxess platform capabilities">
-          <div className="portal-trust-intro"><span>THE AXXESS PLATFORM</span><strong>Every part of care,<br className="portal-trust-break" /> working together.</strong></div>
+        <section className="portal-trust-strip" aria-label="CareOrbit platform capabilities">
+          <div className="portal-trust-intro"><span>THE CAREORBIT PLATFORM</span><strong>Every part of care,<br className="portal-trust-break" /> working together.</strong></div>
           <div className="portal-trust-item"><span className="portal-trust-icon rose"><Workflow size={18} /></span><div><strong>One connected flow</strong><small>Across care operations</small></div></div>
           <div className="portal-trust-item"><span className="portal-trust-icon teal"><UsersRound size={18} /></span><div><strong>Teams in sync</strong><small>Wherever care happens</small></div></div>
           <div className="portal-trust-item"><span className="portal-trust-icon amber"><ShieldCheck size={18} /></span><div><strong>Built for confidence</strong><small>Clear, reliable workflows</small></div></div>
@@ -266,9 +266,9 @@ export const AxxessHubLanding: React.FC = () => {
       </main>
 
       <footer className="portal-footer">
-        <div className="portal-footer-main"><AxxessLogo size="sm" /><span className="portal-footer-divider" /><span>Connected care for every day.</span></div>
+        <div className="portal-footer-main"><CareOrbitLogo size="sm" /><span className="portal-footer-divider" /><span>Connected care for every day.</span></div>
         <div className="portal-footer-meta"><span>{organization.name}</span><span>Release {organization.releaseVersion}</span><span><Clock3 size={13} /> Dallas, Texas</span></div>
-        <span className="portal-footer-copy">© 2026 Axxess. All rights reserved.</span>
+        <span className="portal-footer-copy">© 2026 CareOrbit. All rights reserved.</span>
       </footer>
     </div>
   );

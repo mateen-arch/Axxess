@@ -88,7 +88,7 @@ import { AppSwitcherModal } from '../portal/AppSwitcherModal';
 import { HOME_HEALTH_PAGE_TITLES } from '../homehealth/homeHealthNavigation';
 import type { MessageItem } from '../../types';
 
-export const AxxessHomeHealthApp: React.FC = () => {
+export const CareOrbitHomeHealthApp: React.FC = () => {
   const {
     organization,
     theme,
@@ -115,9 +115,9 @@ export const AxxessHomeHealthApp: React.FC = () => {
   const lastNumericMrn = patients
     .map((patient) => Number(patient.mrn))
     .filter((mrn) => Number.isSafeInteger(mrn) && mrn >= 0);
-  const [lastMrnUsed, setLastMrnUsed] = useState(() => Math.max(1203, ...lastNumericMrn));
+  const [lastMrnUsed, setLastMrnUsed] = useState(() => (lastNumericMrn.length > 0 ? Math.max(...lastNumericMrn) : 0));
   const [admissionDraft, setAdmissionDraft] = useState<PatientAdmissionFormData>(() =>
-    createInitialPatientAdmissionForm(String(lastMrnUsed + 1))
+    createInitialPatientAdmissionForm(lastMrnUsed > 0 ? String(lastMrnUsed + 1) : '')
   );
   const [admissionDraftSaved, setAdmissionDraftSaved] = useState(false);
 
@@ -193,8 +193,8 @@ export const AxxessHomeHealthApp: React.FC = () => {
     'on-demand-training': 'On-Demand Training',
     'recent-software-updates': 'Recent Software Updates',
     'covid-19-resource-center': 'COVID-19 Resource Center',
-    'follow-axxess': 'Follow Axxess',
-    'ask-axxess': 'Ask Axxess',
+    'follow-careorbit': 'Follow CareOrbit',
+    'ask-careorbit': 'Ask CareOrbit',
   };
 
   const currentPageTitle =
@@ -215,7 +215,7 @@ export const AxxessHomeHealthApp: React.FC = () => {
     setCurrentTab('dashboard');
   };
 
-  const completeAdmission = () => {
+  const completeAdmission = async () => {
     const text = (key: string) =>
       typeof admissionDraft[key] === 'string' ? (admissionDraft[key] as string) : '';
     const date = new Date();
@@ -316,7 +316,7 @@ export const AxxessHomeHealthApp: React.FC = () => {
         }
       }
     }
-    addNewPatient({
+    await addNewPatient({
       mrn: text('mrn'),
       firstName: text('firstName'),
       lastName: text('lastName'),
@@ -458,8 +458,8 @@ export const AxxessHomeHealthApp: React.FC = () => {
               type="button"
               onClick={() => setIsAppSwitcherOpen(true)}
               className="flex h-9 items-center gap-2 rounded-xl border border-pearl-200 bg-pearl-100 px-2.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-rose-400 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 dark:hover:text-rose-300 cursor-pointer"
-              aria-label="Open Axxess apps"
-              title="Open Axxess apps"
+              aria-label="Open CareOrbit apps"
+              title="Open CareOrbit apps"
             >
               <LayoutGrid size={15} className="text-rose-600 dark:text-rose-400" />
               <span className="hidden md:inline">Apps</span>
@@ -467,7 +467,7 @@ export const AxxessHomeHealthApp: React.FC = () => {
 
             <div className="flex items-center gap-2 sm:gap-3">
               <h1 className="whitespace-nowrap text-lg font-black tracking-tight text-slate-950 dark:text-white sm:text-2xl">
-                Axxess Home Health
+                CareOrbit Home Health
               </h1>
               {currentTab !== 'dashboard' && (
                 <div className="hidden items-center gap-2 sm:flex">
@@ -776,7 +776,7 @@ export const AxxessHomeHealthApp: React.FC = () => {
           {currentTab === 'create-communication-note' && (
             <CreateCommunicationNotePage
               onBack={() => setCurrentTab('dashboard')}
-              onNoteCreated={() => setCurrentTab('dashboard')}
+              onNoteCreated={() => setCurrentTab('list-communication-notes')}
             />
           )}
 
@@ -1089,7 +1089,7 @@ export const AxxessHomeHealthApp: React.FC = () => {
             <PatientChartsView
               onBack={() => setCurrentTab('dashboard')}
               onNewPatient={() => setCurrentTab('create-patient')}
-              onEditPatient={(id) => {
+              onEditPatient={(id: string) => {
                 setSelectedEditPatientId(id);
                 setCurrentTab('edit-patient');
               }}

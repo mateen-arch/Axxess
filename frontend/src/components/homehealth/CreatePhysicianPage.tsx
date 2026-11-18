@@ -173,7 +173,7 @@ export const CreatePhysicianPage: React.FC<CreatePhysicianPageProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">

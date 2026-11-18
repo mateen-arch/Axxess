@@ -64,6 +64,20 @@ function getTodayFormatted(): string {
   return today.toISOString().split('T')[0];
 }
 
+type EpisodeSectionId = 'patient' | 'details' | 'comments';
+
+interface EpisodeSectionDef {
+  id: EpisodeSectionId;
+  label: string;
+  icon: React.ElementType;
+}
+
+const episodeSections: EpisodeSectionDef[] = [
+  { id: 'patient', label: 'Patient Selection', icon: User },
+  { id: 'details', label: 'Episode Details', icon: FileText },
+  { id: 'comments', label: 'Care Notes & Comments', icon: StickyNote },
+];
+
 export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, onEpisodeCreated }) => {
   const { patients, clinicians, addHomeHealthEpisode, organization } = useHealthcare();
 
@@ -73,21 +87,23 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
     return hh.length > 0 ? hh : patients;
   }, [patients]);
 
-  // Form State
+  // Form State - initialized clean with no dummy data
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [startOfCareDate, setStartOfCareDate] = useState<string>(getTodayFormatted());
-  const [episodeStartDate, setEpisodeStartDate] = useState<string>(getTodayFormatted());
-  const [episodeEndDate, setEpisodeEndDate] = useState<string>(computeStandardEpisodeEndDate(getTodayFormatted()));
+  const [startOfCareDate, setStartOfCareDate] = useState<string>('');
+  const [episodeStartDate, setEpisodeStartDate] = useState<string>('');
+  const [episodeEndDate, setEpisodeEndDate] = useState<string>('');
   const [caseManager, setCaseManager] = useState<string>('');
   const [primaryPhysician, setPrimaryPhysician] = useState<string>('');
-  const [primaryInsurance, setPrimaryInsurance] = useState<string>('Medicare Traditional');
-  const [secondaryInsurance, setSecondaryInsurance] = useState<string>('None');
+  const [primaryInsurance, setPrimaryInsurance] = useState<string>('');
+  const [secondaryInsurance, setSecondaryInsurance] = useState<string>('');
   const [comments, setComments] = useState<string>('');
 
   // UI state
+  const [activeSection, setActiveSection] = useState<EpisodeSectionId>('patient');
   const [showPhysicianModal, setShowPhysicianModal] = useState(false);
   const [physicianSearchQuery, setPhysicianSearchQuery] = useState('');
   const [showErrors, setShowErrors] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Selected patient object
@@ -107,7 +123,6 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
       }
 
       if (pat.assignedNurseName) {
-        // match clinician or set as is
         const matched = clinicians.find((c) => c.name.toLowerCase() === pat.assignedNurseName?.toLowerCase());
         setCaseManager(matched ? `${matched.name} · ${matched.credentials}` : pat.assignedNurseName);
       } else if (clinicians.length > 0) {
@@ -131,23 +146,20 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
     setEpisodeEndDate(computeStandardEpisodeEndDate(newStart));
   };
 
-  // Physician options from clinicians + patients attending physicians
+  // Dynamic Physician options from actual clinicians and patient charts (no hardcoded dummy doctors)
   const physicianList = useMemo(() => {
-    const list = [
-      'Dr. Robert Vance, MD · Dallas Medical Center',
-      'Dr. Sarah Jenkins, MD · Baylor Scott & White',
-      'Dr. Michael Chen, DO · North Texas Health',
-      'Dr. Emily Larson, MD · Beverly Health Partners',
-      'Dr. Hilder Martinez, MD · Standards Home Care',
-      'Dr. Deborah Lollar, MD · North Shore Physicians Group',
-    ];
+    const list: string[] = [];
+    clinicians.forEach((c) => {
+      const entry = `${c.name} · ${c.credentials}`;
+      if (!list.includes(entry)) list.push(entry);
+    });
     patients.forEach((p) => {
       if (p.attendingPhysician && !list.includes(p.attendingPhysician)) {
         list.push(p.attendingPhysician);
       }
     });
     return list;
-  }, [patients]);
+  }, [clinicians, patients]);
 
   const filteredPhysicians = useMemo(() => {
     if (!physicianSearchQuery.trim()) return physicianList;
@@ -169,36 +181,74 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
 
   const isValid = Object.keys(errors).length === 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Real-time status for sidebar sections
+  const sectionStatus = useMemo(() => {
+    const patientMissing = !selectedPatientId ? ['patient'] : [];
+    const detailsMissing: string[] = [];
+    if (!startOfCareDate) detailsMissing.push('startOfCareDate');
+    if (!episodeStartDate) detailsMissing.push('episodeStartDate');
+    if (!episodeEndDate) detailsMissing.push('episodeEndDate');
+    if (!caseManager) detailsMissing.push('caseManager');
+    if (!primaryPhysician.trim()) detailsMissing.push('primaryPhysician');
+    if (!primaryInsurance) detailsMissing.push('primaryInsurance');
+
+    return {
+      patient: { isComplete: patientMissing.length === 0, missingCount: patientMissing.length },
+      details: { isComplete: detailsMissing.length === 0, missingCount: detailsMissing.length },
+      comments: { isComplete: true, missingCount: 0 },
+    };
+  }, [selectedPatientId, startOfCareDate, episodeStartDate, episodeEndDate, caseManager, primaryPhysician, primaryInsurance]);
+
+  const scrollToSection = (id: EpisodeSectionId) => {
+    setActiveSection(id);
+    const el = document.getElementById(`section-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) {
       setShowErrors(true);
+      if (!selectedPatientId) {
+        scrollToSection('patient');
+      } else {
+        scrollToSection('details');
+      }
       return;
     }
 
-    const patientName = selectedPatient
-      ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
-      : 'Selected Patient';
+    try {
+      setIsSubmitting(true);
+      const patientName = selectedPatient
+        ? `${selectedPatient.lastName}, ${selectedPatient.firstName}`
+        : 'Selected Patient';
 
-    addHomeHealthEpisode({
-      patientId: selectedPatientId,
-      patientName,
-      startOfCareDate,
-      episodeStartDate,
-      episodeEndDate,
-      caseManager,
-      primaryPhysician,
-      primaryInsurance,
-      secondaryInsurance,
-      comments,
-      createdAt: new Date().toISOString(),
-    });
+      await addHomeHealthEpisode({
+        patientId: selectedPatientId,
+        patientName,
+        startOfCareDate,
+        episodeStartDate,
+        episodeEndDate,
+        caseManager,
+        primaryPhysician,
+        primaryInsurance,
+        secondaryInsurance: secondaryInsurance || '',
+        comments,
+        createdAt: new Date().toISOString(),
+      });
 
-    setIsSuccess(true);
-    setTimeout(() => {
-      if (onEpisodeCreated) onEpisodeCreated();
-      else onBack();
-    }, 1200);
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (onEpisodeCreated) onEpisodeCreated();
+        else onBack();
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to create episode in database:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const insertTemplateComment = (text: string) => {
@@ -282,6 +332,62 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
         {/* Left Information Rail */}
         <aside className="hidden w-80 shrink-0 flex-col justify-between border-r border-pearl-200/90 bg-white/70 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/70 p-5 lg:flex overflow-y-auto space-y-5">
           <div className="space-y-5">
+            {/* Form Sections Navigation */}
+            <div className="rounded-2xl border border-pearl-200/80 bg-pearl-50/70 p-3.5 dark:border-charcoal-700/80 dark:bg-charcoal-800/50 shadow-2xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 block">
+                Form Sections
+              </span>
+              <nav aria-label="Episode creation sections" className="space-y-1">
+                {episodeSections.map((sec, idx) => {
+                  const Icon = sec.icon;
+                  const active = activeSection === sec.id;
+                  const status = sectionStatus[sec.id];
+
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => scrollToSection(sec.id)}
+                      className={`group flex min-h-[42px] w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${active
+                        ? 'border-rose-300/80 bg-gradient-to-r from-rose-50/90 to-rose-100/30 text-rose-800 shadow-2xs dark:border-rose-900/60 dark:from-rose-950/40 dark:to-charcoal-850 dark:text-rose-200 font-bold'
+                        : 'border-transparent text-slate-600 hover:border-pearl-200 hover:bg-pearl-100/60 dark:text-slate-300 dark:hover:border-charcoal-700 dark:hover:bg-charcoal-800/60 font-medium'
+                        }`}
+                    >
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all ${active
+                          ? 'bg-rose-600 text-white shadow-2xs'
+                          : status.isComplete
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+                            : 'bg-pearl-100 text-slate-500 dark:bg-charcoal-800 dark:text-slate-400'
+                          }`}
+                      >
+                        <Icon size={14} />
+                      </span>
+                      <div className="min-w-0 flex-1 truncate">
+                        <span className="block truncate text-xs">{sec.label}</span>
+                        <span className="block text-[10px] text-slate-400 dark:text-slate-500">
+                          Section {idx + 1}
+                        </span>
+                      </div>
+                      {status.isComplete ? (
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 shadow-2xs" title="Section complete">
+                          <CheckCircle2 size={13} />
+                        </span>
+                      ) : (
+                        <span
+                          className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 border border-amber-200 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 shadow-2xs"
+                          title={`${status.missingCount} required field(s) pending`}
+                        >
+                          <AlertTriangle size={11} className="shrink-0 text-amber-500" />
+                          <span>{status.missingCount}</span>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
             {/* Episode Summary Card */}
             <div className="rounded-2xl border border-pearl-200/80 bg-pearl-50/70 p-4 dark:border-charcoal-700/80 dark:bg-charcoal-800/50 shadow-2xs">
               <div className="flex items-center gap-2.5 text-rose-600 dark:text-rose-400">
@@ -385,9 +491,39 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
           </div>
 
           <div className="pt-2 text-[10px] text-slate-400 text-center">
-            Axxess Home Health EHR • Release {organization.releaseVersion}
+            CareOrbit Home Health EHR • Release {organization.releaseVersion}
           </div>
         </aside>
+
+        {/* Mobile Horizontal Section Tabs */}
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-pearl-200/90 bg-white/80 px-3 py-2 backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-900/80 lg:hidden">
+          {episodeSections.map((sec, idx) => {
+            const active = activeSection === sec.id;
+            const status = sectionStatus[sec.id];
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => scrollToSection(sec.id)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${active
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : status.isComplete
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    : 'bg-pearl-100 text-slate-600 dark:bg-charcoal-800 dark:text-slate-300'
+                  }`}
+              >
+                <span>{idx + 1}. {sec.label}</span>
+                {status.isComplete ? (
+                  <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                    <AlertTriangle size={11} /> {status.missingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Center Form Body */}
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-pearl-50/50 dark:bg-charcoal-900/40">
@@ -415,7 +551,7 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
             </div>
 
             {/* SECTION 1: Patient */}
-            <section className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
+            <section id="section-patient" className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
               <div className="mb-4 flex items-center gap-2 pb-3 border-b border-pearl-200/80 dark:border-charcoal-700/80">
                 <User size={16} className="text-rose-600 dark:text-rose-400" />
                 <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
@@ -431,11 +567,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                   <select
                     value={selectedPatientId}
                     onChange={(e) => handlePatientSelect(e.target.value)}
-                    className={`w-full h-11 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                      showErrors && errors.patient
-                        ? 'border-rose-400 ring-1 ring-rose-400/30'
-                        : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                    }`}
+                    className={`w-full h-11 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.patient
+                      ? 'border-rose-400 ring-1 ring-rose-400/30'
+                      : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                      }`}
                   >
                     <option value="">-- Select Patient --</option>
                     {homeHealthPatients.map((pat) => (
@@ -455,7 +590,7 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
             </section>
 
             {/* SECTION 2: Details */}
-            <section className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
+            <section id="section-details" className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
               <div className="mb-5 flex items-center gap-2 pb-3 border-b border-pearl-200/80 dark:border-charcoal-700/80">
                 <FileText size={16} className="text-rose-600 dark:text-rose-400" />
                 <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
@@ -476,11 +611,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                         type="date"
                         value={startOfCareDate}
                         onChange={(e) => setStartOfCareDate(e.target.value)}
-                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                          showErrors && errors.startOfCareDate
-                            ? 'border-rose-400 ring-1 ring-rose-400/30'
-                            : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                        }`}
+                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.startOfCareDate
+                          ? 'border-rose-400 ring-1 ring-rose-400/30'
+                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                          }`}
                       />
                     </div>
                     {showErrors && errors.startOfCareDate && (
@@ -501,11 +635,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                         type="date"
                         value={episodeStartDate}
                         onChange={(e) => handleStartDateChange(e.target.value)}
-                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                          showErrors && errors.episodeStartDate
-                            ? 'border-rose-400 ring-1 ring-rose-400/30'
-                            : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                        }`}
+                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.episodeStartDate
+                          ? 'border-rose-400 ring-1 ring-rose-400/30'
+                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                          }`}
                       />
                     </div>
                     {showErrors && errors.episodeStartDate && (
@@ -531,11 +664,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                         type="date"
                         value={episodeEndDate}
                         onChange={(e) => setEpisodeEndDate(e.target.value)}
-                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                          showErrors && errors.episodeEndDate
-                            ? 'border-rose-400 ring-1 ring-rose-400/30'
-                            : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                        }`}
+                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.episodeEndDate
+                          ? 'border-rose-400 ring-1 ring-rose-400/30'
+                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                          }`}
                       />
                     </div>
                     {showErrors && errors.episodeEndDate && (
@@ -554,11 +686,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                     <select
                       value={caseManager}
                       onChange={(e) => setCaseManager(e.target.value)}
-                      className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                        showErrors && errors.caseManager
-                          ? 'border-rose-400 ring-1 ring-rose-400/30'
-                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                      }`}
+                      className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.caseManager
+                        ? 'border-rose-400 ring-1 ring-rose-400/30'
+                        : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                        }`}
                     >
                       <option value="">-- Select Employee --</option>
                       {clinicians.map((c) => (
@@ -589,11 +720,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                         value={primaryPhysician}
                         onChange={(e) => setPrimaryPhysician(e.target.value)}
                         placeholder="Enter physician name or click search"
-                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 pl-3.5 pr-10 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                          showErrors && errors.primaryPhysician
-                            ? 'border-rose-400 ring-1 ring-rose-400/30'
-                            : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                        }`}
+                        className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 pl-3.5 pr-10 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.primaryPhysician
+                          ? 'border-rose-400 ring-1 ring-rose-400/30'
+                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                          }`}
                       />
                       <button
                         type="button"
@@ -620,11 +750,10 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                     <select
                       value={primaryInsurance}
                       onChange={(e) => setPrimaryInsurance(e.target.value)}
-                      className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${
-                        showErrors && errors.primaryInsurance
-                          ? 'border-rose-400 ring-1 ring-rose-400/30'
-                          : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
-                      }`}
+                      className={`w-full h-10 rounded-xl border bg-white dark:bg-charcoal-800 px-3.5 text-xs font-medium text-slate-900 dark:text-slate-100 shadow-2xs outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 ${showErrors && errors.primaryInsurance
+                        ? 'border-rose-400 ring-1 ring-rose-400/30'
+                        : 'border-pearl-200 dark:border-charcoal-700 hover:border-pearl-300'
+                        }`}
                     >
                       <option value="">-- Select Insurance --</option>
                       {insuranceOptions.map((opt) => (
@@ -675,7 +804,7 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
             </section>
 
             {/* SECTION 3: Comments (Blue Sticky Note) */}
-            <section className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
+            <section id="section-comments" className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 dark:border-charcoal-700/80 bg-white/95 dark:bg-charcoal-850/95 shadow-2xs backdrop-blur-md p-6">
               <div className="mb-4 flex items-center justify-between pb-3 border-b border-pearl-200/80 dark:border-charcoal-700/80">
                 <div className="flex items-center gap-2">
                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-sky-500 text-white shadow-2xs">
@@ -721,11 +850,11 @@ export const CreateEpisodePage: React.FC<CreateEpisodePageProps> = ({ onBack, on
                 </button>
                 <button
                   type="submit"
-                  disabled={isSuccess}
+                  disabled={isSuccess || isSubmitting}
                   className="flex h-10 items-center gap-2 rounded-xl bg-rose-600 px-6 text-xs font-extrabold text-white shadow-sm shadow-rose-600/25 transition hover:-translate-y-0.5 hover:bg-rose-700 disabled:opacity-50"
                 >
                   <HeartPulse size={16} />
-                  <span>Save</span>
+                  <span>{isSubmitting ? 'Saving...' : 'Save'}</span>
                 </button>
               </div>
             </div>

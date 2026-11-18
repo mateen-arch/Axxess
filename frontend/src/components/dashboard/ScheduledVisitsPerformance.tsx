@@ -29,7 +29,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
         <div className="p-3.5 rounded-xl theme-card-subtle space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="font-black text-xs text-slate-950 dark:text-white">Home Health Service Line</span>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">560 Visits Scheduled</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{scheduledSummary.homeHealthTotal} Visits Scheduled</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -38,7 +38,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
                 <CheckCircle2 size={12} className="stroke-[2.4]" />
                 Completed
               </div>
-              <div className="text-lg font-black">{scheduledSummary.completed}</div>
+              <div className="text-lg font-black">{scheduledSummary.homeHealthCompleted}</div>
             </div>
 
             <div className="p-2.5 rounded-lg theme-stat-tile-rose">
@@ -46,7 +46,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
                 <XCircle size={12} className="stroke-[2.4]" />
                 Missed
               </div>
-              <div className="text-lg font-black">{scheduledSummary.missed}</div>
+              <div className="text-lg font-black">{scheduledSummary.homeHealthMissed}</div>
             </div>
 
             <div className="p-2.5 rounded-lg theme-stat-tile">
@@ -54,7 +54,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
                 <UserX size={12} className="stroke-[2.4]" />
                 Unassigned
               </div>
-              <div className="text-lg font-black text-slate-950 dark:text-white">{scheduledSummary.unassigned}</div>
+              <div className="text-lg font-black text-slate-950 dark:text-white">{scheduledSummary.homeHealthUnassigned}</div>
             </div>
           </div>
         </div>
@@ -63,7 +63,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
         <div className="p-3.5 rounded-xl theme-card-subtle space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="font-black text-xs text-slate-950 dark:text-white">Home Care Service Line</span>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">11 Visits Scheduled</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{scheduledSummary.homeCareTotal} Visits Scheduled</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5 text-center">
@@ -80,7 +80,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
                 <XCircle size={12} className="stroke-[2.4]" />
                 Missed
               </div>
-              <div className="text-lg font-black text-slate-950 dark:text-white">0</div>
+              <div className="text-lg font-black text-slate-950 dark:text-white">{scheduledSummary.homeCareMissed}</div>
             </div>
 
             <div className="p-2.5 rounded-lg theme-stat-tile">
@@ -88,7 +88,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
                 <UserX size={12} className="stroke-[2.4]" />
                 Unassigned
               </div>
-              <div className="text-lg font-black text-slate-950 dark:text-white">0</div>
+              <div className="text-lg font-black text-slate-950 dark:text-white">{scheduledSummary.homeCareUnassigned}</div>
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ export const ScheduledVisitsPerformance: React.FC = () => {
         <div className="flex items-center gap-2">
           <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5]" />
           <span className="text-xs font-medium">
-            <strong className="font-black">23 Missed Visits Flagged:</strong> Requires supervisor reason code to prevent LUPA revenue reduction.
+            <strong className="font-black">{scheduledSummary.missed} Missed Visits Flagged:</strong> {scheduledSummary.missed > 0 ? 'Requires supervisor reason code to prevent LUPA revenue reduction.' : 'All scheduled visits executed in compliance.'}
           </span>
         </div>
         <button

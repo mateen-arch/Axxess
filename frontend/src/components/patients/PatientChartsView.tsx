@@ -1,1126 +1,1000 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ArrowLeft,
   Search,
   Plus,
   Printer,
-  RefreshCw,
-  Edit2,
-  Calendar,
-  Phone,
-  MapPin,
-  AlertTriangle,
-  User,
-  ExternalLink,
-  ChevronDown,
-  CheckCircle2,
-  Home,
-  DollarSign,
-  Paperclip,
+  Download,
+  Trash2,
   MoreHorizontal,
-  Maximize2,
-  FileText,
-  Clock,
-  Shield,
+  MapPin,
+  Phone,
+  User,
+  Users,
+  ArrowLeft,
+  Calendar,
   X,
+  Check,
+  ChevronDown,
+  ArrowUpDown,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
+import { Patient } from '../../types';
 
-interface PatientChartsViewProps {
+interface PatientTask {
+  id: string;
+  patientId: string;
+  task: string;
+  discipline: string;
+  status: string;
+  scheduleStart: string;
+  scheduleEnd: string;
+  assignedTo: string;
+  comments: string;
+}
+
+export interface PatientChartsViewProps {
   onBack?: () => void;
   onNewPatient?: () => void;
-  onEditPatient?: (patientId: string) => void;
+  onEditPatient?: (id: string) => void;
 }
-
-interface ChartPatientRecord {
-  id: string;
-  mrn: string;
-  lastName: string;
-  firstName: string;
-  dob: string;
-  age: number;
-  gender: string;
-  phone: string;
-  address: string;
-  status: 'Active' | 'Discharged' | 'Pending';
-  episodeStart: string;
-  episodeEnd: string;
-  startOfCareDate: string;
-  attendingPhysician: string;
-  insuranceName: string;
-  policyNumber: string;
-  primaryContact: string;
-  secondaryContact: string;
-  risks: string[];
-}
-
-interface ScheduleTaskRow {
-  id: string;
-  task: string;
-  scheduleDate: string;
-  assignedTo: string;
-  status: string;
-  comments: string;
-  hasAttachment?: boolean;
-}
-
-const SAMPLE_CHART_PATIENTS: ChartPatientRecord[] = [
-  {
-    id: 'pat-abuissa',
-    mrn: '1061',
-    lastName: 'ABUISSA',
-    firstName: 'HEATHER',
-    dob: '04/15/1964',
-    age: 62,
-    gender: 'Female',
-    phone: '(351) 201-4985',
-    address: '77 Sohier RD Apt 2B, Beverly, MA 01915',
-    status: 'Active',
-    episodeStart: '10/26/2026',
-    episodeEnd: '12/24/2026',
-    startOfCareDate: '10/26/2026',
-    attendingPhysician: 'RIGALI, LESLIE DO',
-    insuranceName: 'COMMONWEALTH CARE ALLIANCE',
-    policyNumber: '36563446600',
-    primaryContact: 'Not Available',
-    secondaryContact: 'DEREK PRIME (617) 595-9512',
-    risks: ['Full Code', 'Fall Risk', 'Hospitalization Risk', 'Infection Risk'],
-  },
-  {
-    id: 'pat-anis',
-    mrn: '1062',
-    lastName: 'ANIS',
-    firstName: 'MARIE V',
-    dob: '02/10/1958',
-    age: 68,
-    gender: 'Female',
-    phone: '(617) 293-8472',
-    address: '14 Harvard Ave, Boston, MA 02134',
-    status: 'Active',
-    episodeStart: '10/15/2026',
-    episodeEnd: '12/13/2026',
-    startOfCareDate: '10/15/2026',
-    attendingPhysician: 'GUPTA, MAULSHREE MD',
-    insuranceName: 'MEDICARE PART A',
-    policyNumber: 'MCR-9920192',
-    primaryContact: 'Jean Anis (617) 293-8470',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk'],
-  },
-  {
-    id: 'pat-antoine',
-    mrn: '1063',
-    lastName: 'ANTOINE',
-    firstName: 'LOUIS',
-    dob: '11/04/1952',
-    age: 74,
-    gender: 'Male',
-    phone: '(781) 948-2831',
-    address: '88 Washington St, Lynn, MA 01902',
-    status: 'Active',
-    episodeStart: '10/01/2026',
-    episodeEnd: '11/29/2026',
-    startOfCareDate: '10/01/2026',
-    attendingPhysician: 'KOWALOFF, EDWARD M.D.',
-    insuranceName: 'MEDICAID',
-    policyNumber: 'MCD-839210',
-    primaryContact: 'Marie Antoine (781) 948-2830',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Hospitalization Risk'],
-  },
-  {
-    id: 'pat-antoniotti',
-    mrn: '1064',
-    lastName: 'ANTONIOTTI',
-    firstName: 'JEFFREY C',
-    dob: '08/21/1960',
-    age: 66,
-    gender: 'Male',
-    phone: '(978) 582-1920',
-    address: '402 Cabot St, Beverly, MA 01915',
-    status: 'Active',
-    episodeStart: '10/10/2026',
-    episodeEnd: '12/08/2026',
-    startOfCareDate: '10/10/2026',
-    attendingPhysician: 'GUPTA, MAULSHREE MD',
-    insuranceName: 'MEDICAID',
-    policyNumber: 'MCD-910283',
-    primaryContact: 'Jeffrey Antoniotti Jr (978) 582-1922',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk', 'Infection Risk'],
-  },
-  {
-    id: 'pat-auguste',
-    mrn: '1065',
-    lastName: 'AUGUSTE',
-    firstName: 'JOCELENE',
-    dob: '06/18/1971',
-    age: 55,
-    gender: 'Female',
-    phone: '(617) 582-9011',
-    address: '22 River St, Mattapan, MA 02126',
-    status: 'Active',
-    episodeStart: '10/18/2026',
-    episodeEnd: '12/16/2026',
-    startOfCareDate: '10/18/2026',
-    attendingPhysician: 'MUQQADUS, SYED M.D',
-    insuranceName: 'COMMONWEALTH CARE ALLIANCE',
-    policyNumber: 'CCA-109283',
-    primaryContact: 'Not Available',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code'],
-  },
-  {
-    id: 'pat-bah',
-    mrn: '1066',
-    lastName: 'BAH',
-    firstName: 'ISATOU',
-    dob: '03/05/1982',
-    age: 44,
-    gender: 'Female',
-    phone: '(978) 420-1922',
-    address: '150 Central St, Lowell, MA 01852',
-    status: 'Active',
-    episodeStart: '10/20/2026',
-    episodeEnd: '12/18/2026',
-    startOfCareDate: '10/20/2026',
-    attendingPhysician: 'YAO, YUAN M.D.',
-    insuranceName: 'MEDICAID MASSACHUSETTS',
-    policyNumber: 'MCD-440219',
-    primaryContact: 'Mamadou Bah',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk'],
-  },
-  {
-    id: 'pat-balian',
-    mrn: '1067',
-    lastName: 'BALIAN',
-    firstName: 'JAMES',
-    dob: '09/12/1948',
-    age: 78,
-    gender: 'Male',
-    phone: '(781) 648-9102',
-    address: '54 Mass Ave, Arlington, MA 02476',
-    status: 'Active',
-    episodeStart: '09/15/2026',
-    episodeEnd: '11/13/2026',
-    startOfCareDate: '09/15/2026',
-    attendingPhysician: 'KOWALOFF, EDWARD M.D.',
-    insuranceName: 'MEDICARE PART A',
-    policyNumber: 'MCR-2938102',
-    primaryContact: 'Nancy Balian',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk', 'Hospitalization Risk'],
-  },
-  {
-    id: 'pat-beattie',
-    mrn: '1068',
-    lastName: 'BEATTIE',
-    firstName: 'HELEN',
-    dob: '12/03/1939',
-    age: 87,
-    gender: 'Female',
-    phone: '(978) 745-9201',
-    address: '12 Essex St, Salem, MA 01970',
-    status: 'Active',
-    episodeStart: '10/05/2026',
-    episodeEnd: '12/03/2026',
-    startOfCareDate: '10/05/2026',
-    attendingPhysician: 'GUPTA, MAULSHREE MD',
-    insuranceName: 'MEDICARE PART A',
-    policyNumber: 'MCR-1029384',
-    primaryContact: 'Robert Beattie',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk', 'Infection Risk'],
-  },
-  {
-    id: 'pat-damitie',
-    mrn: '1069',
-    lastName: 'DAMITIE',
-    firstName: 'CEDENIEZE',
-    dob: '05/25/1959',
-    age: 67,
-    gender: 'Female',
-    phone: '(617) 829-3019',
-    address: '94 Blue Hill Ave, Roxbury, MA 02119',
-    status: 'Active',
-    episodeStart: '10/12/2026',
-    episodeEnd: '12/10/2026',
-    startOfCareDate: '10/12/2026',
-    attendingPhysician: 'SANNAPAREDDY, SASIKALA M.D.',
-    insuranceName: 'COMMONWEALTH CARE ALLIANCE',
-    policyNumber: 'CCA-948201',
-    primaryContact: 'Not Available',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code'],
-  },
-  {
-    id: 'pat-david',
-    mrn: '1070',
-    lastName: 'DAVID',
-    firstName: 'JANEY',
-    dob: '07/19/1963',
-    age: 63,
-    gender: 'Female',
-    phone: '(508) 584-9021',
-    address: '31 Main St, Brockton, MA 02301',
-    status: 'Active',
-    episodeStart: '09/28/2026',
-    episodeEnd: '11/26/2026',
-    startOfCareDate: '09/28/2026',
-    attendingPhysician: 'RIGALI, LESLIE DO',
-    insuranceName: 'MEDICAID',
-    policyNumber: 'MCD-302918',
-    primaryContact: 'Peter David',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk'],
-  },
-  {
-    id: 'pat-davis',
-    mrn: '1071',
-    lastName: 'DAVIS',
-    firstName: 'JAMES',
-    dob: '01/14/1945',
-    age: 81,
-    gender: 'Male',
-    phone: '(617) 492-3019',
-    address: '100 Cambridge St, Cambridge, MA 02138',
-    status: 'Active',
-    episodeStart: '10/22/2026',
-    episodeEnd: '12/20/2026',
-    startOfCareDate: '10/22/2026',
-    attendingPhysician: 'BAHNG, EDWARD M.D.',
-    insuranceName: 'MEDICARE PART A',
-    policyNumber: 'MCR-9482019',
-    primaryContact: 'Sarah Davis',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code', 'Fall Risk', 'Hospitalization Risk'],
-  },
-  {
-    id: 'pat-deceus',
-    mrn: '1072',
-    lastName: 'DECEUS',
-    firstName: 'JAVENS J.',
-    dob: '10/08/1990',
-    age: 36,
-    gender: 'Male',
-    phone: '(781) 593-1029',
-    address: '45 Union St, Lynn, MA 01901',
-    status: 'Active',
-    episodeStart: '10/11/2026',
-    episodeEnd: '12/09/2026',
-    startOfCareDate: '10/11/2026',
-    attendingPhysician: 'YAO, YUAN M.D.',
-    insuranceName: 'MEDICAID',
-    policyNumber: 'MCD-910293',
-    primaryContact: 'Not Available',
-    secondaryContact: 'Not Available',
-    risks: ['Full Code'],
-  },
-];
-
-const SAMPLE_SCHEDULE_TASKS: ScheduleTaskRow[] = [
-  {
-    id: 'st-1',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '12/24/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-2',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '12/23/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-3',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '12/22/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-4',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '12/21/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-5',
-    task: 'OASIS-E2 Recertification',
-    scheduleDate: '12/20/2026',
-    assignedTo: 'Mary Kyalikunda RN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: false,
-  },
-  {
-    id: 'st-6',
-    task: 'LVN/LPN Supervisory Visit',
-    scheduleDate: '12/15/2026',
-    assignedTo: 'Mary Kyalikunda RN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: false,
-  },
-  {
-    id: 'st-7',
-    task: 'Coordination of Care',
-    scheduleDate: '12/15/2026',
-    assignedTo: 'Mary Kyalikunda RN',
-    status: 'Not Yet Due',
-    comments: 'Not Available',
-    hasAttachment: false,
-  },
-  {
-    id: 'st-8',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '11/08/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Started',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-9',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '11/07/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Not Yet Started',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-10',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '11/02/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Submitted With Signature',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-11',
-    task: 'LVN/LPN Visit',
-    scheduleDate: '11/01/2026',
-    assignedTo: 'Marrio Fortune LPN',
-    status: 'Submitted With Signature',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-  {
-    id: 'st-12',
-    task: 'Face-to-Face Encounter',
-    scheduleDate: '10/26/2026',
-    assignedTo: 'Selina Mwakipunda',
-    status: 'Returned w/ Physician Signature',
-    comments: 'Not Available',
-    hasAttachment: true,
-  },
-];
-
-const QUICK_LINKS = [
-  'Allergy Profile',
-  'Medication Profile',
-  'Immunization Profile',
-  'Infectious Disease Profile',
-  'Authorization Listing',
-  'Preadmission Notes',
-  'Communication Notes',
-  'Orders and Care Plans',
-  'Plan of Care Summary',
-  'Episode Summaries',
-  'Vital Signs Charts',
-];
 
 export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
   onBack,
   onNewPatient,
-  onEditPatient,
+  onEditPatient
 }) => {
-  const { organization } = useHealthcare();
+  const { patients, setIsNewPatientModalOpen } = useHealthcare();
 
-  // Selected Patient
-  const [selectedPatientId, setSelectedPatientId] = useState<string>('pat-abuissa');
+  // Filter States (Left Panel)
+  const [selectedOrg, setSelectedOrg] = useState('All');
+  const [selectedBranch, setSelectedBranch] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('Active');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Left sidebar filters
-  const [branchFilter, setBranchFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('Active Patients');
-  const [payerFilter, setPayerFilter] = useState('All');
-  const [patientSearch, setPatientSearch] = useState('');
+  // Selected Patient State
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
 
-  // Right top sub-tabs
-  const [topTab, setTopTab] = useState<'insights' | 'documents' | 'print'>('insights');
+  // Patient Tasks State
+  const [tasks, setTasks] = useState<PatientTask[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
 
-  // Table activity sub-tabs
-  const [activityTab, setActivityTab] = useState<'schedule' | 'visit_comments' | 'episode_comments' | 'missed'>('schedule');
-  const [showFilter, setShowFilter] = useState('All');
-  const [dateFilter, setDateFilter] = useState('This Episode');
+  // Table Filter States
+  const [disciplineFilter, setDisciplineFilter] = useState('All Disciplines');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('All');
+  const [sortField, setSortField] = useState<'task' | 'scheduleStart' | 'assignedTo'>('task');
+  const [sortAsc, setSortAsc] = useState(true);
 
-  // Quick action modal / toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activeModalLink, setActiveModalLink] = useState<string | null>(null);
+  // New Task Modal State
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [newTaskName, setNewTaskName] = useState('Communication Note');
+  const [newTaskDiscipline, setNewTaskDiscipline] = useState('Nursing');
+  const [newTaskStatus, setNewTaskStatus] = useState('Not Yet Due');
+  const [newTaskScheduleStart, setNewTaskScheduleStart] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+  const [newTaskScheduleEnd, setNewTaskScheduleEnd] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState('Kristin Siegel');
+  const [newTaskComments, setNewTaskComments] = useState('Not Available');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  // Filter Patients
+  const filteredPatients = useMemo(() => {
+    return patients.filter((p) => {
+      // Status filter
+      if (selectedStatus !== 'All') {
+        const pStatus = (p.status || 'Active').toLowerCase();
+        if (selectedStatus.toLowerCase() !== pStatus) return false;
+      }
+
+      // Search query (MRN, Name)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+        const revFullName = `${p.lastName || ''}, ${p.firstName || ''}`.toLowerCase();
+        const mrn = (p.mrn || '').toLowerCase();
+        if (!fullName.includes(q) && !revFullName.includes(q) && !mrn.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [patients, selectedStatus, searchQuery]);
+
+  // Set initial selected patient if none selected
+  useEffect(() => {
+    if (!selectedPatientId && filteredPatients.length > 0) {
+      setSelectedPatientId(filteredPatients[0].id);
+    }
+  }, [filteredPatients, selectedPatientId]);
+
+  // Currently Selected Patient
+  const currentPatient: Patient | undefined = useMemo(() => {
+    return patients.find((p) => p.id === selectedPatientId) || filteredPatients[0] || patients[0];
+  }, [patients, selectedPatientId, filteredPatients]);
+
+  // Fetch tasks when selected patient changes
+  useEffect(() => {
+    if (!currentPatient?.id) {
+      setTasks([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingTasks(true);
+
+    api
+      .getPatientTasks(currentPatient.id)
+      .then((data) => {
+        if (isMounted) {
+          setTasks(data || []);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load patient tasks:', err);
+        if (isMounted) setTasks([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingTasks(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPatient?.id]);
+
+  // Filter and Sort Tasks
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter((t) => {
+        if (disciplineFilter !== 'All Disciplines' && t.discipline !== disciplineFilter) {
+          return false;
+        }
+        if (taskStatusFilter !== 'All' && t.status !== taskStatusFilter) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        let valA = a[sortField] || '';
+        let valB = b[sortField] || '';
+        if (sortField === 'scheduleStart') {
+          return sortAsc
+            ? new Date(valA).getTime() - new Date(valB).getTime()
+            : new Date(valB).getTime() - new Date(valA).getTime();
+        }
+        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      });
+  }, [tasks, disciplineFilter, taskStatusFilter, sortField, sortAsc]);
+
+  // Delete Task Handler
+  const handleDeleteTask = async (taskId: string) => {
+    if (!currentPatient) return;
+    if (!window.confirm('Are you sure you want to delete this clinical task?')) return;
+
+    try {
+      await api.deletePatientTask(currentPatient.id, taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      alert('Failed to delete task. Please try again.');
+    }
   };
 
-  // Filtered patients for left list
-  const filteredPatients = useMemo(() => {
-    return SAMPLE_CHART_PATIENTS.filter((p) => {
-      if (statusFilter === 'Active Patients' && p.status !== 'Active') return false;
-      if (patientSearch.trim()) {
-        const q = patientSearch.toLowerCase();
-        return (
-          p.lastName.toLowerCase().includes(q) ||
-          p.firstName.toLowerCase().includes(q) ||
-          p.mrn.includes(q)
-        );
-      }
-      return true;
-    });
-  }, [statusFilter, patientSearch]);
+  // Add Task Handler
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPatient) return;
 
-  // Current active patient
-  const currentPatient = useMemo(() => {
-    return (
-      SAMPLE_CHART_PATIENTS.find((p) => p.id === selectedPatientId) ||
-      SAMPLE_CHART_PATIENTS[0]
+    try {
+      setIsSubmittingTask(true);
+      const created = await api.createPatientTask(currentPatient.id, {
+        task: newTaskName,
+        discipline: newTaskDiscipline,
+        status: newTaskStatus,
+        scheduleStart: newTaskScheduleStart,
+        scheduleEnd: newTaskScheduleEnd,
+        assignedTo: newTaskAssignedTo,
+        comments: newTaskComments,
+      });
+
+      setTasks((prev) => [created, ...prev]);
+      setIsAddTaskModalOpen(false);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      alert('Failed to create task. Please try again.');
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
+
+  // Export Tasks to CSV
+  const handleExportCSV = () => {
+    if (!currentPatient) return;
+    const headers = ['Task', 'Status', 'Schedule Start', 'Schedule End', 'Assigned To', 'Comments'];
+    const rows = filteredTasks.map((t) => [
+      `"${t.task}"`,
+      `"${t.status}"`,
+      `"${t.scheduleStart}"`,
+      `"${t.scheduleEnd}"`,
+      `"${t.assignedTo}"`,
+      `"${t.comments}"`,
+    ]);
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute(
+      'download',
+      `patient_chart_${currentPatient.lastName}_${currentPatient.mrn}_tasks.csv`
     );
-  }, [selectedPatientId]);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  // Filtered schedule tasks
-  const filteredTasks = useMemo(() => {
-    return SAMPLE_SCHEDULE_TASKS.filter((t) => {
-      if (showFilter !== 'All' && t.status !== showFilter) return false;
-      return true;
-    });
-  }, [showFilter]);
+  // Selected Action Menu for Task State
+  const [activeMenuTaskId, setActiveMenuTaskId] = useState<string | null>(null);
+
+  // Format Patient Helpers
+  const patientDisplayName = currentPatient
+    ? `${(currentPatient.lastName || '').toUpperCase()}, ${(currentPatient.firstName || '').toUpperCase()}`
+    : 'NO PATIENT SELECTED';
+
+  const patientAddress = currentPatient
+    ? currentPatient.street
+      ? `${currentPatient.street}, ${currentPatient.city || ''}, ${currentPatient.state || ''} ${currentPatient.zipCode || ''}`
+      : currentPatient.address
+      ? `${currentPatient.address.street || ''}${currentPatient.address.city ? `, ${currentPatient.address.city}` : ''}${currentPatient.address.state ? `, ${currentPatient.address.state}` : ''} ${currentPatient.address.zipCode || ''}`.trim()
+      : 'Address Not Available'
+    : '';
+
+  const patientDobAge = currentPatient
+    ? `${currentPatient.dob || 'DOB Not Available'} ${currentPatient.age ? `(${currentPatient.age})` : ''}`.trim()
+    : '';
+
+  const getTaskTextColor = (taskName: string) => {
+    const lower = taskName.toLowerCase();
+    if (lower.includes('communication note')) return 'text-emerald-600 dark:text-emerald-400 font-medium hover:underline cursor-pointer';
+    if (lower.includes('face-to-face')) return 'text-rose-600 dark:text-rose-400 font-medium hover:underline cursor-pointer';
+    return 'text-sky-600 dark:text-sky-400 font-medium hover:underline cursor-pointer';
+  };
+
+  const getStatusBadgeStyle = (status: string) => {
+    const s = status.toLowerCase();
+    if (s.includes('completed')) {
+      return 'border border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 shadow-2xs';
+    }
+    if (s.includes('signature') || s.includes('returned')) {
+      return 'border border-rose-400 text-rose-700 dark:text-rose-400 bg-rose-50/70 dark:bg-rose-950/40 shadow-2xs';
+    }
+    // Not Yet Due or default
+    return 'border border-cyan-500 text-cyan-700 dark:text-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/40 shadow-2xs';
+  };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-pearl-100 font-sans text-slate-900 transition-colors dark:bg-charcoal-900 dark:text-slate-100">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-600 px-4 py-3 text-xs font-semibold text-white shadow-xl animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="h-4 w-4" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Top Banner / Breadcrumb */}
-      <div className="flex items-center justify-between border-b border-pearl-200 bg-white px-4 py-2 text-xs dark:border-charcoal-700 dark:bg-charcoal-850">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col min-h-screen bg-[#f8f9fa] dark:bg-charcoal-900 text-slate-800 dark:text-slate-100 font-sans">
+      {/* Top Header & Navigation Segment (Consistent across all pages) */}
+      <div className="bg-white/80 dark:bg-charcoal-850/80 border-b border-pearl-200 dark:border-charcoal-700 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-center gap-3">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-1 text-slate-500 hover:text-rose-700 dark:text-slate-400 dark:hover:text-rose-300"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-charcoal-750 transition-colors"
+              title="Go back"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Back</span>
+              <ArrowLeft size={18} />
             </button>
           )}
-          <span className="text-slate-300 dark:text-charcoal-600">/</span>
-          <span className="font-semibold text-slate-700 dark:text-slate-200">Patients</span>
-          <span className="text-slate-300 dark:text-charcoal-600">/</span>
-          <span className="font-bold text-rose-700 dark:text-rose-400">Patient Charts</span>
+          <div>
+            <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+              <Users className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+              <span>Patient Charts</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Electronic health records, clinical care team assignments, and patient chart timelines
+            </p>
+          </div>
         </div>
-        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-          Viewing: <strong className="text-slate-800 dark:text-slate-100">{currentPatient.lastName}, {currentPatient.firstName}</strong> (MRN: {currentPatient.mrn})
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onNewPatient ? onNewPatient() : setIsNewPatientModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Admit Patient</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Split Layout: Left Roster Sidebar + Right Clinical Chart Area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left Sidebar: Patient Selector & Filters */}
-        <aside className="flex w-64 shrink-0 flex-col border-r border-pearl-200 bg-white dark:border-charcoal-700 dark:bg-charcoal-850">
-          {/* Add New Patient Button */}
-          <div className="p-3 border-b border-pearl-100 dark:border-charcoal-700">
-            <button
-              type="button"
-              onClick={onNewPatient}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-700 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-rose-800 cursor-pointer"
+      {/* Main Container: Split View */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Side: Filter Column & Patient Directory Cards */}
+        <aside className="w-72 shrink-0 bg-white dark:bg-charcoal-850 border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 overflow-y-auto">
+          {/* Organization Select */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Organization</span>
+            </div>
+            <select
+              value={selectedOrg}
+              onChange={(e) => setSelectedOrg(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-600"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Add New Patient</span>
-            </button>
+              <option value="All">Organizations: All</option>
+              <option value="Standards Home Care">Standards Home Care</option>
+            </select>
           </div>
 
-          {/* Left Roster Filters */}
-          <div className="space-y-2 border-b border-pearl-100 p-3 text-xs dark:border-charcoal-700">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Branch</label>
-              <select
-                aria-label="Filter by branch"
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="w-36 rounded border border-pearl-200 bg-pearl-50 px-2 py-1 text-[11px] text-slate-700 focus:border-rose-400 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200"
-              >
-                <option value="All">All</option>
-                <option value="Standards Home Care">Standards Home Care</option>
-              </select>
+          {/* Branches Select */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Branches</span>
             </div>
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Status</label>
-              <select
-                aria-label="Filter by patient status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-36 rounded border border-pearl-200 bg-pearl-50 px-2 py-1 text-[11px] text-slate-700 focus:border-rose-400 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200"
-              >
-                <option value="Active Patients">Active Patients</option>
-                <option value="Discharged">Discharged</option>
-                <option value="All">All</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Payer</label>
-              <select
-                aria-label="Filter by insurance payer"
-                value={payerFilter}
-                onChange={(e) => setPayerFilter(e.target.value)}
-                className="w-36 rounded border border-pearl-200 bg-pearl-50 px-2 py-1 text-[11px] text-slate-700 focus:border-rose-400 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200"
-              >
-                <option value="All">All</option>
-                <option value="Commonwealth">Commonwealth Care</option>
-                <option value="Medicare">Medicare</option>
-                <option value="Medicaid">Medicaid</option>
-              </select>
-            </div>
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-600"
+            >
+              <option value="All">Branches: All</option>
+              <option value="Main Office">Main Office (Dallas)</option>
+              <option value="North Branch">North Branch (Beverly, MA)</option>
+            </select>
+          </div>
 
-            {/* Search Input */}
-            <div className="relative pt-1">
-              <Search className="absolute left-2.5 top-3.5 h-3.5 w-3.5 text-slate-400" />
+          {/* Status Select */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Status</span>
+            </div>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-600"
+            >
+              <option value="Active">Active</option>
+              <option value="Discharged">Discharged</option>
+              <option value="Pending">Pending</option>
+              <option value="All">All</option>
+            </select>
+          </div>
+
+          {/* Patient Search Input */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Patient Search</span>
+            </div>
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Search Patients"
-                value={patientSearch}
-                onChange={(e) => setPatientSearch(e.target.value)}
-                className="w-full rounded-md border border-pearl-200 bg-pearl-50 py-1.5 pl-8 pr-2 text-xs text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:bg-white focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-100"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Patient Name or MRN"
+                className="w-full px-2.5 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-red-600"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Patient Roster List */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredPatients.map((p) => {
-              const isSelected = p.id === selectedPatientId;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setSelectedPatientId(p.id)}
-                  className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition flex items-center justify-between border-b border-pearl-100 dark:border-charcoal-700 cursor-pointer ${
-                    isSelected
-                      ? 'bg-rose-700 text-white font-extrabold shadow-inner'
-                      : 'text-slate-700 hover:bg-rose-50/50 hover:text-rose-700 dark:text-slate-300 dark:hover:bg-charcoal-800'
-                  }`}
-                >
-                  <span className="truncate">
-                    {p.lastName}, {p.firstName}
-                  </span>
-                  <span className={`text-[10px] font-normal ${isSelected ? 'text-rose-200' : 'text-slate-400'}`}>
-                    {p.mrn}
-                  </span>
-                </button>
-              );
-            })}
+          {/* Patient Cards List */}
+          <div className="flex-1 space-y-2 overflow-y-auto pt-2">
+            {filteredPatients.length === 0 ? (
+              <div className="text-center py-6 text-xs text-slate-500">
+                No patients found in database.
+              </div>
+            ) : (
+              filteredPatients.map((patient) => {
+                const isSelected = patient.id === currentPatient?.id;
+                return (
+                  <div
+                    key={patient.id}
+                    onClick={() => setSelectedPatientId(patient.id)}
+                    className={`p-2.5 rounded-lg border cursor-pointer transition text-left relative ${
+                      isSelected
+                        ? 'bg-slate-100 dark:bg-charcoal-800 border-slate-400 dark:border-charcoal-600 shadow-xs'
+                        : 'bg-white dark:bg-charcoal-900 border-slate-200 dark:border-charcoal-700 hover:bg-slate-50 dark:hover:bg-charcoal-800/60'
+                    }`}
+                  >
+                    {/* Badge */}
+                    <span className="inline-block bg-[#8b1528] text-white text-[10px] font-semibold px-2 py-0.5 rounded leading-tight mb-1">
+                      {patient.serviceLine === 'home_care'
+                        ? 'Home Care'
+                        : patient.serviceLine === 'hospice'
+                        ? 'Hospice'
+                        : 'Home Health'}
+                    </span>
+                    {/* Patient Name */}
+                    <div className="font-semibold text-slate-900 dark:text-white text-xs leading-snug">
+                      {patient.lastName}, {patient.firstName}
+                    </div>
+                    {/* MRN */}
+                    <div className="text-slate-500 dark:text-slate-400 text-xs">
+                      {patient.mrn}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </aside>
 
-        {/* Right Main Area: Demographic Card & Activities Table */}
-        <main className="flex flex-1 flex-col overflow-y-auto bg-pearl-50 p-4 dark:bg-charcoal-900">
-          {/* Top Tabs */}
-          <div className="mb-3 flex items-center justify-between border-b border-pearl-200 bg-white px-4 py-2 rounded-t-xl dark:border-charcoal-700 dark:bg-charcoal-850">
-            <div className="flex items-center gap-6 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => showToast('New menu options: Order, Episode, Communication Note')}
-                className="flex items-center gap-1 text-slate-600 hover:text-rose-700 dark:text-slate-300 cursor-pointer"
-              >
-                <span>New</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setTopTab('insights')}
-                className={`py-1 cursor-pointer transition ${
-                  topTab === 'insights'
-                    ? 'border-b-2 border-rose-700 font-extrabold text-rose-700 dark:text-rose-400'
-                    : 'text-slate-600 hover:text-rose-700 dark:text-slate-300'
-                }`}
-              >
-                Clinical Insights
-              </button>
-              <button
-                type="button"
-                onClick={() => setTopTab('documents')}
-                className={`py-1 cursor-pointer transition ${
-                  topTab === 'documents'
-                    ? 'border-b-2 border-rose-700 font-extrabold text-rose-700 dark:text-rose-400'
-                    : 'text-slate-600 hover:text-rose-700 dark:text-slate-300'
-                }`}
-              >
-                Documents
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTopTab('print');
-                  showToast('Opening Print Chart dialog...');
-                  setTimeout(() => window.print(), 300);
-                }}
-                className={`py-1 cursor-pointer transition ${
-                  topTab === 'print'
-                    ? 'border-b-2 border-rose-700 font-extrabold text-rose-700 dark:text-rose-400'
-                    : 'text-slate-600 hover:text-rose-700 dark:text-slate-300'
-                }`}
-              >
-                Print Chart
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => showToast('Refreshed chart data')}
-                className="rounded border border-pearl-200 bg-pearl-50 p-1 text-slate-500 hover:text-rose-700 dark:border-charcoal-600 dark:bg-charcoal-750 cursor-pointer"
-                title="Refresh Chart"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Demographic & Clinical Card */}
-          <div className="mb-4 rounded-xl border border-pearl-200 bg-white p-4 shadow-2xs dark:border-charcoal-700 dark:bg-charcoal-850">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-              {/* Left Column: Avatar & Status */}
-              <div className="flex flex-col items-center justify-center border-b border-pearl-100 pb-4 lg:col-span-2 lg:border-b-0 lg:border-r lg:pr-4 dark:border-charcoal-700">
-                <div className="relative mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-pearl-200 text-slate-400 dark:bg-charcoal-700 dark:text-slate-500">
-                  <User className="h-10 w-10" />
-                </div>
-                <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  {currentPatient.status}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => showToast('Change status dialog opened')}
-                  className="mt-1 text-[11px] font-medium text-rose-700 hover:underline dark:text-rose-400 cursor-pointer"
-                >
-                  Change Status
-                </button>
-              </div>
-
-              {/* Middle Column: Demographics & Clinical Information */}
-              <div className="space-y-3 lg:col-span-7">
-                {/* Header line with Name, MRN, Edit Link */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-extrabold uppercase text-slate-900 dark:text-white">
-                    {currentPatient.lastName}, {currentPatient.firstName}
-                  </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    MRN: <strong className="font-mono text-slate-800 dark:text-slate-100">{currentPatient.mrn}</strong>
-                  </span>
-                  <span className="text-slate-400">•</span>
-                  <button
-                    type="button"
-                    onClick={() => onEditPatient && onEditPatient(currentPatient.id)}
-                    className="flex items-center gap-1 text-xs font-bold text-rose-700 hover:underline dark:text-rose-400 cursor-pointer"
-                  >
-                    <Edit2 className="h-3 w-3" />
-                    <span>Edit Patient</span>
-                  </button>
-                </div>
-
-                {/* Risk Badges */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                  <span className="rounded bg-pearl-100 px-2 py-0.5 font-bold text-slate-700 dark:bg-charcoal-700 dark:text-slate-200">
-                    {currentPatient.gender}
-                  </span>
-                  {currentPatient.risks.map((risk, idx) => (
-                    <span
-                      key={idx}
-                      className={`rounded px-2 py-0.5 font-bold ${
-                        risk === 'Full Code'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
-                      }`}
-                    >
-                      {risk}
+        {/* Right Side: EHR Chart Details & Tasks Table */}
+        <main className="flex-1 flex flex-col p-4 space-y-4 overflow-y-auto">
+          {currentPatient ? (
+            <>
+              {/* Header EHR Card matching reference screenshot */}
+              <div className="bg-white dark:bg-charcoal-850 rounded-xl border border-slate-200 dark:border-charcoal-700 p-4 shadow-xs">
+                <div className="flex flex-col md:flex-row gap-5">
+                  {/* Left Avatar & Status */}
+                  <div className="flex flex-col items-center justify-center shrink-0 pr-4 md:border-r border-slate-200 dark:border-charcoal-700 min-w-[130px]">
+                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                      Standards Home Care
                     </span>
-                  ))}
-                </div>
-
-                {/* Address & Phone */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-rose-600" />
-                    <span>{currentPatient.address}</span>
-                  </span>
-                  <span>•</span>
-                  <span>{currentPatient.dob} ({currentPatient.age})</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-100">
-                    <Phone className="h-3 w-3 text-rose-600" />
-                    <span>{currentPatient.phone}</span>
-                  </span>
-                </div>
-
-                {/* Grid details */}
-                <div className="grid grid-cols-1 gap-2 pt-1 text-xs sm:grid-cols-3">
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Episode</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.episodeStart} - {currentPatient.episodeEnd}
+                    <div className="w-16 h-16 rounded-full bg-[#2d3142] flex items-center justify-center text-white shadow-inner mb-1.5">
+                      <User size={36} className="text-slate-300" />
+                    </div>
+                    <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      {currentPatient.status || 'ACTIVE'}
                     </span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Start of Care Date</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.startOfCareDate}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => showToast('Admission periods: 10/26/2026 - Present')}
-                      className="ml-1 text-[10px] text-rose-700 hover:underline dark:text-rose-400 cursor-pointer"
-                    >
-                      View Admission Periods
-                    </button>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Attending Physician</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.attendingPhysician}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Insurance Name/ID</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.insuranceName} / {currentPatient.policyNumber}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Primary Contact</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.primaryContact}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-semibold text-slate-400 uppercase">Secondary Contact</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {currentPatient.secondaryContact}
-                    </span>
+
+                  {/* Right Patient Details Content */}
+                  <div className="flex-1 space-y-2.5">
+                    {/* Top Row: Name, MRN, and Risk Badges */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold text-[#1f4e79] dark:text-sky-400 tracking-tight">
+                        {patientDisplayName} <span className="text-sm font-semibold ml-1">MRN:{currentPatient.mrn}</span>
+                      </h2>
+
+                      {/* Gender Badge */}
+                      {currentPatient.gender && (
+                        <span className="text-xs text-slate-600 dark:text-slate-400 ml-1">
+                          {currentPatient.gender.charAt(0).toUpperCase() + currentPatient.gender.slice(1)}
+                        </span>
+                      )}
+
+                      {/* Full Code Badge */}
+                      {currentPatient.fullCode === true && (
+                        <span className="border border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                          Full Code
+                        </span>
+                      )}
+
+                      {/* Fall Risk Badge */}
+                      {currentPatient.fallRisk === true && (
+                        <span className="border border-amber-300 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                          Fall Risk
+                        </span>
+                      )}
+
+                      {/* Hospitalization Risk */}
+                      {currentPatient.hospitalizationRisk === true && (
+                        <span className="border border-amber-300 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                          Hospitalization Risk
+                        </span>
+                      )}
+
+                      {/* Infection Risk */}
+                      {currentPatient.infectionRisk === true && (
+                        <span className="border border-amber-300 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                          Infection Risk
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Middle Row: Location, DOB, Phones */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                      {patientAddress && (
+                        <>
+                          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-200">
+                            <MapPin size={13} className="text-red-600 shrink-0" />
+                            <span>{patientAddress}</span>
+                          </span>
+                          <span>•</span>
+                        </>
+                      )}
+                      {patientDobAge && (
+                        <>
+                          <span className="flex items-center gap-1">
+                            <Calendar size={13} className="text-slate-500 shrink-0" />
+                            <span>{patientDobAge}</span>
+                          </span>
+                          <span>•</span>
+                        </>
+                      )}
+                      <span className="flex items-center gap-1 text-[#1f4e79] dark:text-sky-400 font-semibold">
+                        <Phone size={13} className="text-red-600 shrink-0" />
+                        <span>{currentPatient.phone || 'Phone Not Available'}</span>
+                      </span>
+                      {currentPatient.secondaryPhone && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <Phone size={13} className="text-red-600 shrink-0" />
+                            <span>{currentPatient.secondaryPhone}</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* 6-Grid Clinical Episode & Contact Metadata */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4 pt-2 border-t border-slate-100 dark:border-charcoal-700 text-xs">
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Episode</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.episodeStart && currentPatient.episodeEnd
+                            ? `${currentPatient.episodeStart} - ${currentPatient.episodeEnd}`
+                            : currentPatient.episodeStart || 'Not Available'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Start of Care Date</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.startOfCareDate || currentPatient.admissionDate || 'Not Available'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Attending Physician</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.attendingPhysician || 'Not Available'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Insurance Name/ID</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.insuranceName || currentPatient.policyNumber
+                            ? `${currentPatient.insuranceName || ''} ${currentPatient.policyNumber ? `(${currentPatient.policyNumber})` : ''}`.trim()
+                            : 'Not Available'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Primary Contact</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.primaryContact || 'Not Available'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">Secondary Contact</div>
+                        <div className="text-slate-600 dark:text-slate-400">
+                          {currentPatient.secondaryContact || 'Not Available'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Profile Buttons & Quick Links */}
-              <div className="flex flex-col justify-between border-t border-pearl-100 pt-4 lg:col-span-3 lg:border-t-0 lg:border-l lg:pl-4 dark:border-charcoal-700">
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => showToast(`Opening patient profile for ${currentPatient.lastName}`)}
-                    className="rounded border border-pearl-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-pearl-50 dark:border-charcoal-600 dark:bg-charcoal-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    Patient Profile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => showToast('Patient is now in focus')}
-                    className="rounded border border-pearl-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-pearl-50 dark:border-charcoal-600 dark:bg-charcoal-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    Change In Focus
-                  </button>
-                </div>
-
-                <div>
-                  <h4 className="mb-1 text-[11px] font-extrabold text-slate-700 uppercase tracking-wide dark:text-slate-300">
-                    Quick Links
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] lg:grid-cols-1">
-                    {QUICK_LINKS.map((link) => (
-                      <button
-                        key={link}
-                        type="button"
-                        onClick={() => setActiveModalLink(link)}
-                        className="text-left font-medium text-rose-700 hover:text-rose-800 hover:underline dark:text-rose-400 cursor-pointer truncate"
-                      >
-                        {link}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Schedule Activity Section */}
-          <div className="flex-1 rounded-xl border border-pearl-200 bg-white shadow-2xs dark:border-charcoal-700 dark:bg-charcoal-850">
-            {/* Activity Header Sub-Tabs & Filters */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-pearl-200 p-3 text-xs dark:border-charcoal-700">
-              {/* Left Activity Tabs */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivityTab('schedule')}
-                  className={`rounded-md px-3 py-1.5 font-bold transition cursor-pointer ${
-                    activityTab === 'schedule'
-                      ? 'bg-rose-700 text-white shadow-xs'
-                      : 'bg-pearl-100 text-slate-700 hover:bg-pearl-200 dark:bg-charcoal-750 dark:text-slate-200'
-                  }`}
-                >
-                  Schedule Activity
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivityTab('visit_comments')}
-                  className={`rounded-md px-3 py-1.5 font-semibold transition cursor-pointer ${
-                    activityTab === 'visit_comments'
-                      ? 'bg-rose-700 text-white shadow-xs'
-                      : 'bg-pearl-100 text-slate-700 hover:bg-pearl-200 dark:bg-charcoal-750 dark:text-slate-200'
-                  }`}
-                >
-                  Visit Comments
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivityTab('episode_comments')}
-                  className={`rounded-md px-3 py-1.5 font-semibold transition cursor-pointer ${
-                    activityTab === 'episode_comments'
-                      ? 'bg-rose-700 text-white shadow-xs'
-                      : 'bg-pearl-100 text-slate-700 hover:bg-pearl-200 dark:bg-charcoal-750 dark:text-slate-200'
-                  }`}
-                >
-                  Episode Comments
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivityTab('missed')}
-                  className={`rounded-md px-3 py-1.5 font-semibold transition cursor-pointer ${
-                    activityTab === 'missed'
-                      ? 'bg-rose-700 text-white shadow-xs'
-                      : 'bg-pearl-100 text-slate-700 hover:bg-pearl-200 dark:bg-charcoal-750 dark:text-slate-200'
-                  }`}
-                >
-                  Missed/Returned
-                </button>
-              </div>
-
-              {/* Right Activity Controls */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold text-slate-500 text-[11px] dark:text-slate-400">Show</span>
+              {/* Table Filter Bar: All Disciplines & All Status */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-charcoal-850 p-3 rounded-xl border border-slate-200 dark:border-charcoal-700 shadow-xs">
+                <div className="flex items-center gap-3">
+                  {/* Discipline Dropdown */}
                   <select
-                    aria-label="Filter schedule status"
-                    value={showFilter}
-                    onChange={(e) => setShowFilter(e.target.value)}
-                    className="rounded border border-pearl-200 bg-pearl-50 px-2 py-1 text-xs text-slate-700 focus:border-rose-400 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200"
+                    value={disciplineFilter}
+                    onChange={(e) => setDisciplineFilter(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-600"
+                  >
+                    <option value="All Disciplines">All Disciplines</option>
+                    <option value="Nursing">Nursing</option>
+                    <option value="PT">PT</option>
+                    <option value="OT">OT</option>
+                    <option value="ST">ST</option>
+                    <option value="HHA">HHA</option>
+                    <option value="MSW">MSW</option>
+                    <option value="Physician Liaison">Physician Liaison</option>
+                  </select>
+
+                  {/* Status Dropdown */}
+                  <select
+                    value={taskStatusFilter}
+                    onChange={(e) => setTaskStatusFilter(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-600"
                   >
                     <option value="All">All</option>
+                    <option value="Completed">Completed</option>
                     <option value="Not Yet Due">Not Yet Due</option>
-                    <option value="Not Yet Started">Not Yet Started</option>
-                    <option value="Submitted With Signature">Submitted With Signature</option>
                     <option value="Returned w/ Physician Signature">Returned w/ Physician Signature</option>
+                    <option value="Submitted With Signature">Submitted With Signature</option>
+                    <option value="Overdue">Overdue</option>
                   </select>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold text-slate-500 text-[11px] dark:text-slate-400">Date</span>
-                  <select
-                    aria-label="Filter schedule date range"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="rounded border border-pearl-200 bg-pearl-50 px-2 py-1 text-xs text-slate-700 focus:border-rose-400 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-200"
+                {/* Right Actions: Export CSV, Print, Add Task */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded border border-slate-200 dark:border-charcoal-700 hover:bg-slate-100 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-300 transition"
+                    title="Export Tasks to CSV"
                   >
-                    <option value="This Episode">This Episode</option>
-                    <option value="All Dates">All Dates</option>
-                  </select>
+                    <FileSpreadsheet size={14} className="text-emerald-600" />
+                    <span>Export</span>
+                  </button>
+
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded border border-slate-200 dark:border-charcoal-700 hover:bg-slate-100 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-300 transition"
+                    title="Print Chart"
+                  >
+                    <Printer size={14} />
+                    <span>Print</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsAddTaskModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded bg-[#1f4e79] hover:bg-[#183d5f] text-white shadow-xs transition"
+                  >
+                    <Plus size={14} />
+                    <span>Add Task</span>
+                  </button>
                 </div>
-
-                <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300">
-                  {currentPatient.episodeStart} - {currentPatient.episodeEnd}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => showToast('Expanded view toggled')}
-                  className="rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-                  title="Expand"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
               </div>
-            </div>
 
-            {/* Schedule Activity Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-pearl-200 bg-pearl-50 text-[11px] font-bold text-slate-700 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300">
-                    <th className="py-2.5 px-3 w-8">A</th>
-                    <th className="py-2.5 px-3">Task</th>
-                    <th className="py-2.5 px-3">Schedule Date</th>
-                    <th className="py-2.5 px-3">Assigned To</th>
-                    <th className="py-2.5 px-3">Axxess Care</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Comments</th>
-                    <th className="py-2.5 px-3 text-center w-24">Indicators</th>
-                    <th className="py-2.5 px-3 text-right pr-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-700">
-                  {filteredTasks.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-slate-400 italic">
-                        No scheduled activities found matching current filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTasks.map((t) => (
-                      <tr
-                        key={t.id}
-                        className="transition hover:bg-rose-50/30 dark:hover:bg-rose-950/20"
-                      >
-                        <td className="py-2.5 px-3 text-slate-400 font-mono text-[10px]">
-                          {t.id.replace('st-', '')}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer">
-                          {t.task}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300">
-                          {t.scheduleDate}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
-                          {t.assignedTo}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <button
-                            type="button"
-                            onClick={() => showToast(`Posting ${t.task} to Axxess Care...`)}
-                            className="font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer text-[11px]"
-                          >
-                            Post to Axxess Care
-                          </button>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              t.status === 'Submitted With Signature' || t.status === 'Returned w/ Physician Signature'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300'
-                                : t.status === 'Not Yet Due'
-                                ? 'bg-pearl-100 text-slate-600 dark:bg-charcoal-700 dark:text-slate-300'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
-                            }`}
-                          >
-                            {t.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-400 italic text-[11px]">
-                          {t.comments}
-                        </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5 text-slate-400">
-                            <span title="Home visit"><Home className="h-3 w-3 hover:text-slate-700 cursor-pointer" /></span>
-                            <span title="Billable"><DollarSign className="h-3 w-3 hover:text-slate-700 cursor-pointer" /></span>
-                            {t.hasAttachment && (
-                              <span title="Attachment available"><Paperclip className="h-3 w-3 text-rose-600 cursor-pointer" /></span>
-                            )}
+              {/* Patient Tasks Table */}
+              <div className="bg-white dark:bg-charcoal-850 rounded-xl border border-slate-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    {/* Header with light lavender background matching screenshot */}
+                    <thead className="bg-[#ede9fe]/60 dark:bg-charcoal-800 border-b border-indigo-100 dark:border-charcoal-700">
+                      <tr>
+                        <th
+                          onClick={() => {
+                            setSortField('task');
+                            setSortAsc(!sortAsc);
+                          }}
+                          className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-indigo-100/60 select-none"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Task</span>
+                            <ArrowUpDown size={12} className="text-slate-500" />
                           </div>
-                        </td>
-                        <td className="py-2.5 px-3 text-right pr-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                showToast(`Printing task ${t.task}...`);
-                                setTimeout(() => window.print(), 300);
-                              }}
-                              className="rounded p-1 text-slate-400 hover:bg-pearl-100 hover:text-rose-700 dark:hover:bg-charcoal-750 cursor-pointer"
-                              title="Print Task"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => showToast(`Actions menu for ${t.task}`)}
-                              className="rounded p-1 text-slate-400 hover:bg-pearl-100 hover:text-slate-700 dark:hover:bg-charcoal-750 cursor-pointer"
-                              title="More Options"
-                            >
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </button>
+                        </th>
+                        <th className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 text-center min-w-[210px]">
+                          Status
+                        </th>
+                        <th
+                          onClick={() => {
+                            setSortField('scheduleStart');
+                            setSortAsc(!sortAsc);
+                          }}
+                          className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-indigo-100/60 select-none"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Schedule Start</span>
+                            <ArrowUpDown size={12} className="text-slate-500" />
                           </div>
-                        </td>
+                        </th>
+                        <th className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                          Schedule End
+                        </th>
+                        <th
+                          onClick={() => {
+                            setSortField('assignedTo');
+                            setSortAsc(!sortAsc);
+                          }}
+                          className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-indigo-100/60 select-none"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Assigned To</span>
+                            <ArrowUpDown size={12} className="text-slate-500" />
+                          </div>
+                        </th>
+                        <th className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                          Comments
+                        </th>
+                        <th className="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200 text-right">
+                          Actions
+                        </th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-charcoal-750">
+                      {isLoadingTasks ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                            Loading patient EHR tasks from database...
+                          </td>
+                        </tr>
+                      ) : filteredTasks.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                            No tasks found for this patient chart.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredTasks.map((t) => (
+                          <tr
+                            key={t.id}
+                            className="hover:bg-slate-50 dark:hover:bg-charcoal-800/50 transition-colors"
+                          >
+                            {/* Task Column */}
+                            <td className="px-4 py-3">
+                              <span className={getTaskTextColor(t.task)}>
+                                {t.task}
+                              </span>
+                            </td>
 
-            {/* Table Footer */}
-            <div className="flex items-center justify-between border-t border-pearl-200 bg-pearl-50/50 px-4 py-2 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-800/50 dark:text-slate-400">
-              <span>{filteredTasks.length} total scheduled tasks in episode</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
-                Episode: {currentPatient.episodeStart} - {currentPatient.episodeEnd}
-              </span>
+                            {/* Status Column */}
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <span
+                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[11px] font-semibold text-center whitespace-nowrap leading-none ${getStatusBadgeStyle(
+                                    t.status
+                                  )}`}
+                                >
+                                  {t.status}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Schedule Start */}
+                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                              {t.scheduleStart}
+                            </td>
+
+                            {/* Schedule End */}
+                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                              {t.scheduleEnd}
+                            </td>
+
+                            {/* Assigned To */}
+                            <td className="px-4 py-3">
+                              <span className="text-[#1f4e79] dark:text-sky-400 font-medium hover:underline cursor-pointer">
+                                {t.assignedTo}
+                              </span>
+                            </td>
+
+                            {/* Comments */}
+                            <td className="px-4 py-3 italic text-slate-400 dark:text-slate-500">
+                              {t.comments || 'Not Available'}
+                            </td>
+
+                            {/* Actions Column matching reference buttons */}
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5 relative">
+                                <button
+                                  onClick={handleExportCSV}
+                                  title="Download Task Documentation"
+                                  className="p-1 rounded text-sky-600 hover:text-sky-800 hover:bg-sky-50 dark:hover:bg-charcoal-700 transition"
+                                >
+                                  <Download size={13} />
+                                </button>
+                                <button
+                                  onClick={() => window.print()}
+                                  title="Print Task"
+                                  className="p-1 rounded text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-charcoal-700 transition"
+                                >
+                                  <Printer size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(t.id)}
+                                  title="Delete Task"
+                                  className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-charcoal-700 transition"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setActiveMenuTaskId(activeMenuTaskId === t.id ? null : t.id)}
+                                    title="More options"
+                                    className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-charcoal-700 transition"
+                                  >
+                                    <MoreHorizontal size={13} />
+                                  </button>
+                                  {activeMenuTaskId === t.id && (
+                                    <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-charcoal-800 border border-slate-200 dark:border-charcoal-700 rounded-lg shadow-lg z-30 py-1 text-left text-xs">
+                                      <button
+                                        onClick={() => {
+                                          setActiveMenuTaskId(null);
+                                          window.print();
+                                        }}
+                                        className="w-full px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5"
+                                      >
+                                        <Printer size={12} />
+                                        <span>Print Task</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setActiveMenuTaskId(null);
+                                          handleExportCSV();
+                                        }}
+                                        className="w-full px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5"
+                                      >
+                                        <Download size={12} />
+                                        <span>Export Task</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setActiveMenuTaskId(null);
+                                          handleDeleteTask(t.id);
+                                        }}
+                                        className="w-full px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 flex items-center gap-1.5"
+                                      >
+                                        <Trash2 size={12} />
+                                        <span>Delete Task</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+              Please select a patient from the left panel.
             </div>
-          </div>
+          )}
+
+          {/* Reference Website Footer */}
+          <footer className="py-4 text-center text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-charcoal-700 mt-auto">
+            CareOrbit © 2026 | Release Version: 1.0.3868.0 | Environment: Production | Built in Dallas, Texas
+          </footer>
         </main>
       </div>
 
-      {/* Quick Link Detail Modal */}
-      {activeModalLink && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl border border-pearl-200 bg-white p-6 shadow-2xl dark:border-charcoal-700 dark:bg-charcoal-850 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-pearl-200 pb-3 dark:border-charcoal-700">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-rose-700 dark:text-rose-400" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                  {activeModalLink}
-                </h3>
-              </div>
+      {/* Add Task Modal */}
+      {isAddTaskModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-white dark:bg-charcoal-850 rounded-2xl shadow-xl border border-slate-200 dark:border-charcoal-700 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-charcoal-700 flex items-center justify-between bg-slate-50 dark:bg-charcoal-900">
+              <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                Add Clinical Task • {currentPatient?.lastName}, {currentPatient?.firstName}
+              </h3>
               <button
-                type="button"
-                onClick={() => setActiveModalLink(null)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-pearl-100 hover:text-slate-600 dark:hover:bg-charcoal-750"
+                onClick={() => setIsAddTaskModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
               >
-                <X className="h-4 w-4" />
+                <X size={16} />
               </button>
             </div>
-            <div className="py-4 text-xs text-slate-600 dark:text-slate-300 space-y-2">
-              <p>
-                Patient: <strong className="text-slate-800 dark:text-white">{currentPatient.lastName}, {currentPatient.firstName}</strong> (MRN: {currentPatient.mrn})
-              </p>
-              <p>
-                Current Episode: {currentPatient.episodeStart} - {currentPatient.episodeEnd}
-              </p>
-              <div className="rounded-lg border border-pearl-200 bg-pearl-50 p-3 text-[11px] text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-400">
-                Detailed {activeModalLink.toLowerCase()} records are synchronized with electronic health record standards.
+
+            <form onSubmit={handleCreateTask} className="p-6 space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Task Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newTaskName}
+                  onChange={(e) => setNewTaskName(e.target.value)}
+                  placeholder="e.g. Coordination of Care, LPN - Oral Med. Management"
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                />
               </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setActiveModalLink(null)}
-                className="rounded-lg bg-rose-700 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-800 cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Discipline
+                  </label>
+                  <select
+                    value={newTaskDiscipline}
+                    onChange={(e) => setNewTaskDiscipline(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                  >
+                    <option value="Nursing">Nursing</option>
+                    <option value="PT">PT</option>
+                    <option value="OT">OT</option>
+                    <option value="ST">ST</option>
+                    <option value="HHA">HHA</option>
+                    <option value="MSW">MSW</option>
+                    <option value="Physician Liaison">Physician Liaison</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                  >
+                    <option value="Not Yet Due">Not Yet Due</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Returned w/ Physician Signature">Returned w/ Physician Signature</option>
+                    <option value="Submitted With Signature">Submitted With Signature</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Schedule Start
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskScheduleStart}
+                    onChange={(e) => setNewTaskScheduleStart(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Schedule End
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskScheduleEnd}
+                    onChange={(e) => setNewTaskScheduleEnd(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Assigned To
+                </label>
+                <input
+                  type="text"
+                  value={newTaskAssignedTo}
+                  onChange={(e) => setNewTaskAssignedTo(e.target.value)}
+                  placeholder="e.g. Mary Kyalikunda"
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Comments / Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={newTaskComments}
+                  onChange={(e) => setNewTaskComments(e.target.value)}
+                  placeholder="Not Available"
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-red-600"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-charcoal-700 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTaskModalOpen(false)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-charcoal-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTask}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-700 hover:bg-red-800 text-white flex items-center gap-1 shadow-xs disabled:opacity-50"
+                >
+                  <Check size={14} />
+                  <span>{isSubmittingTask ? 'Saving...' : 'Add Task to Chart'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -80,10 +80,10 @@ export const PatientDrawer: React.FC = () => {
             </h4>
             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-charcoal-900 border border-slate-200 dark:border-charcoal-700 text-xs space-y-1.5">
               <div className="font-semibold text-slate-800 dark:text-slate-100">
-                {selectedPatient.address.street}
+                {selectedPatient.address?.street || 'No street address on file'}
               </div>
               <div className="text-slate-600 dark:text-slate-300">
-                {selectedPatient.address.city}, {selectedPatient.address.state} {selectedPatient.address.zipCode}
+                {selectedPatient.address ? `${selectedPatient.address.city}, ${selectedPatient.address.state} ${selectedPatient.address.zipCode}` : 'No address provided'}
               </div>
               <div className="flex items-center gap-2 pt-1 text-slate-700 dark:text-slate-200">
                 <Phone size={13} className="text-slate-500 dark:text-slate-400" />

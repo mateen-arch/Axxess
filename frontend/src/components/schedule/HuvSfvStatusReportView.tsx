@@ -16,12 +16,13 @@ import {
   BarChart3,
   X
 } from 'lucide-react';
-import { initialHuvSfvRecords } from '../../data/mockData';
+import { useHealthcare } from '../../context/HealthcareContext';
 import { HuvSfvRecord, ServiceLine } from '../../types';
 import { SearchableMultiSelect } from '../common/SearchableMultiSelect';
 
 export const HuvSfvStatusReportView: React.FC = () => {
-  const [records] = useState<HuvSfvRecord[]>(initialHuvSfvRecords);
+  const { huvSfvRecords } = useHealthcare();
+  const records = huvSfvRecords;
 
   // Tab State
   const [selectedServiceTab, setSelectedServiceTab] = useState<'hospice' | 'all'>('hospice');
@@ -269,7 +270,7 @@ export const HuvSfvStatusReportView: React.FC = () => {
           </div>
         </div>
 
-        {/* Tier 2: Filter Controls matching Axxess layout */}
+        {/* Tier 2: Filter Controls matching CareOrbit layout */}
         <div className="pt-3 border-t border-pearl-200/80 dark:border-charcoal-700/80">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
             {/* Organization */}
@@ -543,7 +544,7 @@ export const HuvSfvStatusReportView: React.FC = () => {
           </div>
 
           <div className="text-[11px] font-mono text-slate-400">
-            Axxess HQRP & SIA Hospice Tracking Engine
+            CareOrbit HQRP & SIA Hospice Tracking Engine
           </div>
         </div>
       </div>

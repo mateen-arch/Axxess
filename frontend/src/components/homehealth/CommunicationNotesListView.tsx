@@ -108,9 +108,42 @@ export const CommunicationNotesListView: React.FC<CommunicationNotesListViewProp
   onBack,
   onNewCommunicationNote,
 }) => {
-  const { organization } = useHealthcare();
+  const { organization, communicationNotes } = useHealthcare();
 
-  const [notes, setNotes] = useState<CommunicationNoteListItem[]>(INITIAL_COMMUNICATION_NOTES);
+  const notes = useMemo<CommunicationNoteListItem[]>(() => {
+    const list: CommunicationNoteListItem[] = [];
+    const seenIds = new Set<string>();
+
+    // Put communication notes from context / database first
+    communicationNotes.forEach((cn) => {
+      seenIds.add(cn.id);
+      list.push({
+        id: cn.id,
+        patientName: cn.patientName,
+        mrn: (cn as any).mrn || '—',
+        date: cn.noteDate
+          ? new Date(cn.noteDate + 'T00:00:00').toLocaleDateString('en-US', {
+              month: '2-digit',
+              day: '2-digit',
+              year: 'numeric',
+            })
+          : new Date().toLocaleDateString('en-US'),
+        type: cn.communicationText?.slice(0, 50) || 'Clinical Coordination',
+        createdBy: cn.staffSignature || 'Staff Clinician',
+        status: cn.status === 'Complete' ? 'Approved' : 'Pending',
+      });
+    });
+
+    // Append fallback initial notes if not seen
+    INITIAL_COMMUNICATION_NOTES.forEach((init) => {
+      if (!seenIds.has(init.id)) {
+        list.push(init);
+      }
+    });
+
+    return list;
+  }, [communicationNotes]);
+
   const [startDate, setStartDate] = useState('2026-10-01');
   const [endDate, setEndDate] = useState('2026-11-08');
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,8 +168,8 @@ export const CommunicationNotesListView: React.FC<CommunicationNotesListViewProp
     );
   }, [notes, searchQuery]);
 
-  const totalResults = 101; // Authentic screenshot total
-  const totalPages = Math.ceil(totalResults / pageSize);
+  const totalResults = filteredNotes.length;
+  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
   const paginatedNotes = filteredNotes.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
@@ -156,7 +189,7 @@ export const CommunicationNotesListView: React.FC<CommunicationNotesListViewProp
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Axxess_Communication_Notes_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `CareOrbit_Communication_Notes_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -188,7 +221,7 @@ export const CommunicationNotesListView: React.FC<CommunicationNotesListViewProp
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">

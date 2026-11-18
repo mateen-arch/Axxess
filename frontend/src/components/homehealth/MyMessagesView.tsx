@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   Mail,
   Send,
   Trash2,
-  Archive,
   Reply,
   Forward,
   Printer,
@@ -19,184 +18,146 @@ import {
   ChevronRight,
   Sparkles,
   X,
+  RotateCcw,
+  AlertCircle,
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface MyMessagesViewProps {
   onBack: () => void;
   onComposeNew?: () => void;
 }
 
-interface MessageDetail {
+interface MessageItemData {
   id: string;
-  fromName: string;
-  fromRole: string;
-  fromEmail: string;
-  toRecipients: string[];
-  sentDate: string;
-  timestamp: string;
+  senderName: string;
+  senderRole?: string;
+  senderEmail?: string;
+  recipients?: string[];
   subject: string;
   body: string;
+  snippet?: string;
+  serviceLine?: string;
+  organizationName?: string;
+  date: string;
+  sentDate?: string;
+  timestamp?: string;
   isRead: boolean;
   folder: 'inbox' | 'sent' | 'trash';
+  priority?: string;
+  patientName?: string;
 }
-
-const INITIAL_MESSAGES: MessageDetail[] = [
-  {
-    id: 'msg-1',
-    fromName: 'Carla Rania RN',
-    fromRole: 'Clinical Staff Educator',
-    fromEmail: 'c.rania@standardsincare.com',
-    toRecipients: [
-      'Abnia Jean HHA',
-      'Adelge Durette HHA',
-      'Afia Osei Assibey RN',
-      'Agnes Moses',
-      'Agness Chirwa LPN',
-      'Allen Santos',
-      'Aline Jean Marie HHA',
-      'Ana Beatriz Morel HHA',
-      'Andre Bellevue HHA',
-      'Angela Sanchez CCA',
-      'Antoine Nortelus',
-      'Hilder Magessa RN',
-    ],
-    sentDate: 'Thursday, November 5, 2026 12:55 PM',
-    timestamp: 'Nov 5, 2026 12:55 PM',
-    subject: 'Inservice canceled',
-    body: `Hello ,\n\nDue to scheduling conflict Monday Nov 9 and Weds Nov 11 Inservice will be rescheduled to Monday Nov 23 at 11 AM and Weds Nov 25 at 3PM in Brockton . Sorry for the inconvenience.\n\nCarla Rania RN`,
-    isRead: false,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-2',
-    fromName: 'Golden Philemon RN',
-    fromRole: 'Clinical Supervisor',
-    fromEmail: 'g.philemon@standardsincare.com',
-    toRecipients: ['Hilder Magessa RN'],
-    sentDate: 'Wednesday, November 4, 2026 11:14 AM',
-    timestamp: 'Nov 4, 2026 11:14 AM',
-    subject: 'RE: QA Center',
-    body: `Hilder,\n\nPlease review the pending OASIS recertification for Lantigua Gonzalez, Scarlet (MRN: 1061). All discipline notes have been signed and attached.\n\nThank you,\nGolden Philemon RN`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-3',
-    fromName: 'Rima Mikalaciunas RN',
-    fromRole: 'Case Manager',
-    fromEmail: 'r.mikalaciunas@standardsincare.com',
-    toRecipients: ['Hilder Magessa RN', 'QA Team'],
-    sentDate: 'Wednesday, November 4, 2026 10:10 AM',
-    timestamp: 'Nov 4, 2026 10:10 AM',
-    subject: 'QA Center - Wound Care Orders',
-    body: `Hi Hilder,\n\nDr. Gupta updated the wound vac frequency order for Doshi, N Kundanika. Ready for your QA approval.\n\nRima M., RN`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-4',
-    fromName: 'Carla Rania RN',
-    fromRole: 'Clinical Educator',
-    fromEmail: 'c.rania@standardsincare.com',
-    toRecipients: ['All Clinical Staff'],
-    sentDate: 'Tuesday, November 3, 2026 03:03 PM',
-    timestamp: 'Nov 3, 2026 03:03 PM',
-    subject: 'FW: RE: inservice and flu shots',
-    body: `Reminder: Annual influenza immunization attestation documents must be uploaded to HR by Nov 15.\n\nCarla Rania RN`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-5',
-    fromName: 'Axxess Support System',
-    fromRole: 'Automated Notification',
-    fromEmail: 'notifications@axxessweb.com',
-    toRecipients: ['Hilder Magessa RN'],
-    sentDate: 'Friday, October 30, 2026 11:58 AM',
-    timestamp: 'Oct 30, 2026 11:58 AM',
-    subject: 'Axxess Intelligence System Maintenance Completed',
-    body: `The scheduled maintenance for Axxess Intelligence documentation auto-assist has completed successfully. All services are operating normally.`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-6',
-    fromName: 'Golden Philemon RN',
-    fromRole: 'Clinical Supervisor',
-    fromEmail: 'g.philemon@standardsincare.com',
-    toRecipients: ['Hilder Magessa RN'],
-    sentDate: 'Friday, October 30, 2026 03:51 AM',
-    timestamp: 'Oct 30, 2026 03:51 AM',
-    subject: 'ON-CALL LOG & INCIDENT SHEET',
-    body: `Attached is the on-call incident report sheet for overnight triage. No acute transfers were required.`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-7',
-    fromName: 'Micah Johnson',
-    fromRole: 'IT Operations',
-    fromEmail: 'm.johnson@standardsincare.com',
-    toRecipients: ['Hilder Magessa RN'],
-    sentDate: 'Monday, October 26, 2026 12:32 PM',
-    timestamp: 'Oct 26, 2026 12:32 PM',
-    subject: 'Webmail Login Upgrade',
-    body: `Your Axxess Single-Sign-On configuration has been updated for secure two-factor authentication.`,
-    isRead: true,
-    folder: 'inbox',
-  },
-  {
-    id: 'msg-8',
-    fromName: 'Golden Philemon RN',
-    fromRole: 'Clinical Supervisor',
-    fromEmail: 'g.philemon@standardsincare.com',
-    toRecipients: ['Hilder Magessa RN'],
-    sentDate: 'Thursday, October 22, 2026 12:01 PM',
-    timestamp: 'Oct 22, 2026 12:01 PM',
-    subject: 'RE: QI NOTES',
-    body: `Quarterly quality improvement indicators have been logged. Outstanding documentation compliance currently stands at 98.4%.`,
-    isRead: true,
-    folder: 'inbox',
-  },
-];
 
 export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onComposeNew }) => {
   const { organization } = useHealthcare();
-  const [messages, setMessages] = useState<MessageDetail[]>(INITIAL_MESSAGES);
+
+  // Real Database Messages State
+  const [messages, setMessages] = useState<MessageItemData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Folder & Selection State
   const [selectedFolder, setSelectedFolder] = useState<'inbox' | 'sent' | 'trash'>('inbox');
-  const [selectedMessageId, setSelectedMessageId] = useState<string>('msg-1');
+  const [selectedMessageId, setSelectedMessageId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedForBatch, setSelectedForBatch] = useState<string[]>([]);
-  const [quickReplyText, setQuickReplyText] = useState('');
-  const [showReplyBox, setShowReplyBox] = useState(false);
+
+  // Pagination State (Dynamic Page Numbers)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
+  // Actions State
+  const [replyMode, setReplyMode] = useState<'none' | 'reply' | 'replyAll' | 'forward'>('none');
+  const [replyText, setReplyText] = useState('');
+  const [forwardRecipient, setForwardRecipient] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const filteredMessages = messages.filter((m) => {
-    if (m.folder !== selectedFolder) return false;
-    if (!searchQuery.trim()) return true;
-    return (
-      m.fromName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.body.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
-
-  const selectedMessage =
-    messages.find((m) => m.id === selectedMessageId) || filteredMessages[0] || null;
-
-  const handleSelectMessage = (id: string) => {
-    setSelectedMessageId(id);
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isRead: true } : m))
-    );
+  // Fetch real messages from PostgreSQL database
+  const fetchMessagesFromDB = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.getMessages();
+      if (Array.isArray(data)) {
+        setMessages(data);
+        if (data.length > 0 && !selectedMessageId) {
+          setSelectedMessageId(data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages from PostgreSQL:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchMessagesFromDB();
+  }, []);
+
+  // Filter messages by folder and search query
+  const filteredMessages = useMemo(() => {
+    return messages.filter((m) => {
+      const msgFolder = m.folder || 'inbox';
+      if (msgFolder !== selectedFolder) return false;
+      if (!searchQuery.trim()) return true;
+
+      const q = searchQuery.toLowerCase();
+      return (
+        (m.senderName && m.senderName.toLowerCase().includes(q)) ||
+        (m.subject && m.subject.toLowerCase().includes(q)) ||
+        (m.body && m.body.toLowerCase().includes(q))
+      );
+    });
+  }, [messages, selectedFolder, searchQuery]);
+
+  // Reset to page 1 when folder or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedForBatch([]);
+  }, [selectedFolder, searchQuery]);
+
+  // Dynamic Pagination Calculations
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / pageSize));
+  const effectiveCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedMessages = useMemo(() => {
+    const startIndex = (effectiveCurrentPage - 1) * pageSize;
+    return filteredMessages.slice(startIndex, startIndex + pageSize);
+  }, [filteredMessages, effectiveCurrentPage, pageSize]);
+
+  // Currently viewed message
+  const selectedMessage = useMemo(() => {
+    if (selectedMessageId) {
+      const found = messages.find((m) => m.id === selectedMessageId);
+      if (found) return found;
+    }
+    return paginatedMessages[0] || filteredMessages[0] || null;
+  }, [messages, selectedMessageId, paginatedMessages, filteredMessages]);
+
+  // Handle message selection & mark read in DB
+  const handleSelectMessage = async (msg: MessageItemData) => {
+    setSelectedMessageId(msg.id);
+    if (!msg.isRead) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, isRead: true } : m))
+      );
+      try {
+        await api.markMessageRead(msg.id);
+      } catch (err) {
+        console.error('Error marking message read:', err);
+      }
+    }
+  };
+
+  // Toggle batch selection
   const handleToggleSelectAll = () => {
-    if (selectedForBatch.length === filteredMessages.length) {
+    if (selectedForBatch.length === paginatedMessages.length && paginatedMessages.length > 0) {
       setSelectedForBatch([]);
     } else {
-      setSelectedForBatch(filteredMessages.map((m) => m.id));
+      setSelectedForBatch(paginatedMessages.map((m) => m.id));
     }
   };
 
@@ -206,24 +167,108 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
     );
   };
 
-  const handleDeleteSelected = () => {
-    if (selectedForBatch.length === 0 && selectedMessageId) {
-      setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
-      setToastMessage('Message deleted.');
-    } else {
-      setMessages((prev) => prev.filter((m) => !selectedForBatch.includes(m.id)));
-      setToastMessage(`${selectedForBatch.length} messages deleted.`);
+  // Delete / Trash Action
+  const handleDeleteSelected = async () => {
+    const idsToDelete = selectedForBatch.length > 0
+      ? selectedForBatch
+      : (selectedMessageId ? [selectedMessageId] : []);
+
+    if (idsToDelete.length === 0) return;
+
+    try {
+      if (idsToDelete.length === 1) {
+        await api.deleteMessage(idsToDelete[0]);
+      } else {
+        await api.batchDeleteMessages(idsToDelete);
+      }
+
+      setMessages((prev) =>
+        prev.map((m) => (idsToDelete.includes(m.id) ? { ...m, folder: 'trash' } : m))
+      );
+
+      setToastMessage(
+        selectedFolder === 'trash'
+          ? `${idsToDelete.length} message(s) permanently deleted.`
+          : `${idsToDelete.length} message(s) moved to Trash.`
+      );
       setSelectedForBatch([]);
+
+      // Select next message
+      const remaining = filteredMessages.filter((m) => !idsToDelete.includes(m.id));
+      if (remaining.length > 0) {
+        setSelectedMessageId(remaining[0].id);
+      } else {
+        setSelectedMessageId('');
+      }
+
+      setTimeout(() => setToastMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to delete message(s):', err);
+      setToastMessage('Error deleting message.');
+      setTimeout(() => setToastMessage(''), 3000);
     }
-    setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const handleSendQuickReply = () => {
-    if (!quickReplyText.trim() || !selectedMessage) return;
-    setToastMessage(`Reply sent to ${selectedMessage.fromName}!`);
-    setQuickReplyText('');
-    setShowReplyBox(false);
-    setTimeout(() => setToastMessage(''), 3000);
+  // Reply / Reply All / Forward Setup
+  const openReply = (mode: 'reply' | 'replyAll' | 'forward') => {
+    if (!selectedMessage) return;
+    setReplyMode(mode);
+
+    if (mode === 'forward') {
+      setReplyText(`\n\n--- Forwarded Message ---\nFrom: ${selectedMessage.senderName}\nDate: ${selectedMessage.sentDate || selectedMessage.date}\nSubject: ${selectedMessage.subject}\n\n${selectedMessage.body}`);
+      setForwardRecipient('');
+    } else {
+      setReplyText(`\n\n--- Original Message ---\nFrom: ${selectedMessage.senderName}\nDate: ${selectedMessage.sentDate || selectedMessage.date}\nSubject: ${selectedMessage.subject}\n\n${selectedMessage.body}`);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyText.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      let subject = selectedMessage.subject;
+      let toRecipients: string[] = [];
+
+      if (replyMode === 'reply') {
+        subject = subject.startsWith('Re: ') ? subject : `Re: ${subject}`;
+        toRecipients = [selectedMessage.senderName];
+      } else if (replyMode === 'replyAll') {
+        subject = subject.startsWith('Re: ') ? subject : `Re: ${subject}`;
+        toRecipients = Array.from(new Set([selectedMessage.senderName, ...(selectedMessage.recipients || [])]));
+      } else if (replyMode === 'forward') {
+        subject = subject.startsWith('Fwd: ') ? subject : `Fwd: ${subject}`;
+        toRecipients = forwardRecipient.trim() ? [forwardRecipient.trim()] : ['Alexandria Nelson, RN'];
+      }
+
+      const res = await api.createMessage({
+        subject,
+        body: replyText,
+        toRecipients,
+        folder: 'sent'
+      });
+
+      if (res.data) {
+        setMessages((prev) => [res.data, ...prev]);
+      }
+
+      setToastMessage(replyMode === 'forward' ? 'Message forwarded successfully!' : 'Reply sent successfully!');
+      setReplyMode('none');
+      setReplyText('');
+      setForwardRecipient('');
+      setTimeout(() => setToastMessage(''), 3000);
+    } catch (err) {
+      console.error('Failed to send reply:', err);
+      setToastMessage('Failed to send message.');
+      setTimeout(() => setToastMessage(''), 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Print clinical message
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -243,7 +288,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -278,11 +323,14 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
 
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="flex items-center justify-between border-b border-emerald-200 bg-emerald-50 px-6 py-2 text-xs font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <div className="flex items-center justify-between border-b border-emerald-200 bg-emerald-50 px-6 py-2 text-xs font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200 animate-fadeIn">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
             <span>{toastMessage}</span>
           </div>
+          <button type="button" onClick={() => setToastMessage('')} className="text-emerald-800 hover:text-emerald-950 cursor-pointer">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -290,7 +338,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
       <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden">
         {/* Left Pane: Folder Navigation & Message List */}
         <div className="flex w-full md:w-[420px] lg:w-[460px] shrink-0 flex-col border-b md:border-b-0 md:border-r border-pearl-200/90 bg-white/70 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/70">
-          {/* Top Folder Bar & Actions (Matching Screenshot 1) */}
+          {/* Top Folder Bar & Actions */}
           <div className="p-3 border-b border-pearl-200/80 dark:border-charcoal-700/80 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
@@ -305,7 +353,8 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                 <button
                   type="button"
                   onClick={handleDeleteSelected}
-                  className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-rose-700 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 transition cursor-pointer"
+                  disabled={selectedForBatch.length === 0 && !selectedMessageId}
+                  className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-rose-700 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 transition cursor-pointer disabled:opacity-40"
                 >
                   <Trash2 size={13} />
                   <span>Delete</span>
@@ -316,11 +365,17 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
               <select
                 value={selectedFolder}
                 onChange={(e) => setSelectedFolder(e.target.value as 'inbox' | 'sent' | 'trash')}
-                className="h-8 rounded-xl border border-pearl-200 bg-white px-2.5 text-xs font-bold text-slate-800 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500"
+                className="h-8 rounded-xl border border-pearl-200 bg-white px-2.5 text-xs font-bold text-slate-800 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 cursor-pointer shadow-2xs"
               >
-                <option value="inbox">Inbox ({messages.filter((m) => m.folder === 'inbox').length})</option>
-                <option value="sent">Sent Items</option>
-                <option value="trash">Trash</option>
+                <option value="inbox">
+                  Inbox ({messages.filter((m) => (m.folder || 'inbox') === 'inbox').length})
+                </option>
+                <option value="sent">
+                  Sent Items ({messages.filter((m) => m.folder === 'sent').length})
+                </option>
+                <option value="trash">
+                  Trash ({messages.filter((m) => m.folder === 'trash').length})
+                </option>
               </select>
             </div>
 
@@ -341,31 +396,36 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={selectedForBatch.length > 0 && selectedForBatch.length === filteredMessages.length}
+                  checked={selectedForBatch.length > 0 && selectedForBatch.length === paginatedMessages.length}
                   onChange={handleToggleSelectAll}
-                  className="accent-rose-600 rounded"
+                  className="accent-rose-600 rounded cursor-pointer"
                 />
-                <span>Select All</span>
+                <span>Select All on Page</span>
               </label>
-              <span>{filteredMessages.length} messages</span>
+              <span>{filteredMessages.length} total</span>
             </div>
           </div>
 
           {/* Scrollable Message List */}
           <div className="flex-1 overflow-y-auto divide-y divide-pearl-100 dark:divide-charcoal-750">
-            {filteredMessages.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                No messages found in this folder.
+            {isLoading ? (
+              <div className="p-8 flex items-center justify-center gap-2 text-xs text-slate-400 font-bold">
+                <Loader2 size={16} className="animate-spin text-rose-600" />
+                <span>Loading messages from database...</span>
+              </div>
+            ) : paginatedMessages.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400 font-medium">
+                No messages in {selectedFolder}.
               </div>
             ) : (
-              filteredMessages.map((msg) => {
+              paginatedMessages.map((msg) => {
                 const isSelected = selectedMessage?.id === msg.id;
                 const isChecked = selectedForBatch.includes(msg.id);
 
                 return (
                   <div
                     key={msg.id}
-                    onClick={() => handleSelectMessage(msg.id)}
+                    onClick={() => handleSelectMessage(msg)}
                     className={`flex items-start gap-3 p-3 transition cursor-pointer ${
                       isSelected
                         ? 'bg-rose-50/70 dark:bg-rose-950/30 border-l-4 border-rose-600'
@@ -384,23 +444,25 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="truncate text-xs text-slate-900 dark:text-white">
-                          {msg.fromName}
+                        <span className="truncate text-xs text-slate-900 dark:text-white font-bold">
+                          {selectedFolder === 'sent'
+                            ? (msg.recipients && msg.recipients.length > 0 ? `To: ${msg.recipients.join(', ')}` : 'To: Care Team')
+                            : msg.senderName}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                          {msg.timestamp.split(' ').slice(0, 3).join(' ')}
+                          {msg.date}
                         </span>
                       </div>
-                      <div className="truncate text-xs text-slate-700 dark:text-slate-300">
+                      <div className="truncate text-xs text-slate-800 dark:text-slate-200 mt-0.5">
                         {msg.subject}
                       </div>
-                      <p className="line-clamp-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        {msg.body.replace(/\n+/g, ' ')}
+                      <p className="line-clamp-1 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {msg.body?.replace(/\n+/g, ' ')}
                       </p>
                     </div>
 
                     {!msg.isRead && (
-                      <span className="mt-1.5 h-2 w-2 rounded-full bg-rose-600 shrink-0" />
+                      <span className="mt-1.5 h-2 w-2 rounded-full bg-rose-600 shrink-0" title="Unread" />
                     )}
                   </div>
                 );
@@ -408,17 +470,54 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
             )}
           </div>
 
-          {/* Pagination Strip (Matching Screenshot 1: Displaying items 1 - 75 of 682) */}
+          {/* Dynamic Pagination Strip - Strict Page Numbers Matching Database Count */}
           <div className="flex items-center justify-between border-t border-pearl-200/80 p-2.5 text-[11px] text-slate-500 dark:border-charcoal-700/80 bg-pearl-50/50 dark:bg-charcoal-900/40">
-            <div className="flex items-center gap-1 font-bold">
-              <span className="rounded bg-rose-600 px-1.5 py-0.5 text-white">1</span>
-              <span className="px-1 hover:text-rose-600 cursor-pointer">2</span>
-              <span className="px-1 hover:text-rose-600 cursor-pointer">3</span>
-              <span>...</span>
-              <span className="px-1 hover:text-rose-600 cursor-pointer">10</span>
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={effectiveCurrentPage <= 1}
+                className="p-1 rounded-md text-slate-500 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                title="Previous page"
+              >
+                <ChevronLeft size={14} />
+              </button>
+
+              {/* Exact Page Number Buttons based strictly on available messages */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`min-w-[22px] h-[22px] rounded-md text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                    pageNum === effectiveCurrentPage
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'hover:bg-pearl-100 dark:hover:bg-charcoal-750 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={effectiveCurrentPage >= totalPages}
+                className="p-1 rounded-md text-slate-500 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                title="Next page"
+              >
+                <ChevronRight size={14} />
+              </button>
             </div>
+
             <span className="text-[10px] font-medium text-slate-400">
-              Displaying items 1 - {filteredMessages.length} of 682
+              {filteredMessages.length === 0
+                ? '0 items'
+                : `Displaying ${(effectiveCurrentPage - 1) * pageSize + 1} - ${Math.min(
+                    effectiveCurrentPage * pageSize,
+                    filteredMessages.length
+                  )} of ${filteredMessages.length}`}
             </span>
           </div>
         </div>
@@ -427,13 +526,14 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white/50 dark:bg-charcoal-850/50">
           {selectedMessage ? (
             <div className="flex h-full flex-col overflow-y-auto">
-              {/* Message Header & Action Bar (Matching Screenshot 1: Reply, Reply to All, Forward, Delete, Print) */}
+              {/* Message Header & Action Bar */}
               <div className="border-b border-pearl-200/90 p-4 sm:p-5 dark:border-charcoal-700/80 bg-white/80 dark:bg-charcoal-900/80 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
+                  {/* Action Buttons: Reply, Reply to All, Forward, Delete, Print */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setShowReplyBox(true)}
+                      onClick={() => openReply('reply')}
                       className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 shadow-2xs transition cursor-pointer"
                     >
                       <Reply size={13} />
@@ -441,7 +541,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowReplyBox(true)}
+                      onClick={() => openReply('replyAll')}
                       className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 shadow-2xs transition cursor-pointer"
                     >
                       <Users size={13} />
@@ -449,7 +549,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                     </button>
                     <button
                       type="button"
-                      onClick={onComposeNew}
+                      onClick={() => openReply('forward')}
                       className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 shadow-2xs transition cursor-pointer"
                     >
                       <Forward size={13} />
@@ -465,7 +565,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                     </button>
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={handlePrint}
                       className="flex items-center gap-1.5 rounded-xl border border-pearl-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-pearl-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200 shadow-2xs transition cursor-pointer"
                     >
                       <Printer size={13} />
@@ -474,7 +574,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                   </div>
 
                   <span className="text-[11px] font-mono text-slate-400">
-                    {selectedMessage.sentDate}
+                    {selectedMessage.sentDate || selectedMessage.timestamp || selectedMessage.date}
                   </span>
                 </div>
 
@@ -483,14 +583,22 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                   <div className="flex items-center gap-2">
                     <strong className="w-16 shrink-0 text-slate-500 font-bold">From:</strong>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {selectedMessage.fromName} ({selectedMessage.fromEmail})
+                      {selectedMessage.senderName} ({selectedMessage.senderEmail || 'staff@standardshomecare.com'})
                     </span>
+                    {selectedMessage.senderRole && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono">
+                        {selectedMessage.senderRole.replace('_', ' ').toUpperCase()}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-start gap-2">
                     <strong className="w-16 shrink-0 text-slate-500 font-bold pt-0.5">To:</strong>
                     <div className="flex flex-wrap gap-1 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
-                      {selectedMessage.toRecipients.map((recip) => (
+                      {(selectedMessage.recipients && selectedMessage.recipients.length > 0
+                        ? selectedMessage.recipients
+                        : ['Hilder Magessa, RN']
+                      ).map((recip) => (
                         <span
                           key={recip}
                           className="rounded-md bg-white px-2 py-0.5 border border-pearl-200 dark:bg-charcoal-700 dark:border-charcoal-600 font-medium"
@@ -515,43 +623,66 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
                 {selectedMessage.body}
               </div>
 
-              {/* Quick Inline Reply */}
-              {showReplyBox && (
-                <div className="border-t border-pearl-200/90 p-4 bg-white/90 dark:border-charcoal-700/80 dark:bg-charcoal-900/90 space-y-3">
+              {/* Quick Inline Reply / Reply All / Forward Box */}
+              {replyMode !== 'none' && (
+                <div className="border-t border-pearl-200/90 p-4 bg-white/95 dark:border-charcoal-700/80 dark:bg-charcoal-900/95 space-y-3 animate-fadeIn">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Reply to {selectedMessage.fromName}
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <Sparkles size={14} className="text-rose-600" />
+                      <span>
+                        {replyMode === 'reply' && `Replying to ${selectedMessage.senderName}`}
+                        {replyMode === 'replyAll' && `Replying to All (${[selectedMessage.senderName, ...(selectedMessage.recipients || [])].join(', ')})`}
+                        {replyMode === 'forward' && `Forwarding "${selectedMessage.subject}"`}
+                      </span>
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowReplyBox(false)}
-                      className="text-slate-400 hover:text-slate-600"
+                      onClick={() => setReplyMode('none')}
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       <X size={15} />
                     </button>
                   </div>
+
+                  {replyMode === 'forward' && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Forward To Clinician:
+                      </label>
+                      <input
+                        type="text"
+                        value={forwardRecipient}
+                        onChange={(e) => setForwardRecipient(e.target.value)}
+                        placeholder="e.g. Carla Rania RN, Susanna Welch BSN..."
+                        className="w-full h-8 px-3 rounded-xl border border-pearl-200 bg-white text-xs font-medium dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500"
+                      />
+                    </div>
+                  )}
+
                   <textarea
-                    rows={3}
-                    value={quickReplyText}
-                    onChange={(e) => setQuickReplyText(e.target.value)}
-                    placeholder="Type your response..."
+                    rows={4}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Type message content..."
                     className="w-full rounded-xl border border-pearl-200 bg-white p-3 text-xs font-medium text-slate-900 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-100 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
                   />
+
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowReplyBox(false)}
-                      className="rounded-xl border border-pearl-200 px-4 py-1.5 text-xs font-bold text-slate-600 hover:bg-pearl-50 dark:border-charcoal-700 dark:text-slate-300"
+                      onClick={() => setReplyMode('none')}
+                      className="rounded-xl border border-pearl-200 px-4 py-1.5 text-xs font-bold text-slate-600 hover:bg-pearl-50 dark:border-charcoal-700 dark:text-slate-300 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={handleSendQuickReply}
-                      className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
+                      onClick={handleSendReply}
+                      disabled={isSubmitting || !replyText.trim()}
+                      className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer disabled:opacity-50"
                     >
-                      <Send size={13} />
-                      <span>Send Reply</span>
+                      {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                      <span>{replyMode === 'forward' ? 'Forward Message' : 'Send Reply'}</span>
                     </button>
                   </div>
                 </div>
@@ -559,7 +690,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
             </div>
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center text-xs text-slate-400">
-              Select a message to view content.
+              Select a message from the list to view its contents.
             </div>
           )}
         </div>

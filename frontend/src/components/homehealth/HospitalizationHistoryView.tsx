@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -18,6 +18,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
+import { api } from '../../services/api';
 
 interface HospitalizationHistoryViewProps {
   onBack: () => void;
@@ -33,124 +34,11 @@ interface HospitalizationRecord {
   lastHomeVisitDate: string;
   user: string;
   tags: string;
+  facility?: string;
+  reasons?: string[];
+  narrative?: string;
+  transferDate?: string;
 }
-
-interface PatientLogItem {
-  id: string;
-  source: string;
-  user: string;
-  hospitalizationDate: string;
-  transferDate: string;
-  facility: string;
-  reasons: string[];
-  narrative: string;
-}
-
-const SAMPLE_HOSPITALIZATIONS: HospitalizationRecord[] = [
-  {
-    id: 'hosp-1',
-    mrn: '696',
-    patientName: 'Wallace, Jennifer',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/10/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Mary Kyalikunda RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-2',
-    mrn: '696',
-    patientName: 'Wallace, Jennifer',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/10/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Mary Kyalikunda RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-3',
-    mrn: '441',
-    patientName: 'Moreno, Reinalda',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/13/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Michelene Paul RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-4',
-    mrn: '1171',
-    patientName: 'Williams, Cynthia',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/22/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Theodora Ogamba RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-5',
-    mrn: '1020',
-    patientName: 'Gedeon, Yolande',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/26/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Nathalie Bernadeau RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-6',
-    mrn: '878',
-    patientName: 'Gonzalez, Cindy',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '9/28/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Mary Kyalikunda RN',
-    tags: 'Not Available',
-  },
-  {
-    id: 'hosp-7',
-    mrn: '1151',
-    patientName: 'Leon, Louis',
-    source: 'OASIS Transfer Assessment',
-    hospitalizationDate: '10/13/2026',
-    lastHomeVisitDate: 'Not Available',
-    user: 'Nathalie Bernadeau RN',
-    tags: 'Not Available',
-  },
-];
-
-const INITIAL_PATIENT_LOGS: PatientLogItem[] = [
-  {
-    id: 'log-1',
-    source: 'OASIS Transfer Assessment',
-    user: 'Mary Kyalikunda RN',
-    hospitalizationDate: '02/04/2022',
-    transferDate: '02/04/2022',
-    facility: '1 - Hospital',
-    reasons: ['Heart failure (e.g., fluid overload)', 'Respiratory infection (e.g., pneumonia, bronchitis)'],
-    narrative: 'Patient transferred via EMS to acute hospital due to worsening shortness of breath and peripheral edema.',
-  },
-  {
-    id: 'log-2',
-    source: 'OASIS Transfer Assessment',
-    user: 'Mary Kyalikunda RN',
-    hospitalizationDate: '06/13/2026',
-    transferDate: '06/13/2026',
-    facility: '1 - Hospital',
-    reasons: ['Deep vein thrombosis, pulmonary embolus'],
-    narrative: 'Evaluated at emergency department for acute unilateral lower extremity swelling.',
-  },
-  {
-    id: 'log-3',
-    source: 'OASIS Transfer Assessment',
-    user: 'Mary Kyalikunda RN',
-    hospitalizationDate: '09/10/2026',
-    transferDate: '09/10/2026',
-    facility: '1 - Hospital',
-    reasons: ['Urinary tract infection', 'Dehydration, malnutrition'],
-    narrative: 'Admitted for IV antibiotic therapy and rehydration following febrile episode.',
-  },
-];
 
 const TEMPLATE_OPTIONS = [
   'Select Templates',
@@ -162,8 +50,6 @@ const TEMPLATE_OPTIONS = [
   'SHC - ROC',
   'SHC - Start of Care',
   'SHC - Transfer (not discharged)',
-  'TEACHING DISEASE (Celiac Disease)',
-  'TEACHING GUIDE (Alzheimer\'s Disease)',
   'TEACHING GUIDE (CHF)',
   'TEACHING GUIDES (Diabetes Mellitus)',
   'TEACHING GUIDES (Hypertension)',
@@ -173,33 +59,54 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
   onBack,
   onSelectPatient,
 }) => {
-  const { organization } = useHealthcare();
+  const { organization, patients } = useHealthcare();
 
-  // Mode: 'list' | 'patient_logs' | 'edit_log'
+  // Mode: 'list' | 'patient_logs' | 'edit_log' | 'new_log'
   const [viewMode, setViewMode] = useState<'list' | 'patient_logs' | 'edit_log'>('list');
-  const [activePatientName, setActivePatientName] = useState('WALLACE, JENNIFER');
-  const [activeEpisode, setActiveEpisode] = useState('12/27/2021 - 02/24/2022');
+  const [records, setRecords] = useState<HospitalizationRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activePatientName, setActivePatientName] = useState('');
+  const [activeMrn, setActiveMrn] = useState('');
+  const [activeEpisode, setActiveEpisode] = useState('Episode Not Set');
   const [activeUser, setActiveUser] = useState('Mary Kyalikunda RN');
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null);
 
   // Filter states
-  const [startDate, setStartDate] = useState('2026-09-10');
-  const [endDate, setEndDate] = useState('2026-11-08');
+  const [startDate, setStartDate] = useState('2026-01-01');
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTag, setSelectedTag] = useState('Select Option');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Edit Log State
-  const [editTransferDate, setEditTransferDate] = useState('2022-02-04');
-  const [editLastVisitDate, setEditLastVisitDate] = useState('2022-02-02');
-  const [editFacility, setEditFacility] = useState('1');
+  // Edit/New Log State
+  const [editTransferDate, setEditTransferDate] = useState(new Date().toISOString().split('T')[0]);
+  const [editLastVisitDate, setEditLastVisitDate] = useState('Not Available');
+  const [editFacility, setEditFacility] = useState('Beverly Hospital');
   const [selectedM2440Reasons, setSelectedM2440Reasons] = useState<string[]>([]);
   const [selectedM2430Reasons, setSelectedM2430Reasons] = useState<string[]>([
-    '5 – Heart failure (e.g., fluid overload)',
+    'Heart failure (e.g., fluid overload)',
   ]);
-  const [editNarrative, setEditNarrative] = useState(
-    'Patient transferred via EMS to acute hospital due to worsening shortness of breath and peripheral edema.'
-  );
+  const [editNarrative, setEditNarrative] = useState('');
+
+  const fetchRecords = async () => {
+    try {
+      setIsLoading(true);
+      const data = await api.getHospitalizations();
+      if (Array.isArray(data)) {
+        setRecords(data);
+      }
+    } catch (err) {
+      console.error('Failed to load hospitalizations:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecords();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -207,7 +114,7 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
   };
 
   const filteredHistory = useMemo(() => {
-    return SAMPLE_HOSPITALIZATIONS.filter((h) => {
+    return records.filter((h) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -218,20 +125,101 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
       }
       return true;
     });
-  }, [searchQuery]);
+  }, [records, searchQuery]);
 
-  const handleOpenPatientLogs = (name: string) => {
-    setActivePatientName(name);
+  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / pageSize));
+  const paginatedHistory = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredHistory.slice(start, start + pageSize);
+  }, [filteredHistory, currentPage, pageSize]);
+
+  // Logs for currently selected patient in viewMode === 'patient_logs'
+  const activePatientLogs = useMemo(() => {
+    if (!activePatientName) return [];
+    return records.filter(
+      (r) => r.patientName.toLowerCase().trim() === activePatientName.toLowerCase().trim()
+    );
+  }, [records, activePatientName]);
+
+  const handleOpenPatientLogs = (patient: { name: string; mrn: string }) => {
+    setActivePatientName(patient.name);
+    setActiveMrn(patient.mrn);
     setViewMode('patient_logs');
   };
 
-  const handleEditLog = () => {
+  const handleEditLog = (record: HospitalizationRecord) => {
+    setActiveRecordId(record.id);
+    setActivePatientName(record.patientName);
+    setActiveMrn(record.mrn);
+    setActiveUser(record.user || 'Mary Kyalikunda RN');
+    setEditFacility(record.facility || 'Beverly Hospital');
+    setEditTransferDate(record.transferDate || record.hospitalizationDate || new Date().toISOString().split('T')[0]);
+    setEditNarrative(record.narrative || '');
+    if (record.reasons && Array.isArray(record.reasons)) {
+      setSelectedM2430Reasons(record.reasons);
+    }
     setViewMode('edit_log');
   };
 
-  const handleSaveLog = () => {
-    showToast('Hospitalization log updated successfully.');
-    setViewMode('patient_logs');
+  const handleNewHospitalization = () => {
+    setActiveRecordId(null);
+    const pat = patients[0];
+    const name = pat ? `${pat.lastName || ''}, ${pat.firstName || ''}`.trim() : 'Patient';
+    const mrn = pat?.mrn || '1000';
+    setActivePatientName(name);
+    setActiveMrn(mrn);
+    setActiveUser('Mary Kyalikunda RN');
+    setEditFacility('Beverly Hospital');
+    setEditTransferDate(new Date().toISOString().split('T')[0]);
+    setEditNarrative('Acute clinical transfer evaluation completed.');
+    setSelectedM2430Reasons(['Heart failure (e.g., fluid overload)']);
+    setViewMode('edit_log');
+  };
+
+  const handleSaveLog = async () => {
+    try {
+      if (activeRecordId) {
+        await api.updateHospitalization(activeRecordId, {
+          facility: editFacility,
+          hospitalizationDate: editTransferDate,
+          transferDate: editTransferDate,
+          reasons: selectedM2430Reasons,
+          narrative: editNarrative,
+          user: activeUser,
+        });
+        showToast('Hospitalization log updated successfully.');
+      } else {
+        await api.createHospitalization({
+          mrn: activeMrn,
+          patientName: activePatientName,
+          source: 'OASIS Transfer Assessment',
+          hospitalizationDate: editTransferDate,
+          transferDate: editTransferDate,
+          lastHomeVisitDate: editLastVisitDate,
+          user: activeUser,
+          facility: editFacility,
+          reasons: selectedM2430Reasons,
+          narrative: editNarrative,
+        });
+        showToast('New hospitalization log created in database.');
+      }
+      await fetchRecords();
+      setViewMode('patient_logs');
+    } catch (err) {
+      console.error(err);
+      showToast('Error saving hospitalization record.');
+    }
+  };
+
+  const handleDeleteLog = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this hospitalization log?')) return;
+    try {
+      await api.deleteHospitalization(id);
+      await fetchRecords();
+      showToast('Hospitalization log deleted.');
+    } catch (err) {
+      showToast('Failed to delete log.');
+    }
   };
 
   const handleExportToExcel = () => {
@@ -286,7 +274,7 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                Axxess Home Health
+                CareOrbit Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -402,10 +390,7 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setActivePatientName('WALLACE, JENNIFER');
-                      setViewMode('edit_log');
-                    }}
+                    onClick={handleNewHospitalization}
                     className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
                   >
                     <Plus size={14} />
@@ -440,54 +425,105 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredHistory.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
-                      >
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
-                          {item.mrn}
-                        </td>
-                        <td
-                          onClick={() => onSelectPatient?.(item.patientName)}
-                          className="py-3 px-4 font-bold text-rose-700 hover:text-rose-800 cursor-pointer hover:underline"
-                        >
-                          {item.patientName}
-                        </td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{item.source}</td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{item.hospitalizationDate}</td>
-                        <td className="py-3 px-4 text-slate-400 italic">{item.lastHomeVisitDate}</td>
-                        <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">{item.user}</td>
-                        <td className="py-3 px-4 text-slate-400 italic">{item.tags}</td>
-                        <td className="py-3 px-4 text-left whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPatientLogs(item.patientName.toUpperCase())}
-                            className="font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer"
-                          >
-                            Show Logs
-                          </button>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={8} className="py-20 text-center text-slate-500">
+                          Loading hospitalization records from database...
                         </td>
                       </tr>
-                    ))}
+                    ) : paginatedHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-20 text-center text-slate-500">
+                          No hospitalization records found in database.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedHistory.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
+                        >
+                          <td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
+                            {item.mrn}
+                          </td>
+                          <td
+                            onClick={() => onSelectPatient?.(item.patientName)}
+                            className="py-3 px-4 font-bold text-rose-700 hover:text-rose-800 cursor-pointer hover:underline"
+                          >
+                            {item.patientName}
+                          </td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{item.source}</td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{item.hospitalizationDate}</td>
+                          <td className="py-3 px-4 text-slate-400 italic">{item.lastHomeVisitDate}</td>
+                          <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">{item.user}</td>
+                          <td className="py-3 px-4 text-slate-400 italic">{item.tags}</td>
+                          <td className="py-3 px-4 text-left whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPatientLogs({ name: item.patientName, mrn: item.mrn })}
+                              className="font-bold text-rose-700 hover:text-rose-800 hover:underline cursor-pointer"
+                            >
+                              Show Logs
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {/* Table Footer */}
-              <div className="flex items-center justify-between border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
-                <div>7 total results</div>
-                <div className="flex items-center gap-2">
-                  <span>Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                  </select>
-                  <span>entries</span>
+              {/* Table Footer with dynamic pagination */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-pearl-200 bg-pearl-50/50 px-4 py-3 text-xs text-slate-500 dark:border-charcoal-700 dark:bg-charcoal-750/50 dark:text-slate-400">
+                <div>{filteredHistory.length} total results</div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                      disabled={currentPage <= 1}
+                    >
+                      <ChevronLeft size={13} />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setCurrentPage(num)}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${
+                          currentPage === num
+                            ? 'bg-rose-700 text-white shadow-2xs'
+                            : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-pearl-300 bg-white text-slate-500 hover:bg-pearl-100 disabled:opacity-50 dark:border-charcoal-600 dark:bg-charcoal-700"
+                      disabled={currentPage >= totalPages}
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Show</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-lg border border-pearl-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                    </select>
+                    <span>entries</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -515,7 +551,12 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setViewMode('edit_log')}
+                onClick={() => {
+                  setActiveRecordId(null);
+                  setEditTransferDate(new Date().toISOString().split('T')[0]);
+                  setEditNarrative('');
+                  setViewMode('edit_log');
+                }}
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
               >
                 <Plus size={14} />
@@ -524,7 +565,27 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
 
               <button
                 type="button"
-                onClick={() => showToast('Patient hospitalization logs exported.')}
+                onClick={() => {
+                  const headers = ['Source', 'User', 'Hospitalization Date', 'Facility', 'Narrative'];
+                  const rows = activePatientLogs.map((l) => [
+                    `"${l.source}"`,
+                    `"${l.user}"`,
+                    `"${l.hospitalizationDate}"`,
+                    `"${l.facility || ''}"`,
+                    `"${(l.narrative || '').replace(/"/g, '""')}"`,
+                  ]);
+                  const csvContent =
+                    'data:text/csv;charset=utf-8,' +
+                    [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement('a');
+                  link.setAttribute('href', encodedUri);
+                  link.setAttribute('download', `Hospitalization_Logs_${activePatientName}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showToast('Patient hospitalization logs exported.');
+                }}
                 className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -545,50 +606,58 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                     </tr>
                   </thead>
                   <tbody>
-                    {INITIAL_PATIENT_LOGS.map((log) => (
-                      <tr
-                        key={log.id}
-                        className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
-                      >
-                        <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                          {log.source}
-                        </td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.user}</td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-mono">
-                          {log.hospitalizationDate}
-                        </td>
-                        <td className="py-3 px-4 text-left whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              title="Print Hospitalization Log"
-                              onClick={() => {
-                                showToast(`Printing hospitalization report...`);
-                                setTimeout(() => window.print(), 300);
-                              }}
-                              className="text-slate-500 hover:text-rose-700 p-1 rounded hover:bg-pearl-100 dark:hover:bg-charcoal-700 cursor-pointer"
-                            >
-                              <Printer size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleEditLog}
-                              className="font-bold text-rose-700 hover:underline cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                            <span className="text-slate-300">|</span>
-                            <button
-                              type="button"
-                              onClick={() => showToast('Log deleted.')}
-                              className="font-bold text-rose-700 hover:underline cursor-pointer"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                    {activePatientLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-slate-500">
+                          No hospitalization logs found for {activePatientName}. Click "Add Hospitalization Log" to add one.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      activePatientLogs.map((log) => (
+                        <tr
+                          key={log.id}
+                          className="border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20"
+                        >
+                          <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                            {log.source}
+                          </td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.user}</td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-mono">
+                            {log.hospitalizationDate}
+                          </td>
+                          <td className="py-3 px-4 text-left whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                title="Print Hospitalization Log"
+                                onClick={() => {
+                                  showToast(`Printing hospitalization report for ${activePatientName}...`);
+                                  setTimeout(() => window.print(), 300);
+                                }}
+                                className="text-slate-500 hover:text-rose-700 p-1 rounded hover:bg-pearl-100 dark:hover:bg-charcoal-700 cursor-pointer"
+                              >
+                                <Printer size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditLog(log)}
+                                className="font-bold text-rose-700 hover:underline cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <span className="text-slate-300">|</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLog(log.id)}
+                                className="font-bold text-rose-700 hover:underline cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -612,11 +681,24 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                   <label className="block text-[11px] font-bold text-slate-500 mb-1">Patient:</label>
                   <select
                     value={activePatientName}
-                    onChange={(e) => setActivePatientName(e.target.value)}
+                    onChange={(e) => {
+                      const selName = e.target.value;
+                      setActivePatientName(selName);
+                      const p = patients.find(
+                        (pat) => `${pat.lastName || ''}, ${pat.firstName || ''}`.trim() === selName
+                      );
+                      if (p) setActiveMrn(p.mrn);
+                    }}
                     className="w-full rounded-xl border border-pearl-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 dark:border-charcoal-600 dark:bg-charcoal-750 dark:text-slate-100"
                   >
-                    <option value="WALLACE, JENNIFER">WALLACE, JENNIFER</option>
-                    <option value="ABUISSA, HEATHER">ABUISSA, HEATHER</option>
+                    {patients.map((pat) => {
+                      const name = `${pat.lastName || ''}, ${pat.firstName || ''}`.trim() || 'Patient';
+                      return (
+                        <option key={pat.id} value={name}>
+                          {name} (MRN: {pat.mrn})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

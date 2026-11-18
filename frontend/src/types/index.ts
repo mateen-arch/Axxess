@@ -43,20 +43,30 @@ export interface Patient {
   lastName: string;
   dob: string;
   age?: number;
-  gender: 'male' | 'female' | 'other';
+  gender: 'male' | 'female' | 'other' | string;
   serviceLine: ServiceLine;
   status: PatientStatus;
   primaryDiagnosis: string;
   assignedNurseName?: string;
   phone: string;
   altPhone?: string;
-  address: {
+  secondaryPhone?: string;
+  email?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  address?: {
     street: string;
     city: string;
     state: string;
     zipCode: string;
+    latitude?: number;
+    longitude?: number;
   };
-  admissionDate: string;
+  latitude?: number;
+  longitude?: number;
+  admissionDate?: string;
   nextScheduledVisit?: string;
   // Clinical Chart specific fields
   organization?: string;
@@ -67,6 +77,9 @@ export interface Patient {
   attendingPhysician?: string;
   insuranceName?: string;
   insuranceId?: string;
+  policyNumber?: string;
+  primaryContact?: string;
+  secondaryContact?: string;
   primaryContactName?: string;
   primaryContactPhone?: string;
   primaryContactRelation?: string;
@@ -75,6 +88,7 @@ export interface Patient {
   fallRisk?: boolean;
   hospitalizationRisk?: boolean;
   infectionRisk?: boolean;
+  fullCode?: boolean;
   admissionDetails?: Record<string, string | boolean | string[]>;
 }
 
@@ -397,6 +411,31 @@ export interface InsurancePayer {
   createdAt: string;
 }
 
+export interface IncidentLog {
+  id: string;
+  organizationId?: string;
+  patientId: string;
+  patientName: string;
+  mrn: string;
+  incidentDate: string;
+  incidentTime?: string;
+  incidentType: string;
+  location?: string;
+  injurySustained?: boolean;
+  injuryDescription?: string;
+  narrative: string;
+  actionTaken?: string;
+  physicianNotified?: boolean;
+  supervisorNotified?: boolean;
+  reporterName: string;
+  reporterRole?: string;
+  status: string;
+  physician?: string;
+  branch?: string;
+  tags?: string[];
+  createdAt: string;
+}
+
 export interface AnnouncementItem {
   id: string;
   title: string;
@@ -417,6 +456,12 @@ export interface EmployeeClinician {
   branch: string;
   status: 'active' | 'on_leave' | 'inactive';
   payType?: string;
+  discipline?: string;
+  work_status?: string;
+  workStatus?: string;
+  territory?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface EmployeeVisit {
@@ -430,7 +475,7 @@ export interface EmployeeVisit {
   dayOfWeek: number; // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
   date: string;
   timeSlot: string;
-  status: 'completed' | 'in_progress' | 'saved' | 'scheduled' | 'missed';
+  status: 'completed' | 'in_progress' | 'saved' | 'scheduled' | 'missed' | 'cancelled';
   locationType: 'home' | 'facility' | 'telehealth';
   evvStatus: 'verified' | 'pending' | 'flagged' | 'exempt';
   address?: string;
