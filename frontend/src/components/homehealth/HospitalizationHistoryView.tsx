@@ -274,7 +274,7 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                CareOrbit Home Health
+                Axxess Home Health
               </span>
               <span className="font-light text-slate-300 dark:text-charcoal-600">/</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -285,8 +285,8 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                 {viewMode === 'list'
                   ? 'Hospitalization History'
                   : viewMode === 'patient_logs'
-                  ? `Hospitalization Logs - ${activePatientName}`
-                  : `Edit Hospitalization Log - ${activePatientName}`}
+                    ? `Hospitalization Logs - ${activePatientName}`
+                    : `Edit Hospitalization Log - ${activePatientName}`}
               </span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
@@ -491,11 +491,10 @@ export const HospitalizationHistoryView: React.FC<HospitalizationHistoryViewProp
                         key={num}
                         type="button"
                         onClick={() => setCurrentPage(num)}
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${
-                          currentPage === num
-                            ? 'bg-rose-700 text-white shadow-2xs'
-                            : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
-                        }`}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition ${currentPage === num
+                          ? 'bg-rose-700 text-white shadow-2xs'
+                          : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700'
+                          }`}
                       >
                         {num}
                       </button>

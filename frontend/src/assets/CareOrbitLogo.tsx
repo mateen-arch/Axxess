@@ -15,20 +15,23 @@ export const CareOrbitLogo: React.FC<LogoProps> = ({
   collapsed = false,
   productLabel = 'Central'
 }) => {
+  // Full logo heights when sidebar is expanded
   const heights = {
-    sm: 'h-7',
-    md: 'h-9',
-    lg: 'h-11'
+    sm: 'h-10',
+    md: 'h-14',
+    lg: 'h-18'
   };
 
-  const getLogoImage = () => {
+  const getLogoImage = (cropped = false) => {
     const lower = productLabel.toLowerCase();
-    if (lower.includes('connect')) return '/careorbit-connect.jpg';
-    if (lower.includes('home health') || lower.includes('homehealth')) return '/careorbit-homehealth.jpg';
-    return '/careorbit-central.jpg';
+    const suffix = cropped ? '-cropped' : '';
+    if (lower.includes('connect')) return `/careorbit-connect${suffix}.png`;
+    if (lower.includes('home health') || lower.includes('homehealth')) return `/careorbit-homehealth${suffix}.png`;
+    return `/careorbit-central${suffix}.png`;
   };
 
   if (collapsed) {
+    // Show only the left icon portion (heart+stethoscope mark) when sidebar is collapsed
     return (
       <div
         className={`flex items-center justify-center select-none ${className}`}
@@ -37,9 +40,10 @@ export const CareOrbitLogo: React.FC<LogoProps> = ({
         title={`CareOrbit ${productLabel}`}
       >
         <img
-          src={getLogoImage()}
+          src={getLogoImage(true)}
           alt={`CareOrbit ${productLabel}`}
-          className={`${heights[size]} w-auto object-contain rounded`}
+          className="h-9 w-9 object-cover object-left"
+          style={{ minWidth: '36px' }}
         />
       </div>
     );
@@ -47,15 +51,16 @@ export const CareOrbitLogo: React.FC<LogoProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-2 min-w-0 select-none ${className}`}
+      className={`flex items-center min-w-0 select-none ${className}`}
       role="img"
       aria-label={`CareOrbit ${productLabel}`}
       title={`CareOrbit ${productLabel}`}
     >
       <img
-        src={getLogoImage()}
+        src={getLogoImage(true)}
         alt={`CareOrbit ${productLabel}`}
-        className={`${heights[size]} w-auto object-contain rounded`}
+        className={`${heights[size]} w-auto object-contain`}
+        style={{ maxWidth: '220px' }}
       />
     </div>
   );

@@ -253,8 +253,8 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
     ? currentPatient.street
       ? `${currentPatient.street}, ${currentPatient.city || ''}, ${currentPatient.state || ''} ${currentPatient.zipCode || ''}`
       : currentPatient.address
-      ? `${currentPatient.address.street || ''}${currentPatient.address.city ? `, ${currentPatient.address.city}` : ''}${currentPatient.address.state ? `, ${currentPatient.address.state}` : ''} ${currentPatient.address.zipCode || ''}`.trim()
-      : 'Address Not Available'
+        ? `${currentPatient.address.street || ''}${currentPatient.address.city ? `, ${currentPatient.address.city}` : ''}${currentPatient.address.state ? `, ${currentPatient.address.state}` : ''} ${currentPatient.address.zipCode || ''}`.trim()
+        : 'Address Not Available'
     : '';
 
   const patientDobAge = currentPatient
@@ -406,19 +406,18 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
                   <div
                     key={patient.id}
                     onClick={() => setSelectedPatientId(patient.id)}
-                    className={`p-2.5 rounded-lg border cursor-pointer transition text-left relative ${
-                      isSelected
-                        ? 'bg-slate-100 dark:bg-charcoal-800 border-slate-400 dark:border-charcoal-600 shadow-xs'
-                        : 'bg-white dark:bg-charcoal-900 border-slate-200 dark:border-charcoal-700 hover:bg-slate-50 dark:hover:bg-charcoal-800/60'
-                    }`}
+                    className={`p-2.5 rounded-lg border cursor-pointer transition text-left relative ${isSelected
+                      ? 'bg-slate-100 dark:bg-charcoal-800 border-slate-400 dark:border-charcoal-600 shadow-xs'
+                      : 'bg-white dark:bg-charcoal-900 border-slate-200 dark:border-charcoal-700 hover:bg-slate-50 dark:hover:bg-charcoal-800/60'
+                      }`}
                   >
                     {/* Badge */}
                     <span className="inline-block bg-[#8b1528] text-white text-[10px] font-semibold px-2 py-0.5 rounded leading-tight mb-1">
                       {patient.serviceLine === 'home_care'
                         ? 'Home Care'
                         : patient.serviceLine === 'hospice'
-                        ? 'Hospice'
-                        : 'Home Health'}
+                          ? 'Hospice'
+                          : 'Home Health'}
                     </span>
                     {/* Patient Name */}
                     <div className="font-semibold text-slate-900 dark:text-white text-xs leading-snug">
@@ -853,7 +852,7 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
 
           {/* Reference Website Footer */}
           <footer className="py-4 text-center text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-charcoal-700 mt-auto">
-            CareOrbit © 2026 | Release Version: 1.0.3868.0 | Environment: Production | Built in Dallas, Texas
+            Axxess © 2026 | Release Version: 1.0.3868.0 | Environment: Production | Built in Dallas, Texas
           </footer>
         </main>
       </div>
