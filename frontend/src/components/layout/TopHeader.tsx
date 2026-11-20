@@ -5,7 +5,8 @@ import {
   Bell,
   Sun,
   Moon,
-  LayoutGrid
+  LayoutGrid,
+  Menu,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { AppSwitcherModal } from '../portal/AppSwitcherModal';
@@ -16,7 +17,8 @@ export const TopHeader: React.FC = () => {
     toggleTheme,
     unreadCount,
     setIsNewPatientModalOpen,
-    setIsCommandPaletteOpen
+    setIsCommandPaletteOpen,
+    setIsMobileSidebarOpen,
   } = useHealthcare();
 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
@@ -24,19 +26,32 @@ export const TopHeader: React.FC = () => {
   return (
     <>
       <header className="sticky top-0 z-30 h-16 w-full glass-panel !rounded-none !border-t-0 !border-x-0 !border-b border-pearl-200 dark:border-charcoal-700 px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
-        {/* App switcher and one clear page heading */}
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        {/* Mobile menu toggle, app switcher, and page heading */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+          {/* Mobile Sidebar Hamburger Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(prev => !prev)}
+            className="lg:hidden h-9 w-9 rounded-xl flex items-center justify-center text-slate-700 dark:text-slate-200 bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-500 hover:text-rose-600 transition-colors shrink-0 cursor-pointer shadow-2xs"
+            aria-label="Open navigation menu"
+            title="Open navigation menu"
+          >
+            <Menu size={18} />
+          </button>
+
           <button
             type="button"
             onClick={() => setIsAppSwitcherOpen(true)}
-            className="h-9 px-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer shadow-2xs"
+            className="h-9 px-2.5 rounded-xl flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer shadow-2xs shrink-0"
             title="Switch CareOrbit Apps"
           >
             <LayoutGrid size={14} className="text-rose-600 dark:text-rose-400" />
             <span className="hidden md:inline">Apps</span>
           </button>
 
-          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap">CareOrbit Central</h1>
+          <h1 className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-slate-950 dark:text-white truncate">
+            CareOrbit Central
+          </h1>
         </div>
 
       {/* Search */}

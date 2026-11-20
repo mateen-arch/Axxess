@@ -131,22 +131,20 @@ export const InquiriesTableView: React.FC = () => {
           <button
             type="button"
             onClick={() => setIntakeSubTab('inquiries')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              intakeSubTab === 'inquiries'
-                ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
-                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-            }`}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${intakeSubTab === 'inquiries'
+              ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
           >
             Inquiries ({inquiries.length})
           </button>
           <button
             type="button"
             onClick={() => setIntakeSubTab('referrals')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-              intakeSubTab === 'referrals'
-                ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
-                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-            }`}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${intakeSubTab === 'referrals'
+              ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
           >
             Referrals ({referrals.length})
           </button>
@@ -262,18 +260,18 @@ export const InquiriesTableView: React.FC = () => {
         </div>
       </div>
 
-      {/* Proper Structured Table with Strictly Aligned Columns */}
+      {/* Proper Structured Table with Cleanly Aligned Columns */}
       <div className="relative z-10 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
+          <table className="w-full text-left border-collapse min-w-[1000px]">
             {/* Table Header with Aligned Column Layout */}
             <thead>
-              <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
-                <th className="py-3.5 px-5 w-[22%]">Client / Lead</th>
-                <th className="py-3.5 px-5 w-[26%]">Service & Request</th>
-                <th className="py-3.5 px-5 w-[16%]">Follow-Up Date</th>
-                <th className="py-3.5 px-5 w-[20%]">Status</th>
-                <th className="py-3.5 px-6 w-[16%] text-right">Actions</th>
+              <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none whitespace-nowrap">
+                <th className="py-3.5 px-4 min-w-[210px]">Client / Lead</th>
+                <th className="py-3.5 px-4 min-w-[190px]">Service & Request</th>
+                <th className="py-3.5 px-4 min-w-[130px]">Follow-Up Date</th>
+                <th className="py-3.5 px-4 min-w-[210px]">Status</th>
+                <th className="py-3.5 px-4 min-w-[130px] text-right">Actions</th>
               </tr>
             </thead>
 
@@ -303,16 +301,15 @@ export const InquiriesTableView: React.FC = () => {
                       className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/40 transition-colors cursor-pointer group"
                     >
                       {/* Column 1: Client Information */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                              isHospice
-                                ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                                : isHomeHealth
+                            className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${isHospice
+                              ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                              : isHomeHealth
                                 ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                                 : 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                            }`}
+                              }`}
                           >
                             {initials}
                           </div>
@@ -333,15 +330,14 @@ export const InquiriesTableView: React.FC = () => {
                       </td>
 
                       {/* Column 2: Service & Request (Capitalized Tags!) */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${
-                            isHospice
-                              ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
-                              : isHomeHealth
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${isHospice
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                            : isHomeHealth
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                               : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                          }`}
+                            }`}
                         >
                           {formatServiceLine(item.serviceLine)}
                         </span>
@@ -354,7 +350,7 @@ export const InquiriesTableView: React.FC = () => {
                       </td>
 
                       {/* Column 3: Follow-Up Date */}
-                      <td className="py-3.5 px-5 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 font-mono">
                           <Calendar size={13} className="text-slate-400 shrink-0" />
                           <span>{item.followUpDate}</span>
@@ -367,20 +363,18 @@ export const InquiriesTableView: React.FC = () => {
                       </td>
 
                       {/* Column 4: Status */}
-                      <td className="py-3.5 px-5 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            isConverted
-                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                              : isNew
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${isConverted
+                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                            : isNew
                               ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
                               : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                              isConverted ? 'bg-emerald-500' : isNew ? 'bg-blue-500 animate-pulse' : 'bg-amber-500'
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${isConverted ? 'bg-emerald-500' : isNew ? 'bg-blue-500 animate-pulse' : 'bg-amber-500'
+                              }`}
                           />
                           {isConverted ? 'Converted to Referral' : isNew ? 'New Lead (Urgent)' : 'Follow-Up Pending'}
                         </span>
@@ -388,7 +382,7 @@ export const InquiriesTableView: React.FC = () => {
                       </td>
 
                       {/* Column 5: Actions */}
-                      <td className="py-3.5 px-6 text-right whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {!isConverted && (
                             <button

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   ArrowDown,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock3,
   HeartPulse,
+  Menu,
   MessageSquareText,
   Moon,
   ShieldCheck,
@@ -18,6 +19,7 @@ import {
   Sun,
   UsersRound,
   Workflow,
+  X,
 } from 'lucide-react';
 import { CareOrbitLogo } from '../../assets/CareOrbitLogo';
 import { useHealthcare } from '../../context/HealthcareContext';
@@ -27,6 +29,16 @@ import './CareOrbitHubLanding.css';
 type WorkspaceId = 'central' | 'connect' | 'home_health';
 
 export const CareOrbitHubLanding: React.FC = () => {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Close mobile nav on resize back to desktop
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth > 768) setMobileNavOpen(false); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const closeMobileNav = () => setMobileNavOpen(false);
   const {
     setCurrentWebsite,
     organization,
@@ -112,8 +124,35 @@ export const CareOrbitHubLanding: React.FC = () => {
             <span>Open workspace</span>
             <ArrowUpRight size={16} />
           </button>
+          {/* Hamburger — mobile only */}
+          <button
+            className="portal-hamburger"
+            type="button"
+            aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileNavOpen}
+            onClick={() => setMobileNavOpen(o => !o)}
+          >
+            {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </header>
+
+      {/* Mobile nav drawer */}
+      {mobileNavOpen && (
+        <div className="portal-mobile-nav" role="dialog" aria-label="Navigation menu">
+          <div className="portal-mobile-nav-backdrop" onClick={closeMobileNav} aria-hidden="true" />
+          <nav className="portal-mobile-nav-panel" aria-label="Mobile navigation">
+            <a href="#platform" onClick={closeMobileNav}><span>Platform</span><ArrowRight size={15} /></a>
+            <a href="#products" onClick={closeMobileNav}><span>Workspaces</span><ArrowRight size={15} /></a>
+            <a href="#care-flow" onClick={closeMobileNav}><span>Care delivery</span><ArrowRight size={15} /></a>
+            <div className="portal-mobile-nav-divider" />
+            <span className="portal-mobile-nav-org"><span /> Standards Home Care</span>
+            <button className="portal-button-primary" type="button" onClick={() => { launchWorkspace('central'); closeMobileNav(); }}>
+              Open workspace <ArrowUpRight size={15} />
+            </button>
+          </nav>
+        </div>
+      )}
 
       <main id="top">
         <section className="portal-hero" id="platform" aria-labelledby="portal-hero-title">

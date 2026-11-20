@@ -229,23 +229,25 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
         {/* WIDGET 1: Unread Message (Col span 4)                              */}
         {/* ================================================================== */}
         <div className="lg:col-span-4 flex flex-col rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-xs overflow-hidden">
-          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex items-center justify-between">
+          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Mail size={15} className="text-rose-600" />
+              <Mail size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
                 Unread Messages ({unreadMessages.length})
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (onNavigate) onNavigate('compose-message');
-                else setIsComposeModalOpen(true);
-              }}
-              className="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
-            >
-              Compose Message
-            </button>
+            <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigate) onNavigate('compose-message');
+                  else setIsComposeModalOpen(true);
+                }}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+              >
+                Compose Message
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 p-3.5 divide-y divide-pearl-100 dark:divide-charcoal-750 min-h-[140px] flex flex-col justify-center">
@@ -306,20 +308,22 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
         {/* WIDGET 2: My Schedule Tasks (Col span 4)                           */}
         {/* ================================================================== */}
         <div className="lg:col-span-4 flex flex-col rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-xs overflow-hidden">
-          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex items-center justify-between">
+          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Calendar size={15} className="text-rose-600" />
+              <Calendar size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
                 My Schedule Tasks ({scheduledTasks.length})
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => onNavigate?.('my-schedule-tasks')}
-              className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
-            >
-              Schedule Center
-            </button>
+            <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">
+              <button
+                type="button"
+                onClick={() => onNavigate?.('my-schedule-tasks')}
+                className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
+              >
+                Schedule Center
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-x-auto min-h-[140px] flex flex-col justify-center">
@@ -386,16 +390,18 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
         {/* WIDGET 3: CareOrbit Home Health Video Spotlight (Col span 4)          */}
         {/* ================================================================== */}
         <div className="lg:col-span-4 flex flex-col rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-xs overflow-hidden">
-          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex items-center justify-between">
+          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Stethoscope size={15} className="text-rose-600" />
+              <Stethoscope size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
                 CareOrbit Home Health Spotlight
               </h2>
             </div>
-            <span className="text-[10px] font-extrabold text-rose-600 uppercase tracking-wider font-mono">
-              True Partner
-            </span>
+            <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">
+              <span className="text-[10px] font-extrabold text-rose-600 uppercase tracking-wider font-mono">
+                True Partner
+              </span>
+            </div>
           </div>
 
           <div
@@ -436,18 +442,20 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
         {/* WIDGET 4: Recertifications Due (Col span 5)                        */}
         {/* ================================================================== */}
         <div className="lg:col-span-5 flex flex-col rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-xs overflow-hidden">
-          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex items-center justify-between">
+          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <FileCheck size={15} className="text-rose-600" />
+              <FileCheck size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
                 Recertifications Due (60-Day OASIS)
               </h2>
             </div>
-            <span className="text-[10.5px] font-bold text-slate-400">Live Episode Tracking</span>
+            <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">
+              <span className="text-[10.5px] font-bold text-slate-400">Live Episode Tracking</span>
+            </div>
           </div>
 
-          <div className="p-6 flex flex-col justify-center flex-1">
-            <div className="grid grid-cols-2 gap-6 text-center">
+          <div className="p-4 sm:p-6 flex flex-col justify-center flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-center">
               {/* Past Due Gauge */}
               <button
                 type="button"
@@ -512,14 +520,16 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
         {/* WIDGET 5: News & Updates (Col span 7)                              */}
         {/* ================================================================== */}
         <div className="lg:col-span-7 flex flex-col rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-xs overflow-hidden">
-          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex items-center justify-between">
+          <div className="p-3.5 px-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Sparkles size={15} className="text-rose-600" />
+              <Sparkles size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
                 News & Updates (CareOrbit Intelligence®)
               </h2>
             </div>
-            <span className="text-[10.5px] font-mono text-slate-400">Industry Insights</span>
+            <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">
+              <span className="text-[10.5px] font-mono text-slate-400">Industry Insights</span>
+            </div>
           </div>
 
           <div className="p-4 space-y-4 flex-1">

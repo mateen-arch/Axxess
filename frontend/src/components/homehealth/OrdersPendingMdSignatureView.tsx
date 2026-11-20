@@ -471,9 +471,9 @@ export const OrdersPendingMdSignatureView: React.FC<OrdersPendingMdSignatureView
         {/* Table Card - Columns beautifully framed without horizontal overflow scrollbar */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white shadow-sm dark:border-charcoal-700/80 dark:bg-charcoal-800">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse table-fixed">
+            <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
               <thead>
-                <tr className="border-b border-pearl-200 bg-pearl-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+                <tr className="border-b border-pearl-200 bg-pearl-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
                   <th className="py-3 px-3 w-10 text-center">
                     <input
                       type="checkbox"
@@ -547,9 +547,8 @@ export const OrdersPendingMdSignatureView: React.FC<OrdersPendingMdSignatureView
                     return (
                       <tr
                         key={ord.id}
-                        className={`border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20 ${
-                          isSelected ? 'bg-rose-50/40 dark:bg-rose-950/30' : ''
-                        }`}
+                        className={`border-b border-pearl-100 transition hover:bg-rose-50/30 dark:border-charcoal-700 dark:hover:bg-rose-950/20 ${isSelected ? 'bg-rose-50/40 dark:bg-rose-950/30' : ''
+                          }`}
                       >
                         <td className="py-3 px-3 text-center">
                           <input

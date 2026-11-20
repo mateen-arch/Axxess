@@ -161,6 +161,10 @@ interface HealthcareContextType {
   currentWebsite: 'hub' | 'central' | 'home_health' | 'connect';
   setCurrentWebsite: (site: 'hub' | 'central' | 'home_health' | 'connect') => void;
 
+  // Responsive Mobile Navigation Sidebar
+  isMobileSidebarOpen: boolean;
+  setIsMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+
   // CareOrbit Connect & Planner Suite
   connectModule: 'connect' | 'planner';
   setConnectModule: (module: 'connect' | 'planner') => void;
@@ -590,6 +594,7 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Platform Website Switcher ('hub' | 'central' | 'home_health' | 'connect')
   const [currentWebsite, setCurrentWebsite] = useState<'hub' | 'central' | 'home_health' | 'connect'>('hub');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // CareOrbit Connect & Planner State
   const [connectModule, setConnectModule] = useState<'connect' | 'planner'>('connect');
@@ -1173,6 +1178,8 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteInquiry,
         currentWebsite,
         setCurrentWebsite,
+        isMobileSidebarOpen,
+        setIsMobileSidebarOpen,
         connectModule,
         setConnectModule,
         conversations,

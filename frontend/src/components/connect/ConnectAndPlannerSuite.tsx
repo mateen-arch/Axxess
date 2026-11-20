@@ -35,9 +35,9 @@ export const ConnectAndPlannerSuite: React.FC = () => {
       <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* User Welcome & Time Context */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-black text-base text-slate-900 dark:text-white">Welcome Hilder</span>
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white">Welcome Hilder</span>
               <span className="text-xs px-2 py-0.5 rounded-md font-bold bg-pearl-100 dark:bg-charcoal-700 text-slate-600 dark:text-slate-300">
                 Clinical Supervisor
               </span>
@@ -73,25 +73,27 @@ export const ConnectAndPlannerSuite: React.FC = () => {
         {/* ==================================================================== */}
         {/* SUB-HEADER TABS: CareOrbit Connect vs CareOrbit Planner (Authentic look)   */}
         {/* ==================================================================== */}
-        <div className="mt-3 pt-2 border-t border-pearl-200/80 dark:border-charcoal-700/80 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="mt-3 pt-2 border-t border-pearl-200/80 dark:border-charcoal-700/80 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
             {/* CareOrbit Connect Tab */}
             <button
               type="button"
               onClick={() => setConnectModule('connect')}
-              className={`pb-2.5 text-xs font-bold flex items-center gap-2 relative transition-all cursor-pointer ${
+              className={`pb-2.5 text-xs font-bold flex items-center gap-2 relative transition-all cursor-pointer whitespace-nowrap ${
                 connectModule === 'connect'
                   ? 'text-rose-600 dark:text-rose-400 font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <MessageSquare size={14} />
-              <span>CareOrbit Connect</span>
-              {unreadMessagesCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full font-mono text-[9px] font-black bg-rose-600 text-white">
-                  {unreadMessagesCount}
-                </span>
-              )}
+              <div className="relative flex items-center gap-1.5">
+                <MessageSquare size={14} />
+                <span>CareOrbit Connect</span>
+                {unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1.5 -right-3 min-w-[17px] h-[17px] px-1 rounded-full font-mono text-[9px] font-black bg-rose-600 text-white flex items-center justify-center ring-2 ring-white dark:ring-charcoal-900 shadow-2xs">
+                    {unreadMessagesCount}
+                  </span>
+                )}
+              </div>
               {connectModule === 'connect' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600 rounded-full" />
               )}
@@ -101,19 +103,21 @@ export const ConnectAndPlannerSuite: React.FC = () => {
             <button
               type="button"
               onClick={() => setConnectModule('planner')}
-              className={`pb-2.5 text-xs font-bold flex items-center gap-2 relative transition-all cursor-pointer ${
+              className={`pb-2.5 text-xs font-bold flex items-center gap-2 relative transition-all cursor-pointer whitespace-nowrap ${
                 connectModule === 'planner'
                   ? 'text-rose-600 dark:text-rose-400 font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Calendar size={14} />
-              <span>CareOrbit Planner</span>
-              {pendingPlannerCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full font-mono text-[9px] font-black bg-amber-500 text-white">
-                  {pendingPlannerCount}
-                </span>
-              )}
+              <div className="relative flex items-center gap-1.5">
+                <Calendar size={14} />
+                <span>CareOrbit Planner</span>
+                {pendingPlannerCount > 0 && (
+                  <span className="absolute -top-1.5 -right-3 min-w-[17px] h-[17px] px-1 rounded-full font-mono text-[9px] font-black bg-amber-500 text-white flex items-center justify-center ring-2 ring-white dark:ring-charcoal-900 shadow-2xs">
+                    {pendingPlannerCount}
+                  </span>
+                )}
+              </div>
               {connectModule === 'planner' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600 rounded-full" />
               )}

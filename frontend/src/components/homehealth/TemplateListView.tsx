@@ -271,7 +271,7 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({ onBack }) =>
             </span>
 
             {/* Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={() => setIsNewTemplateModalOpen(true)}
@@ -320,132 +320,133 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({ onBack }) =>
 
         {/* Templates Table Card */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
-            <thead>
-              <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
-                <th className="py-2.5 px-4">Name ▲</th>
-                <th className="py-2.5 px-4 w-36">Created</th>
-                <th className="py-2.5 px-4 w-36">Modified</th>
-                <th className="py-2.5 pr-6 text-right w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTemplates.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400">
-                    No templates found matching "{searchQuery}".
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[550px]">
+              <thead>
+                <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
+                  <th className="py-2.5 px-4">Name ▲</th>
+                  <th className="py-2.5 px-4 w-36">Created</th>
+                  <th className="py-2.5 px-4 w-36">Modified</th>
+                  <th className="py-2.5 pr-6 text-right w-24">Actions</th>
                 </tr>
-              ) : (
-                filteredTemplates.map((template) => {
-                  const isEditing = editingTemplateId === template.id;
+              </thead>
+              <tbody>
+                {filteredTemplates.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-slate-400">
+                      No templates found matching "{searchQuery}".
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTemplates.map((template) => {
+                    const isEditing = editingTemplateId === template.id;
 
-                  return (
-                    <React.Fragment key={template.id}>
-                      {/* Normal Table Row */}
-                      <tr
-                        className={`border-b border-pearl-150 transition-colors ${
-                          isEditing
+                    return (
+                      <React.Fragment key={template.id}>
+                        {/* Normal Table Row */}
+                        <tr
+                          className={`border-b border-pearl-150 transition-colors ${isEditing
                             ? 'bg-rose-50/50 dark:bg-rose-950/20'
                             : 'hover:bg-pearl-50/70 dark:border-charcoal-700/60 dark:hover:bg-charcoal-750/50'
-                        }`}
-                      >
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white truncate">
-                          {template.name}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                          {template.created}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                          {template.modified}
-                        </td>
-                        <td className="py-3 pr-6 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              title="Edit Template"
-                              onClick={() => {
-                                if (isEditing) handleCancelEdit();
-                                else handleStartEdit(template);
-                              }}
-                              className="rounded p-1 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              title="Delete Template"
-                              onClick={() => handleDelete(template.id, template.name)}
-                              className="rounded p-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Inline Edit View (Matching Screenshot 6) */}
-                      {isEditing && (
-                        <tr className="border-b border-pearl-200 bg-pearl-50/60 dark:border-charcoal-700 dark:bg-charcoal-850/60">
-                          <td colSpan={4} className="p-4 sm:p-6">
-                            <div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-md dark:border-charcoal-600 dark:bg-charcoal-800 space-y-4">
-                              {/* Name Input */}
-                              <div>
-                                <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                                  Name <span className="text-rose-600">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  className="h-9 w-full sm:max-w-md rounded-xl border border-pearl-300 bg-white px-3 text-xs text-slate-800 focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-100"
-                                />
-                              </div>
-
-                              {/* Textarea */}
-                              <div>
-                                <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                                  Text <span className="text-rose-600">*</span>
-                                </label>
-                                <textarea
-                                  rows={7}
-                                  maxLength={5000}
-                                  value={editText}
-                                  onChange={(e) => setEditText(e.target.value)}
-                                  className="w-full rounded-xl border border-pearl-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-100"
-                                />
-                                <div className="mt-1 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                  You have <span className="font-bold text-slate-900 dark:text-white">{5000 - editText.length}</span> characters remaining.
-                                </div>
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="flex items-center justify-center gap-2 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSaveEdit(template.id)}
-                                  className="inline-flex h-9 items-center justify-center rounded-xl bg-rose-700 hover:bg-rose-800 px-6 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleCancelEdit}
-                                  className="inline-flex h-9 items-center justify-center rounded-xl border border-pearl-300 bg-white hover:bg-pearl-100 px-6 text-xs font-bold text-slate-700 shadow-2xs transition active:scale-95 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200 cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
+                            }`}
+                        >
+                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white truncate">
+                            {template.name}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                            {template.created}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                            {template.modified}
+                          </td>
+                          <td className="py-3 pr-6 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                title="Edit Template"
+                                onClick={() => {
+                                  if (isEditing) handleCancelEdit();
+                                  else handleStartEdit(template);
+                                }}
+                                className="rounded p-1 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                title="Delete Template"
+                                onClick={() => handleDelete(template.id, template.name)}
+                                className="rounded p-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+
+                        {/* Inline Edit View (Matching Screenshot 6) */}
+                        {isEditing && (
+                          <tr className="border-b border-pearl-200 bg-pearl-50/60 dark:border-charcoal-700 dark:bg-charcoal-850/60">
+                            <td colSpan={4} className="p-4 sm:p-6">
+                              <div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-md dark:border-charcoal-600 dark:bg-charcoal-800 space-y-4">
+                                {/* Name Input */}
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    Name <span className="text-rose-600">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="h-9 w-full sm:max-w-md rounded-xl border border-pearl-300 bg-white px-3 text-xs text-slate-800 focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-100"
+                                  />
+                                </div>
+
+                                {/* Textarea */}
+                                <div>
+                                  <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    Text <span className="text-rose-600">*</span>
+                                  </label>
+                                  <textarea
+                                    rows={7}
+                                    maxLength={5000}
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    className="w-full rounded-xl border border-pearl-300 bg-white p-3 font-mono text-xs text-slate-800 focus:border-rose-500 focus:outline-none dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-100"
+                                  />
+                                  <div className="mt-1 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    You have <span className="font-bold text-slate-900 dark:text-white">{5000 - editText.length}</span> characters remaining.
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center justify-center gap-2 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEdit(template.id)}
+                                    className="inline-flex h-9 items-center justify-center rounded-xl bg-rose-700 hover:bg-rose-800 px-6 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="inline-flex h-9 items-center justify-center rounded-xl border border-pearl-300 bg-white hover:bg-pearl-100 px-6 text-xs font-bold text-slate-700 shadow-2xs transition active:scale-95 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200 cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

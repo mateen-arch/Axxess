@@ -20,6 +20,7 @@ import {
   Question,
   CaretDown,
   CaretRight,
+  X as CloseIcon,
 } from '@phosphor-icons/react';
 import { CareOrbitLogo } from '../../assets/CareOrbitLogo';
 import { useHealthcare } from '../../context/HealthcareContext';
@@ -253,7 +254,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
     patients,
     conversations,
     theme,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
   } = useHealthcare();
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setIsOpen(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const widthSpring = useSpring(isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH, {
     stiffness: 280,
@@ -261,6 +279,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   });
 
   function toggle() {
+    if (isMobile) {
+      setIsMobileSidebarOpen(false);
+      return;
+    }
     const next = !isOpen;
     setIsOpen(next);
     widthSpring.set(next ? EXPANDED_WIDTH : COLLAPSED_WIDTH);
@@ -399,88 +421,124 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <motion.aside
-      style={{ width: widthSpring }}
-      className="relative shrink-0 h-screen sticky top-0 p-2 z-40 select-none overflow-visible flex flex-col"
-    >
-      {/* Frosted Glass Outer Container */}
-      <div
-        className="relative isolate flex h-full flex-col items-center justify-between overflow-visible rounded-3xl p-3 transition-colors"
-        style={glassStyle}
+    <>
+      {/* Mobile Dimmed Backdrop */}
+      <AnimatePresence>
+        {isMobile && isMobileSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden"
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.aside
+        style={{ width: isMobile ? 304 : widthSpring }}
+        className={`fixed inset-y-0 left-0 z-50 lg:relative lg:z-40 h-screen select-none overflow-visible flex flex-col p-2 transition-transform duration-300 ${
+          isMobile
+            ? isMobileSidebarOpen
+              ? 'translate-x-0'
+              : '-translate-x-full'
+            : 'translate-x-0 sticky top-0'
+        }`}
       >
-        {/* Pure Glass Blur Layer */}
+        {/* Frosted Glass Outer Container */}
         <div
-          className="pointer-events-none absolute inset-0 z-[-1] rounded-3xl"
-          style={GLASS_BLUR_STYLE}
-        />
-
-        {/* Top Section: Logo Header + Collapse Button + Agency Status */}
-        <div className="w-full flex flex-col gap-2.5">
-          {/* Brand Header with Circular Collapse Button */}
+          className="relative isolate flex h-full flex-col items-center justify-between overflow-visible rounded-3xl p-3 transition-colors"
+          style={glassStyle}
+        >
+          {/* Pure Glass Blur Layer */}
           <div
-            className={`flex w-full pt-1 px-1 transition-all ${
-              isOpen ? 'items-center justify-between' : 'flex-col items-center gap-2.5'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setCurrentWebsite('hub')}
-              className="flex cursor-pointer items-center border-0 bg-transparent p-0"
-              aria-label="Return to Portal Hub"
-              title="Return to Portal Hub"
-            >
-              <CareOrbitLogo size="sm" collapsed={!isOpen} productLabel={productLabel} />
-            </button>
+            className="pointer-events-none absolute inset-0 z-[-1] rounded-3xl"
+            style={GLASS_BLUR_STYLE}
+          />
 
-            {/* Circular Collapse Toggle Button */}
-            <motion.button
-              type="button"
-              onClick={toggle}
-              onMouseEnter={() => setToggleHovered(true)}
-              onMouseLeave={() => setToggleHovered(false)}
-              animate={{ scale: toggleHovered ? 1.12 : 1 }}
-              whileTap={{ scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-              className="w-8 h-8 rounded-full flex shrink-0 items-center justify-center cursor-pointer transition-colors"
-              style={{
-                background:
-                  theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-                border:
-                  theme === 'dark'
-                    ? '1px solid rgba(255, 255, 255, 0.12)'
-                    : '1px solid rgba(0, 0, 0, 0.08)',
-                outline: 'none',
-              }}
-              aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              title={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          {/* Top Section: Logo Header + Collapse Button + Agency Status */}
+          <div className="w-full flex flex-col gap-2.5">
+            {/* Brand Header with Circular Collapse Button */}
+            <div
+              className={`flex w-full pt-1 px-1 transition-all ${
+                isOpen ? 'items-center justify-between' : 'flex-col items-center gap-2.5'
+              }`}
             >
-              <AnimatePresence mode="wait" initial={false}>
-                {isOpen ? (
-                  <motion.span
-                    key="left"
-                    initial={{ opacity: 0, rotate: 90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: -90 }}
-                    transition={{ duration: 0.16 }}
-                    className="flex items-center justify-center text-slate-700 dark:text-slate-300"
-                  >
-                    <ArrowLeft size={15} weight="bold" />
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="right"
-                    initial={{ opacity: 0, rotate: -90 }}
-                    animate={{ opacity: 1, rotate: 0 }}
-                    exit={{ opacity: 0, rotate: 90 }}
-                    transition={{ duration: 0.16 }}
-                    className="flex items-center justify-center text-slate-700 dark:text-slate-300"
-                  >
-                    <ArrowRight size={15} weight="bold" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentWebsite('hub');
+                  if (isMobile) setIsMobileSidebarOpen(false);
+                }}
+                className="flex cursor-pointer items-center border-0 bg-transparent p-0"
+                aria-label="Return to Portal Hub"
+                title="Return to Portal Hub"
+              >
+                <CareOrbitLogo size="sm" collapsed={!isOpen && !isMobile} productLabel={productLabel} />
+              </button>
+
+              {/* Circular Collapse Toggle Button on desktop, or Close button on mobile */}
+              <motion.button
+                type="button"
+                onClick={toggle}
+                onMouseEnter={() => setToggleHovered(true)}
+                onMouseLeave={() => setToggleHovered(false)}
+                animate={{ scale: toggleHovered ? 1.12 : 1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 20 }}
+                className="w-8 h-8 rounded-full flex shrink-0 items-center justify-center cursor-pointer transition-colors"
+                style={{
+                  background:
+                    theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  border:
+                    theme === 'dark'
+                      ? '1px solid rgba(255, 255, 255, 0.12)'
+                      : '1px solid rgba(0, 0, 0, 0.08)',
+                  outline: 'none',
+                }}
+                aria-label={isMobile ? 'Close menu' : isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                title={isMobile ? 'Close menu' : isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {isMobile ? (
+                    <motion.span
+                      key="close"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.16 }}
+                      className="flex items-center justify-center text-slate-700 dark:text-slate-300"
+                    >
+                      <CloseIcon size={16} weight="bold" />
+                    </motion.span>
+                  ) : isOpen ? (
+                    <motion.span
+                      key="left"
+                      initial={{ opacity: 0, rotate: 90 }}
+                      animate={{ opacity: 1, rotate: 0 }}
+                      exit={{ opacity: 0, rotate: -90 }}
+                      transition={{ duration: 0.16 }}
+                      className="flex items-center justify-center text-slate-700 dark:text-slate-300"
+                    >
+                      <ArrowLeft size={15} weight="bold" />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="right"
+                      initial={{ opacity: 0, rotate: -90 }}
+                      animate={{ opacity: 1, rotate: 0 }}
+                      exit={{ opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.16 }}
+                      className="flex items-center justify-center text-slate-700 dark:text-slate-300"
+                    >
+                      <ArrowRight size={15} weight="bold" />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </div>
 
           {/* Agency Badge / Card */}
           <AnimatePresence mode="wait">
@@ -664,7 +722,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                               <button
                                                 key={subChild.id}
                                                 type="button"
-                                                onClick={() => onTabChange?.(subChild.id)}
+                                                onClick={() => {
+                                                  onTabChange?.(subChild.id);
+                                                  if (isMobile) setIsMobileSidebarOpen(false);
+                                                }}
                                                 className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-[11px] transition cursor-pointer ${
                                                   isSubActive
                                                     ? 'bg-rose-50 font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50'
@@ -687,7 +748,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => onTabChange?.(child.id)}
+                                    onClick={() => {
+                                      onTabChange?.(child.id);
+                                      if (isMobile) setIsMobileSidebarOpen(false);
+                                    }}
                                     className={`flex w-full items-center justify-between py-1.5 px-2.5 rounded-xl text-xs transition cursor-pointer ${
                                       isChildActive
                                         ? 'bg-rose-50 font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50'
@@ -744,6 +808,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                           onClick={() => {
                                             setCollapsedHoverSection(null);
                                             onTabChange?.(sub.id);
+                                            if (isMobile) setIsMobileSidebarOpen(false);
                                           }}
                                           className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
                                             sub.id === currentTab
@@ -767,6 +832,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     onClick={() => {
                                       setCollapsedHoverSection(null);
                                       onTabChange?.(child.id);
+                                      if (isMobile) setIsMobileSidebarOpen(false);
                                     }}
                                     className={`flex w-full items-center justify-between py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                                       child.id === currentTab
@@ -799,11 +865,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             connectNavItems.map((item, index) => (
               <NavItemRow
                 key={item.id}
-                item={item}
+                item={{
+                  ...item,
+                  onAction: item.onAction
+                    ? () => {
+                        item.onAction!();
+                        if (isMobile) setIsMobileSidebarOpen(false);
+                      }
+                    : undefined,
+                }}
                 index={index}
                 isActive={connectModule === item.id}
                 isOpen={isOpen}
-                onActivate={() => setConnectModule(item.id as any)}
+                onActivate={() => {
+                  setConnectModule(item.id as any);
+                  if (isMobile) setIsMobileSidebarOpen(false);
+                }}
                 theme={theme}
               />
             ))
@@ -818,7 +895,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 index={index}
                 isActive={activeNavTab === item.id}
                 isOpen={isOpen}
-                onActivate={() => setActiveNavTab(item.id)}
+                onActivate={() => {
+                  setActiveNavTab(item.id);
+                  if (isMobile) setIsMobileSidebarOpen(false);
+                }}
                 theme={theme}
               />
             ))
@@ -887,5 +967,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </motion.aside>
+    </>
   );
 };

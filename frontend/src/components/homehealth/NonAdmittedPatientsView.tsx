@@ -370,9 +370,9 @@ export const NonAdmittedPatientsView: React.FC<NonAdmittedPatientsViewProps> = (
         {/* Table Card - Beautifully framed columns without horizontal scrollbars */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white shadow-sm dark:border-charcoal-700/80 dark:bg-charcoal-800">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse table-fixed">
+            <table className="w-full text-left text-xs border-collapse min-w-[850px]">
               <thead>
-                <tr className="border-b border-pearl-200 bg-pearl-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+                <tr className="border-b border-pearl-200 bg-pearl-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
                   <th
                     onClick={() => handleSort('mrn')}
                     className="py-3 px-3 w-16 cursor-pointer hover:text-rose-700 transition"

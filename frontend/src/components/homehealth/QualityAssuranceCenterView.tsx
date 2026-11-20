@@ -550,7 +550,7 @@ export const QualityAssuranceCenterView: React.FC<QualityAssuranceCenterViewProp
             </div>
 
             {/* Donut Meters calculated directly from real database records */}
-            <div className="flex items-center gap-6 self-start lg:self-auto">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 self-start lg:self-auto">
               {/* PENDING METER */}
               <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 p-2.5 pr-4 dark:border-sky-900/40 dark:bg-sky-950/20">
                 <div className="relative flex h-14 w-14 items-center justify-center">
@@ -864,7 +864,7 @@ export const QualityAssuranceCenterView: React.FC<QualityAssuranceCenterViewProp
             {/* Action Strip: Grouping Tabs & Batch Actions */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-pearl-200/80 bg-white/90 p-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/90">
               {/* Grouping Modes */}
-              <div className="flex items-center gap-1 rounded-lg bg-pearl-100 p-1 dark:bg-charcoal-700">
+              <div className="flex flex-wrap items-center gap-1 rounded-lg bg-pearl-100 p-1 dark:bg-charcoal-700">
                 {(['Patient', 'Date', 'Task', 'Clinician'] as const).map((mode) => (
                   <button
                     key={mode}
@@ -882,7 +882,7 @@ export const QualityAssuranceCenterView: React.FC<QualityAssuranceCenterViewProp
               </div>
 
               {/* Batch Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleDeleteSelected}
@@ -916,7 +916,7 @@ export const QualityAssuranceCenterView: React.FC<QualityAssuranceCenterViewProp
             {/* Quality Assurance Table Container */}
             <div className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-850/95">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[700px]">
                   <thead className="border-b border-pearl-200 bg-pearl-50 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300">
                     <tr>
                       <th className="w-8 py-3.5 pl-3">

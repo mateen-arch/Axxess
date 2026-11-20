@@ -3,8 +3,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:AbdulMateenBaig05@localhost:5432/careorbit';
+const isProduction = process.env.NODE_ENV === 'production';
+const isInternalRailway = connectionString.includes('railway.internal') || connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:AbdulMateenBaig05@localhost:5432/careorbit',
+  connectionString,
+  ssl: isProduction && !isInternalRailway ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on('error', (err) => {

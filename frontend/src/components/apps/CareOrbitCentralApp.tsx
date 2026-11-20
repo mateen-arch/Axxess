@@ -49,12 +49,12 @@ export const CareOrbitCentralApp: React.FC = () => {
         </main>
 
         {/* Modern Enterprise Status Footer */}
-        <footer className="app-footer mt-auto py-3.5 px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] transition-colors">
-          <div className="flex items-center gap-3">
+        <footer className="app-footer mt-auto py-3.5 px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-2 text-[11px] text-center md:text-left transition-colors">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3">
             <span className="font-extrabold text-slate-800 dark:text-slate-200">CareOrbit Central Healthcare</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span>Release Version: {organization.releaseVersion}</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Environment: {organization.environment}

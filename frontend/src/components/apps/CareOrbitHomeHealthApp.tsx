@@ -18,6 +18,7 @@ import {
   Stethoscope,
   AlertTriangle,
   Microscope,
+  Menu,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { HomeHealthSidebar } from '../homehealth/HomeHealthSidebar';
@@ -97,6 +98,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     patients,
     addNewPatient,
     setIsCommandPaletteOpen,
+    setIsMobileSidebarOpen,
   } = useHealthcare();
 
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -454,6 +456,17 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
         {/* Modern Sticky Top Header */}
         <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-pearl-200 bg-white/80 px-3 backdrop-blur-xl transition-colors dark:border-charcoal-700 dark:bg-charcoal-900/80 sm:gap-4 sm:px-6">
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            {/* Mobile Sidebar Hamburger Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(prev => !prev)}
+              className="lg:hidden h-9 w-9 rounded-xl flex items-center justify-center text-slate-700 dark:text-slate-200 bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 hover:border-rose-500 hover:text-rose-600 transition-colors shrink-0 cursor-pointer shadow-2xs"
+              aria-label="Open navigation menu"
+              title="Open navigation menu"
+            >
+              <Menu size={18} />
+            </button>
+
             <button
               type="button"
               onClick={() => setIsAppSwitcherOpen(true)}
@@ -465,8 +478,8 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
               <span className="hidden md:inline">Apps</span>
             </button>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-              <h1 className="whitespace-nowrap text-lg font-black tracking-tight text-slate-950 dark:text-white sm:text-2xl">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <h1 className="truncate text-base font-black tracking-tight text-slate-950 dark:text-white sm:text-xl md:text-2xl">
                 CareOrbit Home Health
               </h1>
               {currentTab !== 'dashboard' && (
@@ -717,7 +730,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
         {/* Dynamic Content Body: Only renders actual created Home Health pages; all others show Coming Soon */}
         <main
           className={`min-h-0 flex-1 ${
-            isCreationTab ? 'overflow-y-auto p-0' : 'overflow-y-auto p-4 sm:p-6 lg:p-7'
+            isCreationTab ? 'overflow-y-auto p-0' : 'overflow-y-auto p-2 sm:p-4 lg:p-6'
           }`}
         >
           {currentTab === 'dashboard' && (

@@ -21,7 +21,8 @@ import {
   Check,
   Sparkles,
   Info,
-  X
+  X,
+  ChevronLeft,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { api } from '../../services/api';
@@ -48,6 +49,7 @@ export const CareOrbitConnectView: React.FC = () => {
 
   // Rail State: 'chat' | 'calls'
   const [activeRailTab, setActiveRailTab] = useState<'chat' | 'calls'>('chat');
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   // Filter & Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -283,17 +285,20 @@ export const CareOrbitConnectView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[760px] max-h-[82vh] bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden animate-fadeIn">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-8.5rem)] min-h-[520px] lg:h-[760px] lg:max-h-[82vh] bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden animate-fadeIn">
       {/* ================================================================= */}
       {/* 1. LEFT NARROW ICON RAIL                                          */}
       {/* ================================================================= */}
-      <div className="w-full lg:w-20 bg-pearl-50/90 dark:bg-charcoal-900 border-b lg:border-b-0 lg:border-r border-pearl-200 dark:border-charcoal-700 p-2.5 flex lg:flex-col items-center justify-between lg:justify-start gap-3 shrink-0">
+      <div className="w-full lg:w-20 bg-pearl-50/90 dark:bg-charcoal-900 border-b lg:border-b-0 lg:border-r border-pearl-200 dark:border-charcoal-700 p-2 lg:p-2.5 flex lg:flex-col items-center justify-between lg:justify-start gap-3 shrink-0">
         <div className="flex lg:flex-col items-center gap-2 w-full">
           {/* Chat Rail Tab */}
           <button
             type="button"
-            onClick={() => setActiveRailTab('chat')}
-            className={`w-full py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
+            onClick={() => {
+              setActiveRailTab('chat');
+              setMobileShowChat(false);
+            }}
+            className={`w-full py-2 lg:py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
               activeRailTab === 'chat'
                 ? 'bg-white dark:bg-charcoal-800 text-rose-600 dark:text-rose-400 shadow-xs border border-pearl-200/80 dark:border-charcoal-650'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-pearl-100 dark:hover:bg-charcoal-800'
@@ -317,7 +322,7 @@ export const CareOrbitConnectView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveRailTab('calls')}
-            className={`w-full py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
+            className={`w-full py-2 lg:py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
               activeRailTab === 'calls'
                 ? 'bg-white dark:bg-charcoal-800 text-rose-600 dark:text-rose-400 shadow-xs border border-pearl-200/80 dark:border-charcoal-650'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-pearl-100 dark:hover:bg-charcoal-800'
@@ -342,9 +347,11 @@ export const CareOrbitConnectView: React.FC = () => {
       {/* 2. CHAT TAB VIEW                                                  */}
       {/* ================================================================= */}
       {activeRailTab === 'chat' ? (
-        <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full">
+        <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden">
           {/* Conversation Roster List (Left pane) */}
-          <div className="w-full md:w-80 lg:w-96 border-r border-pearl-200 dark:border-charcoal-700 flex flex-col shrink-0 bg-pearl-50/40 dark:bg-charcoal-850/60">
+          <div className={`w-full md:w-80 lg:w-96 border-r border-pearl-200 dark:border-charcoal-700 flex flex-col shrink-0 bg-pearl-50/40 dark:bg-charcoal-850/60 h-full ${
+            mobileShowChat ? 'hidden md:flex' : 'flex'
+          }`}>
             {/* Roster Header with Title & Action Icons */}
             <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between relative">
               <div className="flex items-center gap-2">
@@ -500,7 +507,10 @@ export const CareOrbitConnectView: React.FC = () => {
                   return (
                     <div
                       key={conv.id}
-                      onClick={() => setActiveConversationId(conv.id)}
+                      onClick={() => {
+                        setActiveConversationId(conv.id);
+                        setMobileShowChat(true);
+                      }}
                       className={`p-3 rounded-xl transition-all cursor-pointer flex items-start gap-3 relative ${
                         isSelected
                           ? 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/40 shadow-xs'
@@ -558,25 +568,38 @@ export const CareOrbitConnectView: React.FC = () => {
           </div>
 
           {/* Chat Message Active Pane (Right pane) */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-charcoal-850 h-full">
+          <div className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-charcoal-850 h-full ${
+            !mobileShowChat ? 'hidden md:flex' : 'flex'
+          }`}>
             {activeConversation ? (
               <>
                 {/* Active Chat Header */}
-                <div className="p-3.5 px-5 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/50 dark:bg-charcoal-800/50">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 font-black flex items-center justify-center shrink-0">
+                <div className="p-3 px-3 sm:px-5 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/50 dark:bg-charcoal-800/50 gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    {/* Mobile Back Button to return to conversation list */}
+                    <button
+                      type="button"
+                      onClick={() => setMobileShowChat(false)}
+                      className="md:hidden p-1.5 -ml-1 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-pearl-200 dark:hover:bg-charcoal-700 transition-colors shrink-0 cursor-pointer"
+                      title="Back to conversations"
+                      aria-label="Back to conversations"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 font-black flex items-center justify-center shrink-0">
                       {activeConversation.type === 'care_team' ? <Users size={18} /> : activeConversation.title.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                           {activeConversation.title}
                         </h4>
-                        <span className="px-2 py-0.2 rounded text-[9.5px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 shrink-0">
+                        <span className="hidden sm:inline-block px-2 py-0.2 rounded text-[9.5px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 shrink-0">
                           {activeConversation.serviceLine?.replace('_', ' ') || 'Home Health'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
                         {activeConversation.subtitle || 'Active Secure Channel'}
                       </p>
                     </div>

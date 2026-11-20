@@ -239,7 +239,7 @@ export const MissedVisitsListView: React.FC<MissedVisitsListViewProps> = ({ onBa
             </div>
 
             {/* Right Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={handleExportToExcel}
@@ -271,10 +271,10 @@ export const MissedVisitsListView: React.FC<MissedVisitsListViewProps> = ({ onBa
 
         {/* Table Card */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95">
-          <div className="w-full">
-            <table className="w-full text-left border-collapse text-xs table-fixed">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[840px]">
               <thead>
-                <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+                <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
                   <th className="py-2.5 px-4 w-48">Patient Name ▲</th>
                   <th className="py-2.5 px-4 w-24">MRN</th>
                   <th className="py-2.5 px-4 w-28">Visit Date</th>
@@ -349,11 +349,10 @@ export const MissedVisitsListView: React.FC<MissedVisitsListViewProps> = ({ onBa
                     key={pageNum}
                     type="button"
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      currentPage === pageNum
-                        ? 'bg-rose-700 text-white shadow-2xs'
-                        : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200'
-                    }`}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                      ? 'bg-rose-700 text-white shadow-2xs'
+                      : 'border border-pearl-300 bg-white text-slate-700 hover:bg-pearl-100 dark:border-charcoal-600 dark:bg-charcoal-700 dark:text-slate-200'
+                      }`}
                   >
                     {pageNum}
                   </button>

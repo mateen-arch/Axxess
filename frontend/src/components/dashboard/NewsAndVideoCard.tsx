@@ -11,19 +11,21 @@ export const NewsAndVideoCard: React.FC = () => {
   return (
     <div className="glass-panel p-5 flex flex-col justify-between h-full transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-pearl-200 dark:border-charcoal-700">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-pearl-200 dark:border-charcoal-700">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+          <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 shrink-0">
             <Newspaper size={18} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold text-slate-800 dark:text-white text-sm">Care Intelligence & Industry News</h3>
             <span className="text-[11px] text-slate-400 dark:text-slate-500">Continuing education & clinical best practices</span>
           </div>
         </div>
-        <span className="badge badge-crimson text-xs">
-          <Sparkles size={11} /> AI Insights
-        </span>
+        <div className="flex items-center self-start sm:self-auto pl-9 sm:pl-0">
+          <span className="badge badge-crimson text-xs">
+            <Sparkles size={11} /> AI Insights
+          </span>
+        </div>
       </div>
 
       {/* Main Grid: Video Spotlight on Left/Top + News Feed on Right */}

@@ -190,7 +190,7 @@ export const IncidentLogsListView: React.FC<IncidentLogsListViewProps> = ({
             </div>
 
             {/* Right Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={onNewIncidentLog}
@@ -230,96 +230,98 @@ export const IncidentLogsListView: React.FC<IncidentLogsListViewProps> = ({
 
         {/* Incidents Table / Real Data & Empty State matching Screenshot 9 */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
-            <thead>
-              <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
-                <th className="py-2.5 px-4 w-48">Patient Name</th>
-                <th className="py-2.5 px-4 w-44">Branch</th>
-                <th className="py-2.5 px-4 w-44">Physician</th>
-                <th className="py-2.5 px-4">Type of Incident</th>
-                <th className="py-2.5 px-4 w-32">Incident Date</th>
-                <th className="py-2.5 px-3 w-28">Status</th>
-                <th className="py-2.5 pr-6 text-right w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIncidents.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-24 text-center">
-                    <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
-                      <AlertOctagon className="h-10 w-10 text-slate-300 dark:text-charcoal-600 mb-2" />
-                      <h2 className="text-base font-bold text-slate-700 dark:text-slate-200">
-                        No Incidents Found.
-                      </h2>
-                      <p className="mt-1 text-xs text-slate-400">
-                        No clinical safety incidents or fall logs have been filed for the specified date range.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={onNewIncidentLog}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-800 transition active:scale-95 cursor-pointer"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Create New Incident Log
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[780px]">
+              <thead>
+                <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
+                  <th className="py-2.5 px-4 w-48">Patient Name</th>
+                  <th className="py-2.5 px-4 w-44">Branch</th>
+                  <th className="py-2.5 px-4 w-44">Physician</th>
+                  <th className="py-2.5 px-4">Type of Incident</th>
+                  <th className="py-2.5 px-4 w-32">Incident Date</th>
+                  <th className="py-2.5 px-3 w-28">Status</th>
+                  <th className="py-2.5 pr-6 text-right w-24">Actions</th>
                 </tr>
-              ) : (
-                filteredIncidents.map((inc) => (
-                  <tr
-                    key={inc.id}
-                    className="border-b border-pearl-200/60 hover:bg-rose-50/20 dark:border-charcoal-700/60 dark:hover:bg-charcoal-750/30 transition-colors"
-                  >
-                    <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-100">
-                      <div>{inc.patientName}</div>
-                      <div className="text-[10px] font-normal text-slate-400">MRN: {inc.mrn}</div>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-medium">
-                      {inc.branch || 'Standards Home Care'}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                      {inc.physician || 'Attending Physician'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50">
-                          <AlertOctagon className="h-3 w-3" />
-                          {inc.incidentType}
-                        </span>
-                        {inc.injurySustained && (
-                          <span className="inline-flex items-center rounded-lg bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
-                            Injury
-                          </span>
-                        )}
+              </thead>
+              <tbody>
+                {filteredIncidents.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-24 text-center">
+                      <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
+                        <AlertOctagon className="h-10 w-10 text-slate-300 dark:text-charcoal-600 mb-2" />
+                        <h2 className="text-base font-bold text-slate-700 dark:text-slate-200">
+                          No Incidents Found.
+                        </h2>
+                        <p className="mt-1 text-xs text-slate-400">
+                          No clinical safety incidents or fall logs have been filed for the specified date range.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={onNewIncidentLog}
+                          className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-800 transition active:scale-95 cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Create New Incident Log
+                        </button>
                       </div>
-                      {inc.narrative && (
-                        <div className="mt-1 line-clamp-1 text-[11px] text-slate-400">
-                          {inc.narrative}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-200 font-medium">
-                      <div>{inc.incidentDate}</div>
-                      {inc.incidentTime && (
-                        <div className="text-[10px] text-slate-400">{inc.incidentTime}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-charcoal-700 dark:text-slate-300">
-                        {inc.status || 'Under Review'}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-6 text-right">
-                      <span className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer">
-                        View
-                      </span>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredIncidents.map((inc) => (
+                    <tr
+                      key={inc.id}
+                      className="border-b border-pearl-200/60 hover:bg-rose-50/20 dark:border-charcoal-700/60 dark:hover:bg-charcoal-750/30 transition-colors"
+                    >
+                      <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-100">
+                        <div>{inc.patientName}</div>
+                        <div className="text-[10px] font-normal text-slate-400">MRN: {inc.mrn}</div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-medium">
+                        {inc.branch || 'Standards Home Care'}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                        {inc.physician || 'Attending Physician'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50">
+                            <AlertOctagon className="h-3 w-3" />
+                            {inc.incidentType}
+                          </span>
+                          {inc.injurySustained && (
+                            <span className="inline-flex items-center rounded-lg bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+                              Injury
+                            </span>
+                          )}
+                        </div>
+                        {inc.narrative && (
+                          <div className="mt-1 line-clamp-1 text-[11px] text-slate-400">
+                            {inc.narrative}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-200 font-medium">
+                        <div>{inc.incidentDate}</div>
+                        {inc.incidentTime && (
+                          <div className="text-[10px] text-slate-400">{inc.incidentTime}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-charcoal-700 dark:text-slate-300">
+                          {inc.status || 'Under Review'}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-6 text-right">
+                        <span className="text-[11px] font-bold text-rose-600 hover:text-rose-700 cursor-pointer">
+                          View
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

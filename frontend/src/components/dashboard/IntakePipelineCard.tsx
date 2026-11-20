@@ -8,23 +8,25 @@ export const IntakePipelineCard: React.FC = () => {
   return (
     <div className="glass-panel p-6 flex flex-col justify-between h-full transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-pearl-200 dark:border-charcoal-700">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3.5 border-b border-pearl-200 dark:border-charcoal-700">
         <div className="flex items-center gap-2.5">
-          <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400">
+          <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 shrink-0">
             <UserCheck size={19} className="stroke-[2.2]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-extrabold text-slate-950 dark:text-white text-base">Central Intake (Past 30 Days)</h3>
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Referrals conversion & admission velocity</span>
           </div>
         </div>
-        <button
-          onClick={() => setActiveNavTab('intake')}
-          className="text-xs font-extrabold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 group"
-        >
-          <span>Intake Hub</span>
-          <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-        </button>
+        <div className="flex items-center self-start sm:self-auto pl-12 sm:pl-0">
+          <button
+            onClick={() => setActiveNavTab('intake')}
+            className="text-xs font-extrabold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 group cursor-pointer"
+          >
+            <span>Intake Hub</span>
+            <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </button>
+        </div>
       </div>
 
       {/* Table / Metric Rows */}

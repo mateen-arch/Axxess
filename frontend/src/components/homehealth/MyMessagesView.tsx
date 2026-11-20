@@ -63,6 +63,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
   const [selectedMessageId, setSelectedMessageId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedForBatch, setSelectedForBatch] = useState<string[]>([]);
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   // Pagination State (Dynamic Page Numbers)
   const [currentPage, setCurrentPage] = useState(1);
@@ -140,6 +141,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
   // Handle message selection & mark read in DB
   const handleSelectMessage = async (msg: MessageItemData) => {
     setSelectedMessageId(msg.id);
+    setMobileShowDetail(true);
     if (!msg.isRead) {
       setMessages((prev) =>
         prev.map((m) => (m.id === msg.id ? { ...m, isRead: true } : m))
@@ -337,7 +339,7 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
       {/* 2. Main 2-Pane Messaging Workspace */}
       <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden">
         {/* Left Pane: Folder Navigation & Message List */}
-        <div className="flex w-full md:w-[420px] lg:w-[460px] shrink-0 flex-col border-b md:border-b-0 md:border-r border-pearl-200/90 bg-white/70 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/70">
+        <div className={`w-full md:w-[420px] lg:w-[460px] shrink-0 flex-col border-b md:border-b-0 md:border-r border-pearl-200/90 bg-white/70 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/70 ${mobileShowDetail ? 'hidden md:flex' : 'flex'}`}>
           {/* Top Folder Bar & Actions */}
           <div className="p-3 border-b border-pearl-200/80 dark:border-charcoal-700/80 space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -523,11 +525,20 @@ export const MyMessagesView: React.FC<MyMessagesViewProps> = ({ onBack, onCompos
         </div>
 
         {/* Right Pane: Message Viewer & Thread */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white/50 dark:bg-charcoal-850/50">
+        <div className={`min-w-0 flex-1 flex-col overflow-hidden bg-white/50 dark:bg-charcoal-850/50 ${!mobileShowDetail ? 'hidden md:flex' : 'flex'}`}>
           {selectedMessage ? (
             <div className="flex h-full flex-col overflow-y-auto">
               {/* Message Header & Action Bar */}
               <div className="border-b border-pearl-200/90 p-4 sm:p-5 dark:border-charcoal-700/80 bg-white/80 dark:bg-charcoal-900/80 space-y-4">
+                {/* Mobile Back Button */}
+                <button
+                  type="button"
+                  onClick={() => setMobileShowDetail(false)}
+                  className="md:hidden inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 mb-1 cursor-pointer"
+                >
+                  <ChevronLeft size={16} />
+                  <span>Back to message list</span>
+                </button>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   {/* Action Buttons: Reply, Reply to All, Forward, Delete, Print */}
                   <div className="flex flex-wrap items-center gap-1.5">

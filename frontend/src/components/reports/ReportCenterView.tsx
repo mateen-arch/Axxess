@@ -488,22 +488,20 @@ export const ReportCenterView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setReportFormat('excel')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        reportFormat === 'excel'
-                          ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                      }`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${reportFormat === 'excel'
+                        ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                        }`}
                     >
                       Excel / CSV
                     </button>
                     <button
                       type="button"
                       onClick={() => setReportFormat('pdf')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        reportFormat === 'pdf'
-                          ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                      }`}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${reportFormat === 'pdf'
+                        ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                        }`}
                     >
                       PDF
                     </button>
@@ -572,9 +570,9 @@ export const ReportCenterView: React.FC = () => {
               {/* Data Table */}
               <div className="glass-panel rounded-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse table-fixed min-w-[1100px]">
+                  <table className="w-full text-left border-collapse min-w-[1050px]">
                     <thead>
-                      <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+                      <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none whitespace-nowrap">
                         <th className="py-3.5 pl-6 pr-4 w-[16%]">Entity / Name</th>
                         <th className="py-3.5 px-4 w-[28%]">Task / Clinical Focus</th>
                         <th className="py-3.5 px-4 w-[12%]">Discipline / Line</th>
@@ -644,13 +642,12 @@ export const ReportCenterView: React.FC = () => {
                               <td className="py-3.5 pl-4 pr-6 text-center">
                                 <div className="flex items-center justify-center">
                                   <span
-                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap leading-none border shadow-2xs ${
-                                      isDone
-                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                        : isInProg
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-center whitespace-nowrap leading-none border shadow-2xs ${isDone
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                      : isInProg
                                         ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400'
                                         : 'border-rose-400/40 bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'
-                                    }`}
+                                      }`}
                                   >
                                     {row.status}
                                   </span>

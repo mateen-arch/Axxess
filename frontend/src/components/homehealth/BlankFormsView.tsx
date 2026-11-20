@@ -762,7 +762,7 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
             </div>
 
             {/* Right Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={() => {

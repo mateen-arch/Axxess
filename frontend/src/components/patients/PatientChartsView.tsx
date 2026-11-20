@@ -318,9 +318,9 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
       </div>
 
       {/* Main Container: Split View */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-[700px]">
         {/* Left Side: Filter Column & Patient Directory Cards */}
-        <aside className="w-72 shrink-0 bg-white dark:bg-charcoal-850 border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 overflow-y-auto">
+        <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-charcoal-850 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 max-h-64 lg:max-h-none overflow-y-auto">
           {/* Organization Select */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">

@@ -424,11 +424,10 @@ export const CareOrbitPlannerView: React.FC = () => {
                   key={day.date}
                   type="button"
                   onClick={() => setSelectedDate(day.date)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-rose-600 text-white shadow-2xs'
-                      : 'bg-white dark:bg-charcoal-750 text-slate-700 dark:text-slate-300 hover:bg-pearl-100 border border-pearl-200 dark:border-charcoal-650'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${isSelected
+                    ? 'bg-rose-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-charcoal-750 text-slate-700 dark:text-slate-300 hover:bg-pearl-100 border border-pearl-200 dark:border-charcoal-650'
+                    }`}
                 >
                   {day.label} {day.date.split('-')[2]}
                 </button>
@@ -478,18 +477,17 @@ export const CareOrbitPlannerView: React.FC = () => {
                     <div
                       key={v.id}
                       onClick={() => setSelectedVisitId(v.id)}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        selectedVisitId === v.id
-                          ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs'
-                          : 'border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 hover:bg-pearl-100/60'
-                      }`}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${selectedVisitId === v.id
+                        ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs'
+                        : 'border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 hover:bg-pearl-100/60'
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-7 h-7 rounded-lg bg-rose-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
                           {i + 1}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <span className="font-extrabold text-xs text-slate-900 dark:text-white">
                               {v.patientName}
                             </span>
@@ -544,7 +542,7 @@ export const CareOrbitPlannerView: React.FC = () => {
           {/* ================================================================ */}
           <div className="glass-panel rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs overflow-hidden bg-white dark:bg-charcoal-850">
             {/* Header */}
-            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/70 dark:bg-charcoal-800/60">
+            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-pearl-50/70 dark:bg-charcoal-800/60">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">
                   Unread Messages ({unreadMessages.length})
@@ -552,18 +550,20 @@ export const CareOrbitPlannerView: React.FC = () => {
                 <Info size={13} className="text-blue-500 cursor-help" />
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setUnreadSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
-                  setUnreadMessages(prev => [...prev].reverse());
-                  showToast('Sorted unread messages');
-                }}
-                className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
-              >
-                <ArrowUpDown size={12} />
-                <span>Sort</span>
-              </button>
+              <div className="flex items-center self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnreadSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                    setUnreadMessages(prev => [...prev].reverse());
+                    showToast('Sorted unread messages');
+                  }}
+                  className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
+                >
+                  <ArrowUpDown size={12} />
+                  <span>Sort</span>
+                </button>
+              </div>
             </div>
 
             {/* Messages List */}
@@ -606,24 +606,26 @@ export const CareOrbitPlannerView: React.FC = () => {
           {/* ================================================================ */}
           <div className="glass-panel rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs overflow-hidden bg-white dark:bg-charcoal-850">
             {/* Header */}
-            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/70 dark:bg-charcoal-800/60">
+            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-pearl-50/70 dark:bg-charcoal-800/60">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">Past Due</span>
                 <Info size={13} className="text-blue-500 cursor-help" />
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setPastDueSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
-                  setPastDueItems(prev => [...prev].reverse());
-                  showToast('Sorted past due tasks');
-                }}
-                className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
-              >
-                <ArrowUpDown size={12} />
-                <span>Sort</span>
-              </button>
+              <div className="flex items-center self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPastDueSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                    setPastDueItems(prev => [...prev].reverse());
+                    showToast('Sorted past due tasks');
+                  }}
+                  className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
+                >
+                  <ArrowUpDown size={12} />
+                  <span>Sort</span>
+                </button>
+              </div>
             </div>
 
             {/* Content matching screenshot */}
@@ -667,24 +669,26 @@ export const CareOrbitPlannerView: React.FC = () => {
           {/* ================================================================ */}
           <div className="glass-panel rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs overflow-hidden bg-white dark:bg-charcoal-850">
             {/* Header */}
-            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between bg-pearl-50/70 dark:bg-charcoal-800/60">
+            <div className="p-3 px-4 border-b border-pearl-200 dark:border-charcoal-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-pearl-50/70 dark:bg-charcoal-800/60">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xs text-slate-900 dark:text-white">Alerts</span>
                 <Info size={13} className="text-blue-500 cursor-help" />
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setAlertsSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
-                  setAlerts(prev => [...prev].reverse());
-                  showToast('Sorted alerts');
-                }}
-                className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
-              >
-                <ArrowUpDown size={12} />
-                <span>Sort</span>
-              </button>
+              <div className="flex items-center self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAlertsSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                    setAlerts(prev => [...prev].reverse());
+                    showToast('Sorted alerts');
+                  }}
+                  className="flex items-center gap-1 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
+                >
+                  <ArrowUpDown size={12} />
+                  <span>Sort</span>
+                </button>
+              </div>
             </div>
 
             {/* Content matching screenshot */}

@@ -365,7 +365,7 @@ export const MyScheduleTasksView: React.FC<MyScheduleTasksViewProps> = ({
             </button>
 
             {/* Grouping Button Group */}
-            <div className="flex items-center rounded-xl border border-pearl-200 bg-pearl-50 p-0.5 dark:border-charcoal-700 dark:bg-charcoal-800">
+            <div className="flex flex-wrap items-center rounded-xl border border-pearl-200 bg-pearl-50 p-0.5 dark:border-charcoal-700 dark:bg-charcoal-800">
               <button
                 type="button"
                 onClick={() => setGroupBy('patient')}
@@ -414,7 +414,7 @@ export const MyScheduleTasksView: React.FC<MyScheduleTasksViewProps> = ({
           </div>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleOpenPlanner}
@@ -473,7 +473,7 @@ export const MyScheduleTasksView: React.FC<MyScheduleTasksViewProps> = ({
         {/* Schedule Table Container */}
         <div className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 bg-white/95 shadow-2xs backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-850/95">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="border-b border-pearl-200 bg-pearl-50 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300">
                 <tr>
                   <th className="px-5 py-3.5">Patient Name</th>

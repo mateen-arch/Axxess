@@ -52,7 +52,7 @@ export const ScheduleView: React.FC = () => {
         {/* View Switchers: Calendar vs Map (Right-Aligned) + Subtab Switcher */}
         <div className="flex flex-col sm:items-end gap-2 shrink-0">
           {/* Submodule Segmented Tabs */}
-          <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold">
+          <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold overflow-x-auto no-scrollbar max-w-full flex-nowrap">
             <button
               type="button"
               onClick={() => setScheduleSubTab('employee')}
@@ -78,7 +78,7 @@ export const ScheduleView: React.FC = () => {
             <button
               type="button"
               onClick={() => setScheduleSubTab('unassigned')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`relative px-3.5 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                 scheduleSubTab === 'unassigned'
                   ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
@@ -86,7 +86,7 @@ export const ScheduleView: React.FC = () => {
             >
               <span>Unassigned Visits</span>
               {unassignedVisits.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-black flex items-center justify-center ring-2 ring-white dark:ring-charcoal-800 shadow-xs font-mono">
                   {unassignedVisits.length}
                 </span>
               )}

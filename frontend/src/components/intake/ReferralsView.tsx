@@ -249,20 +249,19 @@ export const ReferralsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Proper Structured Table with Strictly Aligned Columns */}
-      {/* Proper Structured Table with Strictly Aligned Columns */}
+      {/* Proper Structured Table with Cleanly Aligned Columns */}
       <div className="relative z-10 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
+          <table className="w-full text-left border-collapse min-w-[1020px]">
             {/* Table Header with Aligned Column Layout */}
             <thead>
-              <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
-                <th className="py-3.5 px-5 w-[25%]">Patient Information</th>
-                <th className="py-3.5 px-5 w-[14%]">DOB & Gender</th>
-                <th className="py-3.5 px-5 w-[20%]">Service & Source</th>
-                <th className="py-3.5 px-5 w-[16%]">Requested SOC</th>
-                <th className="py-3.5 px-5 w-[13%]">Status</th>
-                <th className="py-3.5 px-5 w-[12%] text-right">Actions</th>
+              <tr className="border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/80 dark:bg-charcoal-800 text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none whitespace-nowrap">
+                <th className="py-3.5 px-4 min-w-[220px]">Patient Information</th>
+                <th className="py-3.5 px-4 min-w-[120px]">DOB & Gender</th>
+                <th className="py-3.5 px-4 min-w-[160px]">Service & Source</th>
+                <th className="py-3.5 px-4 min-w-[130px]">Requested SOC</th>
+                <th className="py-3.5 px-4 min-w-[200px]">Status</th>
+                <th className="py-3.5 px-4 min-w-[120px] text-right">Actions</th>
               </tr>
             </thead>
 
@@ -290,7 +289,7 @@ export const ReferralsView: React.FC = () => {
                       className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/40 transition-colors cursor-pointer group"
                     >
                       {/* Column 1: Patient Information */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${isHospice
@@ -319,7 +318,7 @@ export const ReferralsView: React.FC = () => {
                       </td>
 
                       {/* Column 2: DOB & Gender */}
-                      <td className="py-3.5 px-5 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
                           {item.dob || '—'}
                         </div>
@@ -331,7 +330,7 @@ export const ReferralsView: React.FC = () => {
                       </td>
 
                       {/* Column 3: Service & Source */}
-                      <td className="py-3.5 px-5">
+                      <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${isHospice
                               ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
@@ -349,7 +348,7 @@ export const ReferralsView: React.FC = () => {
                       </td>
 
                       {/* Column 4: Requested SOC */}
-                      <td className="py-3.5 px-5 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 font-mono">
                           <Calendar size={13} className="text-slate-400 shrink-0" />
                           <span>{item.requestedSoc}</span>
@@ -360,7 +359,7 @@ export const ReferralsView: React.FC = () => {
                       </td>
 
                       {/* Column 5: Status */}
-                      <td className="py-3.5 px-5 whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                           Ready for Admission
@@ -368,8 +367,8 @@ export const ReferralsView: React.FC = () => {
                         <div className="text-[10px] text-slate-400 mt-0.5 font-mono">Ref: {item.referralDate}</div>
                       </td>
 
-                      {/* Column 5: Actions */}
-                      <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                      {/* Column 6: Actions */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"

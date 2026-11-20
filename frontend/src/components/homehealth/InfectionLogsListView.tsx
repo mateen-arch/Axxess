@@ -164,7 +164,7 @@ export const InfectionLogsListView: React.FC<InfectionLogsListViewProps> = ({
             </div>
 
             {/* Right Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={onNewInfectionLog}
@@ -204,9 +204,10 @@ export const InfectionLogsListView: React.FC<InfectionLogsListViewProps> = ({
 
         {/* Infections Table / Empty State matching Screenshot 10 */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[780px]">
             <thead>
-              <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+              <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300 whitespace-nowrap">
                 <th className="py-2.5 px-4 w-48">Patient Name</th>
                 <th className="py-2.5 px-4 w-44">Branch</th>
                 <th className="py-2.5 px-4 w-44">Physician</th>
@@ -240,6 +241,7 @@ export const InfectionLogsListView: React.FC<InfectionLogsListViewProps> = ({
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

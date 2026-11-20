@@ -353,7 +353,7 @@ export const HuvSfvStatusReportView: React.FC = () => {
       {/* Streamlined Modern Table Card */}
       <div className="relative z-10 rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed min-w-[850px]">
+          <table className="w-full text-left border-collapse min-w-[850px]">
             {/* Headers Streamlined for High Signal and Zero Visual Clutter */}
             <thead>
               <tr className="bg-pearl-100/70 dark:bg-charcoal-800 text-[11px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider border-b border-pearl-200 dark:border-charcoal-700 whitespace-nowrap">

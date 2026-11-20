@@ -323,7 +323,9 @@ export const MyMonthlyCalendarView: React.FC<MyMonthlyCalendarViewProps> = ({ on
 
         {/* 7-Day Calendar Grid */}
         <div className="glass-panel overflow-hidden rounded-2xl border border-pearl-200/90 bg-white/95 shadow-2xs backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-850/95">
-          {/* Day Headers */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[620px]">
+              {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-pearl-200 bg-pearl-50 text-center text-xs font-black uppercase tracking-wider text-slate-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200">
             {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
               <div key={day} className="py-2.5 sm:py-3 border-r last:border-r-0 border-pearl-200 dark:border-charcoal-700">
@@ -420,6 +422,8 @@ export const MyMonthlyCalendarView: React.FC<MyMonthlyCalendarViewProps> = ({ on
               })}
             </div>
           )}
+            </div>
+          </div>
         </div>
 
         {/* Legend Bar */}

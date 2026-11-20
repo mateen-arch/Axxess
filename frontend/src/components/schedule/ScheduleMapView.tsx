@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   MapPin,
   Navigation,
   Clock,
   Phone,
   User,
+  Users,
   ShieldCheck,
   Search,
   Filter,
@@ -13,6 +15,8 @@ import {
   Calendar,
   Layers,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Eye
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
@@ -22,6 +26,8 @@ import { VisitDetailModal } from './VisitDetailModal';
 export const ScheduleMapView: React.FC = () => {
   const { clinicians, employeeVisits, theme } = useHealthcare();
 
+  const [mobileView, setMobileView] = useState<'roster' | 'map'>('map');
+  const [isRouteCardExpanded, setIsRouteCardExpanded] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedService, setSelectedService] = useState('all');
   const [selectedClinicianId, setSelectedClinicianId] = useState<string>('');
@@ -72,6 +78,10 @@ export const ScheduleMapView: React.FC = () => {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        (mapContainerRef.current as any)._leaflet_id = null;
+      }
+
       // Default to Dallas-Fort Worth metro area coordinates
       const map = L.map(mapContainerRef.current, {
         center: [32.7767, -96.7970],
@@ -92,13 +102,32 @@ export const ScheduleMapView: React.FC = () => {
       mapInstanceRef.current = map;
     }
 
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 250);
+
+    const handleResize = () => {
+      mapInstanceRef.current?.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
   }, []);
+
+  // Invalidate map size when mobile view or clinician changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [mobileView, selectedClinicianId]);
 
   // Update Markers & Routes when selected clinician or visits change
   useEffect(() => {
@@ -211,9 +240,45 @@ export const ScheduleMapView: React.FC = () => {
   }, [selectedClinician, clinicianFilteredVisits, theme]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[720px] rounded-3xl overflow-hidden glass-panel border border-pearl-200 dark:border-charcoal-700 p-2.5">
-      {/* Left Roster Side Panel */}
-      <div className="w-full lg:w-[360px] shrink-0 flex flex-col bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
+    <div className="flex flex-col gap-3 min-h-[640px] lg:h-[720px] rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 p-2.5">
+      {/* Mobile Top View Switcher (Only visible on screens below lg) */}
+      <div className="lg:hidden flex items-center p-1 rounded-2xl bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 shadow-2xs shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileView('roster')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileView === 'roster'
+              ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400'
+          }`}
+        >
+          <Users size={14} />
+          <span>Clinicians ({filteredClinicians.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMobileView('map');
+            setTimeout(() => mapInstanceRef.current?.invalidateSize(), 150);
+          }}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileView === 'map'
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400'
+          }`}
+        >
+          <MapPin size={14} />
+          <span>Live Route Map</span>
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden relative">
+        {/* Left Roster Side Panel */}
+        <div
+          className={`w-full lg:w-[360px] shrink-0 flex flex-col bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs ${
+            mobileView === 'roster' ? 'flex flex-1' : 'hidden lg:flex'
+          }`}
+        >
         {/* Panel Header */}
         <div className="p-4 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800 space-y-3">
           <div className="flex items-center justify-between">
@@ -260,8 +325,8 @@ export const ScheduleMapView: React.FC = () => {
           </div>
         </div>
 
-        {/* Clinicians List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-pearl-100 dark:divide-charcoal-750 p-2 space-y-1.5">
+        {/* Clinicians List - Smoothly scrollable */}
+        <div className="flex-1 overflow-y-auto divide-y divide-pearl-100 dark:divide-charcoal-750 p-2 space-y-1.5 max-h-[500px] lg:max-h-none">
           {filteredClinicians.map(c => {
             const isSelected = c.id === selectedClinician?.id;
             const clinicianVisits = employeeVisits.filter(v => v.employeeId === c.id);
@@ -270,7 +335,11 @@ export const ScheduleMapView: React.FC = () => {
             return (
               <div
                 key={c.id}
-                onClick={() => setSelectedClinicianId(c.id)}
+                onClick={() => {
+                  setSelectedClinicianId(c.id);
+                  setMobileView('map');
+                  setTimeout(() => mapInstanceRef.current?.invalidateSize(), 150);
+                }}
                 className={`p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
                   isSelected
                     ? 'bg-rose-50/80 dark:bg-rose-950/40 border border-rose-300/80 dark:border-rose-800 shadow-2xs ring-1 ring-rose-500/20'
@@ -324,10 +393,44 @@ export const ScheduleMapView: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Map Canvas & Route Timeline */}
-      <div className="flex-1 flex flex-col rounded-2xl overflow-hidden border border-pearl-200 dark:border-charcoal-700 relative">
-        {/* Top Controls Overlay: Day Filter Pills */}
-        <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 bg-white/90 dark:bg-charcoal-850/90 backdrop-blur-md p-1.5 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-md text-xs font-bold">
+        {/* Right Map Canvas & Route Timeline */}
+        <div
+          className={`flex-1 flex flex-col rounded-2xl overflow-hidden border border-pearl-200 dark:border-charcoal-700 relative min-h-[500px] lg:min-h-0 ${
+            mobileView === 'map' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
+          {/* Mobile Top Clinician Quick Picker */}
+          <div className="lg:hidden p-2.5 bg-white/95 dark:bg-charcoal-850/95 backdrop-blur-md border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between gap-2 z-20">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-black text-xs flex items-center justify-center shrink-0">
+                {selectedClinician?.credentials || 'RN'}
+              </span>
+              <select
+                value={selectedClinician?.id}
+                onChange={(e) => {
+                  setSelectedClinicianId(e.target.value);
+                  setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
+                }}
+                className="text-xs font-extrabold text-slate-900 dark:text-white bg-transparent border-none focus:outline-none truncate max-w-[200px]"
+              >
+                {filteredClinicians.map(c => (
+                  <option key={c.id} value={c.id} className="dark:bg-charcoal-800">
+                    {c.name} ({c.credentials})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileView('roster')}
+              className="px-2.5 py-1 rounded-lg bg-pearl-100 hover:bg-pearl-200 dark:bg-charcoal-700 text-[11px] font-bold text-slate-700 dark:text-slate-300 shrink-0 cursor-pointer"
+            >
+              All Clinicians →
+            </button>
+          </div>
+
+          {/* Top Controls Overlay: Day Filter Pills */}
+          <div className="absolute top-12 lg:top-3 left-3 right-3 sm:right-auto z-20 flex flex-wrap items-center gap-1.5 bg-white/90 dark:bg-charcoal-850/90 backdrop-blur-md p-1.5 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-md text-xs font-bold max-w-full overflow-x-auto">
           <span className="text-[11px] text-slate-500 px-2 flex items-center gap-1">
             <Calendar size={13} className="text-rose-600" />
             <span>Schedule Filter:</span>
@@ -354,21 +457,31 @@ export const ScheduleMapView: React.FC = () => {
           ))}
         </div>
 
-        {/* Floating Clinician Summary Pill */}
+        {/* Floating Clinician Summary Pill (Responsive & Collapsible on Mobile!) */}
         {selectedClinician && (
-          <div className="absolute bottom-4 left-4 z-20 max-w-sm bg-white/95 dark:bg-charcoal-850/95 backdrop-blur-md p-3.5 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xl space-y-2">
+          <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-sm z-20 bg-white/95 dark:bg-charcoal-850/95 backdrop-blur-md p-3 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xl space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-wider font-extrabold text-rose-600">
                   Active Dispatch Route
                 </div>
-                <div className="font-extrabold text-sm text-slate-900 dark:text-white">
+                <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
                   {selectedClinician.name}
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                {clinicianFilteredVisits.length} Stops Plotted
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                  {clinicianFilteredVisits.length} Stops
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsRouteCardExpanded(!isRouteCardExpanded)}
+                  className="p-1 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-750 text-slate-500 cursor-pointer"
+                  title={isRouteCardExpanded ? "Collapse stops" : "Expand stops"}
+                >
+                  {isRouteCardExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                </button>
+              </div>
             </div>
 
             <div className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
@@ -378,43 +491,46 @@ export const ScheduleMapView: React.FC = () => {
               </span>
             </div>
 
-            {clinicianFilteredVisits.length === 0 ? (
-              <div className="text-[11px] text-slate-400 italic">
-                No visits scheduled for selected filter. Try "All Weekly Visits".
-              </div>
-            ) : (
-              <div className="space-y-1 pt-1 border-t border-pearl-200 dark:border-charcoal-700 max-h-32 overflow-y-auto">
-                {clinicianFilteredVisits.map((v, i) => (
-                  <div
-                    key={v.id}
-                    onClick={() => {
-                      setSelectedVisit(v);
-                      setIsDetailOpen(true);
-                    }}
-                    className="flex items-center justify-between text-[11px] p-1.5 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-750 cursor-pointer"
-                  >
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      #{i + 1} {v.patientName} ({v.timeSlot})
-                    </span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                      v.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : v.status === 'in_progress'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-rose-100 text-rose-700'
-                    }`}>
-                      {v.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {isRouteCardExpanded && (
+              clinicianFilteredVisits.length === 0 ? (
+                <div className="text-[11px] text-slate-400 italic">
+                  No visits scheduled for selected filter. Try "All Week".
+                </div>
+              ) : (
+                <div className="space-y-1 pt-1 border-t border-pearl-200 dark:border-charcoal-700 max-h-36 overflow-y-auto">
+                  {clinicianFilteredVisits.map((v, i) => (
+                    <div
+                      key={v.id}
+                      onClick={() => {
+                        setSelectedVisit(v);
+                        setIsDetailOpen(true);
+                      }}
+                      className="flex items-center justify-between text-[11px] p-1.5 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-750 cursor-pointer"
+                    >
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate pr-2">
+                        #{i + 1} {v.patientName} ({v.timeSlot})
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold shrink-0 ${
+                        v.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : v.status === 'in_progress'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {v.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         )}
 
         {/* Leaflet Map Canvas */}
-        <div ref={mapContainerRef} className="w-full h-full z-10" />
+        <div ref={mapContainerRef} className="w-full h-full min-h-[480px] lg:min-h-0 z-10" />
       </div>
+    </div>
 
       {/* Visit Details Modal */}
       {selectedVisit && (

@@ -27,12 +27,14 @@ export const MessagesView: React.FC = () => {
 
       {/* Messages Main Box */}
       <div className="glass-panel p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-charcoal-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-charcoal-700">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm text-slate-900 dark:text-white">All Clinical Messages</span>
             <span className="badge badge-crimson text-xs">{unreadCount} Unread</span>
           </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">Standards Home Care Gateway</span>
+          <div className="flex items-center self-start sm:self-auto">
+            <span className="text-xs text-slate-500 dark:text-slate-400">Standards Home Care Gateway</span>
+          </div>
         </div>
 
         <div className="space-y-2.5">

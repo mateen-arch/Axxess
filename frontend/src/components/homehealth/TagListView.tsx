@@ -180,7 +180,7 @@ export const TagListView: React.FC<TagListViewProps> = ({ onBack }) => {
             </div>
 
             {/* Right Actions */}
-            <div className="ml-auto flex items-center justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
               <button
                 type="button"
                 onClick={() => setIsNewTagModalOpen(true)}
@@ -220,67 +220,69 @@ export const TagListView: React.FC<TagListViewProps> = ({ onBack }) => {
 
         {/* Tags Table / Empty State Card */}
         <div className="overflow-hidden rounded-2xl border border-pearl-200/80 bg-white/95 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
-                <th className="py-2.5 px-4">Name ▲</th>
-                <th className="py-2.5 px-4">Created</th>
-                <th className="py-2.5 px-4">Modified</th>
-                <th className="py-2.5 pr-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTags.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-20 text-center">
-                    <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
-                      <TagIcon className="h-10 w-10 text-slate-300 dark:text-charcoal-600 mb-3" />
-                      <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">
-                        No Tags Found.
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-400">
-                        There are currently no active tags registered in Standards Home Care.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setIsNewTagModalOpen(true)}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-800 transition active:scale-95 cursor-pointer"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Create First Tag
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+              <thead>
+                <tr className="border-b border-pearl-200 bg-pearl-100/70 text-[11px] font-bold text-slate-600 dark:border-charcoal-700 dark:bg-charcoal-750 dark:text-slate-300">
+                  <th className="py-2.5 px-4">Name ▲</th>
+                  <th className="py-2.5 px-4">Created</th>
+                  <th className="py-2.5 px-4">Modified</th>
+                  <th className="py-2.5 pr-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredTags.map((tag) => (
-                  <tr
-                    key={tag.id}
-                    className="border-b border-pearl-150 transition-colors hover:bg-pearl-50/70 dark:border-charcoal-700/60 dark:hover:bg-charcoal-750/50"
-                  >
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                      {tag.name}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                      {tag.created}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                      {tag.modified}
-                    </td>
-                    <td className="py-3 pr-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTag(tag.id, tag.name)}
-                        className="rounded p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+              </thead>
+              <tbody>
+                {filteredTags.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-20 text-center">
+                      <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
+                        <TagIcon className="h-10 w-10 text-slate-300 dark:text-charcoal-600 mb-3" />
+                        <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">
+                          No Tags Found.
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-400">
+                          There are currently no active tags registered in Standards Home Care.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsNewTagModalOpen(true)}
+                          className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-800 transition active:scale-95 cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Create First Tag
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredTags.map((tag) => (
+                    <tr
+                      key={tag.id}
+                      className="border-b border-pearl-150 transition-colors hover:bg-pearl-50/70 dark:border-charcoal-700/60 dark:hover:bg-charcoal-750/50"
+                    >
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                        {tag.name}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                        {tag.created}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                        {tag.modified}
+                      </td>
+                      <td className="py-3 pr-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTag(tag.id, tag.name)}
+                          className="rounded p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

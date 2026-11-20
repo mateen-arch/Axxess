@@ -10,20 +10,22 @@ export const UnassignedVisitsCard: React.FC = () => {
   return (
     <div className="glass-panel p-6 flex flex-col justify-between h-full transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-pearl-200 dark:border-charcoal-700">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3.5 border-b border-pearl-200 dark:border-charcoal-700">
         <div className="flex items-center gap-2.5">
-          <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+          <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 shrink-0">
             <CalendarCheck size={19} className="stroke-[2.2]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-extrabold text-slate-950 dark:text-white text-base">Unassigned Visits (Next 7 Days)</h3>
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Ordered visit frequency dispatch monitor</span>
           </div>
         </div>
-        <span className={`badge ${isClear ? 'badge-green' : 'badge-crimson'} text-xs font-bold`}>
-          <span className={`pulse-indicator ${isClear ? 'green' : 'red'}`} style={{ width: 6, height: 6 }}></span>
-          {isClear ? '100% Assigned' : `${unassignedVisits7Days.total} Pending`}
-        </span>
+        <div className="flex items-center self-start sm:self-auto pl-12 sm:pl-0">
+          <span className={`badge ${isClear ? 'badge-green' : 'badge-crimson'} text-xs font-bold`}>
+            <span className={`pulse-indicator ${isClear ? 'green' : 'red'}`} style={{ width: 6, height: 6 }}></span>
+            {isClear ? '100% Assigned' : `${unassignedVisits7Days.total} Pending`}
+          </span>
+        </div>
       </div>
 
       {/* Main Content */}
