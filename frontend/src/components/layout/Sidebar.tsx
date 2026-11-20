@@ -439,17 +439,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <motion.aside
         style={{ width: isMobile ? 304 : widthSpring }}
-        className={`fixed inset-y-0 left-0 z-50 lg:relative lg:z-40 h-screen select-none overflow-visible flex flex-col p-2 transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 lg:self-start lg:shrink-0 lg:z-40 h-screen max-h-screen select-none overflow-visible flex flex-col p-2 transition-transform duration-300 ${
           isMobile
             ? isMobileSidebarOpen
               ? 'translate-x-0'
               : '-translate-x-full'
-            : 'translate-x-0 sticky top-0'
+            : 'translate-x-0'
         }`}
       >
         {/* Frosted Glass Outer Container */}
         <div
-          className="relative isolate flex h-full flex-col items-center justify-between overflow-visible rounded-3xl p-3 transition-colors"
+          className="relative isolate flex h-full max-h-full flex-col items-center justify-between overflow-visible rounded-3xl p-3 transition-colors"
           style={glassStyle}
         >
           {/* Pure Glass Blur Layer */}
