@@ -140,175 +140,357 @@ export const ScheduleView: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         {scheduleSubTab === 'employee' || scheduleSubTab === 'patient' ? (
           <>
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Total Weekly Visits
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Weekly Visits
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <CalendarDays size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  {totalWeeklyVisits}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                    {totalWeeklyVisits}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Scheduled
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
-                <CalendarDays size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[10px]">
+                  Current Week
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Master roster
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  EVV Verified
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    EVV Verified
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <CheckCircle2 size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                  {completedVisits}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                    {completedVisits}
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-700/80 dark:text-emerald-300/80">
+                    Completed
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                <CheckCircle2 size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  Verified
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  GPS & Timestamp
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  In Progress Active
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    In Progress
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Clock size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                  {inProgressVisits}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                    {inProgressVisits}
+                  </span>
+                  <span className="text-[11px] font-bold text-blue-700/80 dark:text-blue-300/80">
+                    Active Now
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                <Clock size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                  Live
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Field clinicians
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Field Clinicians
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Clinicians
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/80 dark:border-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Users size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
-                  {activeCliniciansCount}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
+                    {activeCliniciansCount}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Active Staff
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                <Users size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
+                  Territories
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  All disciplines
+                </span>
               </div>
             </div>
           </>
         ) : scheduleSubTab === 'unassigned' ? (
           <>
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Unassigned Visits
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Unassigned Visits
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <AlertCircle size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
-                  {unassignedVisits.length}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
+                    {unassignedVisits.length}
+                  </span>
+                  <span className="text-[11px] font-bold text-rose-700/80 dark:text-rose-300/80">
+                    Needs Dispatch
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
-                <AlertCircle size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[10px]">
+                  Next 7 Days
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Pending match
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Urgent / Priority
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Urgent Priority
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Clock size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                  {unassignedVisits.filter(v => v.priority === 'urgent' || v.priority === 'stat').length}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+                    {unassignedVisits.filter(v => v.priority === 'urgent' || v.priority === 'stat').length}
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-700/80 dark:text-amber-300/80">
+                    Stat / Urgent
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-                <Clock size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
+                  Priority 1
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Immediate dispatch
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Nursing Visits
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Nursing Visits
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <HeartPulse size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                  {unassignedVisits.filter(v => v.requiredCredentials?.includes('RN') || v.requiredCredentials?.includes('LVN')).length}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                    {unassignedVisits.filter(v => v.requiredCredentials?.includes('RN') || v.requiredCredentials?.includes('LVN')).length}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    RN / LVN
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                <HeartPulse size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                  Skilled Nursing
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Clinical care
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Aide & Therapy
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Aide & Therapy
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/80 dark:border-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Users size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
-                  {unassignedVisits.filter(v => v.requiredCredentials?.includes('HHA') || v.requiredCredentials?.includes('PT')).length}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
+                    {unassignedVisits.filter(v => v.requiredCredentials?.includes('HHA') || v.requiredCredentials?.includes('PT')).length}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    HHA / PT
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                <Users size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
+                  Rehab & Aide
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Personal care
+                </span>
               </div>
             </div>
           </>
         ) : (
           <>
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Total Audit Tasks
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Total Audit Tasks
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <FileText size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  {totalAuditTasks}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                    {totalAuditTasks}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Audit Tasks
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
-                <FileText size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[10px]">
+                  Compliance
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  HUV / SFV records
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  HUV Encounters
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    HUV Encounters
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/80 dark:border-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <CheckCircle2 size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
-                  {huvEncounters}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">
+                    {huvEncounters}
+                  </span>
+                  <span className="text-[11px] font-bold text-purple-700/80 dark:text-purple-300/80">
+                    Home Unplanned
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                <CheckCircle2 size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
+                  HUV
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Encounter audits
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  SFV Encounters
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    SFV Encounters
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <HeartPulse size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                  {sfvEncounters}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
+                    {sfvEncounters}
+                  </span>
+                  <span className="text-[11px] font-bold text-blue-700/80 dark:text-blue-300/80">
+                    Facility Visits
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                <HeartPulse size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                  SFV
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Post-acute follow-up
+                </span>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl glass-panel border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl glass-panel border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Due Within 3 Days
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Due Within 3 Days
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Clock size={15} />
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-                  {dueWithin3Days}
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+                    {dueWithin3Days}
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-700/80 dark:text-amber-300/80">
+                    Expiring Soon
+                  </span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-                <Clock size={20} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
+                  72 Hours
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Needs submission
+                </span>
               </div>
             </div>
           </>

@@ -705,71 +705,135 @@ export const ReportCenterView: React.FC = () => {
 
           {/* Live Glance Metric Cards from Database */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            {/* Card 1: Cataloged Reports */}
+            <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Cataloged Reports
-                </span>
-                <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  {dbStats?.catalogedReports || REPORT_CATALOG.length} Standard
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Cataloged Reports
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <FileText size={15} />
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
-                  Across 3 categories
-                </span>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                    {dbStats?.catalogedReports || REPORT_CATALOG.length}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Standard
+                  </span>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                <FileText size={18} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[10px]">
+                  3 Categories
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                  System library
+                </span>
               </div>
             </div>
 
-            <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            {/* Card 2: Scheduled Reports */}
+            <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Scheduled Reports
-                </span>
-                <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  {dbStats?.scheduledReportsCount || 4}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Scheduled Reports
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <CalendarDays size={15} />
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
-                  Itineraries & EVV ({dbStats?.totalVisits || 16} visits)
-                </span>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                    {dbStats?.scheduledReportsCount || 4}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Active Rosters
+                  </span>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <CalendarDays size={18} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                  {dbStats?.totalVisits || 16} visits
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  Itineraries & EVV
+                </span>
               </div>
             </div>
 
-            <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            {/* Card 3: Compliance Audits */}
+            <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Compliance Audits
-                </span>
-                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-                  {dbStats?.complianceRate || '100%'}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Compliance Audits
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <ShieldCheck size={15} />
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {dbStats?.complianceLabel || 'HUV/SFV & EVV Verified'}
-                </span>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                    {dbStats?.complianceRate || '100%'}
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-700/80 dark:text-emerald-300/80">
+                    Audit Score
+                  </span>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <ShieldCheck size={18} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  Verified
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  HUV / SFV & EVV
+                </span>
               </div>
             </div>
 
-            <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+            {/* Card 4: Active Patient Census */}
+            <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                  Active Patient Census
-                </span>
-                <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-                  {dbStats?.activeCensusTotal || patients.length} Patients
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                    Patient Census
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/80 dark:border-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Users size={15} />
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
-                  {dbStats ? `${dbStats.homeHealthCensus} HH • ${dbStats.homeCareCensus} HC • ${dbStats.hospiceCensus} Hospice` : 'All service lines'}
-                </span>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                    {dbStats?.activeCensusTotal || patients.length}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    Patients
+                  </span>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-pearl-100 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 text-slate-700 dark:text-slate-300 flex items-center justify-center">
-                <Users size={18} />
+              <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1 flex-wrap">
+                {dbStats ? (
+                  <>
+                    <span className="px-1.5 py-0.2 rounded bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold text-[9.5px]">
+                      {dbStats.homeHealthCensus} HH
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-bold text-[9.5px]">
+                      {dbStats.homeCareCensus} HC
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 font-bold text-[9.5px]">
+                      {dbStats.hospiceCensus} Hospice
+                    </span>
+                  </>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
+                    All service lines
+                  </span>
+                )}
               </div>
             </div>
           </div>

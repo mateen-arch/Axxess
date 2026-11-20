@@ -98,75 +98,124 @@ export const PatientsView: React.FC = () => {
       {/* 4 Top Glance Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Metric 1 */}
-        <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+        <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Active Patient Census
-            </span>
-            <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-              {activePatientsCount}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                Active Census
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Users size={15} />
+              </div>
             </div>
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              100% on active plan
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-2">
+              <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                {activePatientsCount}
+              </span>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Patients
+              </span>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-            <Users size={18} />
+          <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              100%
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+              Active plan
+            </span>
           </div>
         </div>
 
         {/* Metric 2 */}
-        <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+        <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Clinical Tasks Monitored
-            </span>
-            <div className="text-2xl font-black text-slate-950 dark:text-white mt-1">
-              {totalTasksCount}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                Clinical Tasks
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <FileText size={15} />
+              </div>
             </div>
-            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
-              Across all disciplines
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-2">
+              <span className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono tracking-tight">
+                {totalTasksCount}
+              </span>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Monitored
+              </span>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-            <FileText size={18} />
+          <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+            <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+              All Lines
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+              Across disciplines
+            </span>
           </div>
         </div>
 
         {/* Metric 3 */}
-        <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+        <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              At-Risk Protocols
-            </span>
-            <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
-              {atRiskPatientsCount}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                At-Risk Protocols
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <AlertTriangle size={15} />
+              </div>
             </div>
-            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
-              Fall & infection tracking
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-2">
+              <span className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+                {atRiskPatientsCount}
+              </span>
+              <span className="text-[11px] font-bold text-amber-700/80 dark:text-amber-300/80">
+                Flagged
+              </span>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <AlertTriangle size={18} />
+          <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+            <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
+              Fall / Infection
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+              Special watch
+            </span>
           </div>
         </div>
 
         {/* Metric 4 */}
-        <div className="glass-panel p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between shadow-2xs">
+        <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-pearl-200/90 dark:border-charcoal-700 bg-white/90 dark:bg-charcoal-850/90 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              Completed Encounters
-            </span>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-              {completedTasksCount}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                Encounters
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={15} />
+              </div>
             </div>
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              Documented & signed
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-2">
+              <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono tracking-tight">
+                {completedTasksCount}
+              </span>
+              <span className="text-[11px] font-bold text-emerald-700/80 dark:text-emerald-300/80">
+                Completed
+              </span>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-            <CheckCircle2 size={18} />
+          <div className="mt-3 pt-2.5 border-t border-pearl-100 dark:border-charcoal-750 flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              Signed
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+              Documented
+            </span>
           </div>
         </div>
       </div>

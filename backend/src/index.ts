@@ -11,6 +11,17 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Root Route
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    status: 'online',
+    service: 'CareOrbit Healthcare Platform API',
+    version: '1.0.0',
+    documentation: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health Check
 app.get('/api/health', async (_req: Request, res: Response) => {
   try {
@@ -22,7 +33,15 @@ app.get('/api/health', async (_req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (err: any) {
-    res.status(500).json({ status: 'unhealthy', error: err.message });
+    console.error('Database connection error in /api/health:', err);
+    res.status(500).json({
+      status: 'unhealthy',
+      error: err?.message || err?.code || String(err) || 'Database connection failed',
+      hasDbUrl: Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== ''),
+      dbHost: process.env.DATABASE_URL
+        ? (process.env.DATABASE_URL.split('@')[1] || process.env.DATABASE_URL.slice(0, 15) + '...')
+        : 'not-set'
+    });
   }
 });
 
