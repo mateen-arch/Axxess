@@ -4874,6 +4874,49 @@ async function initHospitalizationTables() {
 }
 initHospitalizationTables();
 
+async function initIntakeTables() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS intake_referrals (
+        id VARCHAR(100) PRIMARY KEY,
+        patient_name VARCHAR(255),
+        service_line VARCHAR(50) DEFAULT 'home_health',
+        stage VARCHAR(50) DEFAULT 'new',
+        received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'new';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS client_first_name VARCHAR(100);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS client_last_name VARCHAR(100);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS phone_type VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS contact_first_name VARCHAR(100);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS contact_last_name VARCHAR(100);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS contact_phone_type VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS contact_relationship VARCHAR(100);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS branch VARCHAR(100) DEFAULT 'Standards Home Care';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS service_requested VARCHAR(255);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS assigned_team_member VARCHAR(100) DEFAULT 'Sarah Jenkins, RN';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS follow_up_date DATE;
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS requested_soc DATE;
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS mrn VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS dob DATE;
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS gender VARCHAR(50);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS created_by VARCHAR(100) DEFAULT 'INTAKE COORDINATOR';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS liaison VARCHAR(100) DEFAULT 'Not Available';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS tags VARCHAR(255) DEFAULT 'Direct Intake';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS notes TEXT;
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS referral_source VARCHAR(255);
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS urgency VARCHAR(50) DEFAULT 'routine';
+      ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS clinical_summary TEXT;
+    `);
+  } catch (err) {
+    console.error('Failed to init intake columns:', err);
+  }
+}
+initIntakeTables();
+
 // GET /api/hospitalizations
 app.get('/api/hospitalizations', async (_req: Request, res: Response) => {
   try {

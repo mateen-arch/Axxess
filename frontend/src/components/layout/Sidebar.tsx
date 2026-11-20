@@ -253,6 +253,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     census,
     patients,
     conversations,
+    inquiries,
+    referrals,
     theme,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
@@ -365,6 +367,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // Central Nav Items
+  const activeIntakeCount = (inquiries?.length || 0) + (referrals?.length || 0);
+
   const centralNavItems: NavItemConfig[] = [
     {
       id: 'dashboard',
@@ -377,7 +381,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Central Intake',
       icon: UserCheck,
       color: '#E11D48',
-      badge: '6',
+      badge: activeIntakeCount > 0 ? `${activeIntakeCount}` : undefined,
     },
     {
       id: 'schedule',
@@ -439,13 +443,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <motion.aside
         style={{ width: isMobile ? 304 : widthSpring }}
-        className={`fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 lg:self-start lg:shrink-0 lg:z-40 h-screen max-h-screen select-none overflow-visible flex flex-col p-2 transition-transform duration-300 ${
-          isMobile
-            ? isMobileSidebarOpen
-              ? 'translate-x-0'
-              : '-translate-x-full'
-            : 'translate-x-0'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 lg:self-start lg:shrink-0 lg:z-40 h-screen max-h-screen select-none overflow-visible flex flex-col p-2 transition-transform duration-300 ${isMobile
+          ? isMobileSidebarOpen
+            ? 'translate-x-0'
+            : '-translate-x-full'
+          : 'translate-x-0'
+          }`}
       >
         {/* Frosted Glass Outer Container */}
         <div
@@ -462,9 +465,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="w-full flex flex-col gap-2.5">
             {/* Brand Header with Circular Collapse Button */}
             <div
-              className={`flex w-full pt-1 px-1 transition-all ${
-                isOpen ? 'items-center justify-between' : 'flex-col items-center gap-2.5'
-              }`}
+              className={`flex w-full pt-1 px-1 transition-all ${isOpen ? 'items-center justify-between' : 'flex-col items-center gap-2.5'
+                }`}
             >
               <button
                 type="button"
@@ -540,433 +542,428 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </motion.button>
             </div>
 
-          {/* Agency Badge / Card */}
-          <AnimatePresence mode="wait">
-            {isOpen ? (
-              <motion.div
-                key="agency-expanded"
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.18 }}
-                className="w-full p-2.5 rounded-2xl border transition-colors"
-                style={{
-                  background:
-                    theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                  borderColor:
-                    theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-                }}
-              >
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                    <Buildings size={14} className="text-rose-600 dark:text-rose-400" />
-                    Agency
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live
-                  </span>
-                </div>
-                <div className="font-extrabold text-slate-950 dark:text-white text-xs truncate">
-                  {organization.name}
-                </div>
-                <div className="text-[10px] text-slate-600 dark:text-slate-400 flex items-center justify-between mt-1 font-semibold">
-                  <span>ID: {organization.code}</span>
-                  <span className="text-rose-600 dark:text-rose-400 font-extrabold">
-                    {isHomeHealth ? homeHealthPatientsCount : census.total} Active
-                  </span>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="agency-collapsed"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="w-[46px] h-[46px] rounded-full flex items-center justify-center font-black text-xs border self-center shadow-xs shrink-0"
-                style={{
-                  background: 'rgba(225, 29, 72, 0.14)',
-                  borderColor: 'rgba(225, 29, 72, 0.32)',
-                  color: '#e11d48',
-                }}
-                title={organization.name}
-              >
-                SHC
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Agency Badge / Card */}
+            <AnimatePresence mode="wait">
+              {isOpen ? (
+                <motion.div
+                  key="agency-expanded"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.18 }}
+                  className="w-full p-2.5 rounded-2xl border transition-colors"
+                  style={{
+                    background:
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
+                    borderColor:
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  }}
+                >
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                      <Buildings size={14} className="text-rose-600 dark:text-rose-400" />
+                      Agency
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live
+                    </span>
+                  </div>
+                  <div className="font-extrabold text-slate-950 dark:text-white text-xs truncate">
+                    {organization.name}
+                  </div>
+                  <div className="text-[10px] text-slate-600 dark:text-slate-400 flex items-center justify-between mt-1 font-semibold">
+                    <span>ID: {organization.code}</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-extrabold">
+                      {isHomeHealth ? homeHealthPatientsCount : census.total} Active
+                    </span>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="agency-collapsed"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="w-[46px] h-[46px] rounded-full flex items-center justify-center font-black text-xs border self-center shadow-xs shrink-0"
+                  style={{
+                    background: 'rgba(225, 29, 72, 0.14)',
+                    borderColor: 'rgba(225, 29, 72, 0.32)',
+                    color: '#e11d48',
+                  }}
+                  title={organization.name}
+                >
+                  SHC
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <div
-            className="w-full"
-            style={{
-              height: 1,
-              background:
-                theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-            }}
-          />
-        </div>
-
-        {/* Center Section: Navigation Items */}
-        <div className="flex-1 w-full flex flex-col gap-1.5 overflow-y-auto overflow-x-visible py-2 px-0.5 scrollbar-none">
-          <div
-            className={`mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 ${
-              isOpen ? 'px-2.5' : 'text-center'
-            }`}
-          >
-            {isOpen ? 'Clinical Modules' : '•••'}
+            <div
+              className="w-full"
+              style={{
+                height: 1,
+                background:
+                  theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              }}
+            />
           </div>
 
-          {/* ================================================================= */}
-          {/* HOME HEALTH VARIANT: Unified Category Headings + Accordion Submenu */}
-          {/* ================================================================= */}
-          {isHomeHealth ? (
-            <div className="flex flex-col gap-1.5">
-              {HOME_HEALTH_NAV_SECTIONS.map((section, sIndex) => {
-                const IconComponent = sectionIcons[section.id] || Sparkle;
-                const isSectionActive = doesSectionContainTab(section, currentTab);
-                const isExpanded = expandedSections.has(section.id);
+          {/* Center Section: Navigation Items */}
+          <div className="flex-1 w-full flex flex-col gap-1.5 overflow-y-auto overflow-x-visible py-2 px-0.5 scrollbar-none">
+            <div
+              className={`mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 ${isOpen ? 'px-2.5' : 'text-center'
+                }`}
+            >
+              {isOpen ? 'Clinical Modules' : '•••'}
+            </div>
 
-                return (
-                  <div
-                    key={section.id}
-                    className="relative w-full"
-                    onMouseEnter={() => {
-                      if (!isOpen) setCollapsedHoverSection(section.id);
-                    }}
-                    onMouseLeave={() => {
-                      if (!isOpen) setCollapsedHoverSection(null);
-                    }}
-                  >
-                    {/* Primary Section Tile */}
-                    <NavItemRow
-                      item={{
-                        id: section.id,
-                        label: section.label,
-                        icon: IconComponent,
-                        color: '#E11D48',
-                        badge: section.badge,
+            {/* ================================================================= */}
+            {/* HOME HEALTH VARIANT: Unified Category Headings + Accordion Submenu */}
+            {/* ================================================================= */}
+            {isHomeHealth ? (
+              <div className="flex flex-col gap-1.5">
+                {HOME_HEALTH_NAV_SECTIONS.map((section, sIndex) => {
+                  const IconComponent = sectionIcons[section.id] || Sparkle;
+                  const isSectionActive = doesSectionContainTab(section, currentTab);
+                  const isExpanded = expandedSections.has(section.id);
+
+                  return (
+                    <div
+                      key={section.id}
+                      className="relative w-full"
+                      onMouseEnter={() => {
+                        if (!isOpen) setCollapsedHoverSection(section.id);
                       }}
-                      index={sIndex}
-                      isActive={isSectionActive}
-                      isOpen={isOpen}
-                      onActivate={() => {
-                        if (!isOpen) {
-                          setIsOpen(true);
-                          widthSpring.set(EXPANDED_WIDTH);
-                          setExpandedSections(new Set([section.id]));
-                        } else {
-                          toggleSection(section.id);
+                      onMouseLeave={() => {
+                        if (!isOpen) setCollapsedHoverSection(null);
+                      }}
+                    >
+                      {/* Primary Section Tile */}
+                      <NavItemRow
+                        item={{
+                          id: section.id,
+                          label: section.label,
+                          icon: IconComponent,
+                          color: '#E11D48',
+                          badge: section.badge,
+                        }}
+                        index={sIndex}
+                        isActive={isSectionActive}
+                        isOpen={isOpen}
+                        onActivate={() => {
+                          if (!isOpen) {
+                            setIsOpen(true);
+                            widthSpring.set(EXPANDED_WIDTH);
+                            setExpandedSections(new Set([section.id]));
+                          } else {
+                            toggleSection(section.id);
+                          }
+                        }}
+                        theme={theme}
+                        trailing={
+                          section.children?.length ? (
+                            <span className="text-slate-400 dark:text-slate-500">
+                              {isExpanded ? (
+                                <CaretDown size={14} weight="bold" />
+                              ) : (
+                                <CaretRight size={14} weight="bold" />
+                              )}
+                            </span>
+                          ) : undefined
                         }
-                      }}
-                      theme={theme}
-                      trailing={
-                        section.children?.length ? (
-                          <span className="text-slate-400 dark:text-slate-500">
-                            {isExpanded ? (
-                              <CaretDown size={14} weight="bold" />
-                            ) : (
-                              <CaretRight size={14} weight="bold" />
-                            )}
-                          </span>
-                        ) : undefined
-                      }
-                    />
+                      />
 
-                    {/* Expanded Accordion Children */}
-                    <AnimatePresence initial={false}>
-                      {isOpen && isExpanded && section.children && (
-                        <motion.div
-                          key="accordion"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.18, ease: 'easeOut' }}
-                          className="overflow-hidden ml-4 pl-3.5 my-1 border-l-2 border-rose-200/50 dark:border-rose-900/40 space-y-1"
-                        >
-                          {section.children.map((child) => {
-                            const hasSubChildren = Boolean(child.children?.length);
-                            const isSubExpanded = expandedSubsections.has(child.id);
-                            const isChildActive = child.id === currentTab;
+                      {/* Expanded Accordion Children */}
+                      <AnimatePresence initial={false}>
+                        {isOpen && isExpanded && section.children && (
+                          <motion.div
+                            key="accordion"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                            className="overflow-hidden ml-4 pl-3.5 my-1 border-l-2 border-rose-200/50 dark:border-rose-900/40 space-y-1"
+                          >
+                            {section.children.map((child) => {
+                              const hasSubChildren = Boolean(child.children?.length);
+                              const isSubExpanded = expandedSubsections.has(child.id);
+                              const isChildActive = child.id === currentTab;
 
-                            return (
-                              <div key={child.id} className="w-full">
-                                {hasSubChildren ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleSubsection(child.id)}
-                                      className="flex w-full items-center justify-between py-1.5 px-2.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-pearl-100/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-charcoal-800 transition cursor-pointer"
-                                    >
-                                      <span className="truncate">{child.label}</span>
-                                      <span className="text-slate-400">
-                                        {isSubExpanded ? (
-                                          <CaretDown size={12} weight="bold" />
-                                        ) : (
-                                          <CaretRight size={12} weight="bold" />
-                                        )}
-                                      </span>
-                                    </button>
+                              return (
+                                <div key={child.id} className="w-full">
+                                  {hasSubChildren ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleSubsection(child.id)}
+                                        className="flex w-full items-center justify-between py-1.5 px-2.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-pearl-100/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-charcoal-800 transition cursor-pointer"
+                                      >
+                                        <span className="truncate">{child.label}</span>
+                                        <span className="text-slate-400">
+                                          {isSubExpanded ? (
+                                            <CaretDown size={12} weight="bold" />
+                                          ) : (
+                                            <CaretRight size={12} weight="bold" />
+                                          )}
+                                        </span>
+                                      </button>
 
-                                    <AnimatePresence initial={false}>
-                                      {isSubExpanded && child.children && (
-                                        <motion.div
-                                          initial={{ height: 0, opacity: 0 }}
-                                          animate={{ height: 'auto', opacity: 1 }}
-                                          exit={{ height: 0, opacity: 0 }}
-                                          transition={{ duration: 0.15 }}
-                                          className="overflow-hidden ml-2.5 pl-2.5 my-0.5 border-l border-pearl-200 dark:border-charcoal-700 space-y-0.5"
-                                        >
-                                          {child.children.map((subChild) => {
-                                            const isSubActive = subChild.id === currentTab;
-                                            return (
-                                              <button
-                                                key={subChild.id}
-                                                type="button"
-                                                onClick={() => {
-                                                  onTabChange?.(subChild.id);
-                                                  if (isMobile) setIsMobileSidebarOpen(false);
-                                                }}
-                                                className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-[11px] transition cursor-pointer ${
-                                                  isSubActive
+                                      <AnimatePresence initial={false}>
+                                        {isSubExpanded && child.children && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="overflow-hidden ml-2.5 pl-2.5 my-0.5 border-l border-pearl-200 dark:border-charcoal-700 space-y-0.5"
+                                          >
+                                            {child.children.map((subChild) => {
+                                              const isSubActive = subChild.id === currentTab;
+                                              return (
+                                                <button
+                                                  key={subChild.id}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    onTabChange?.(subChild.id);
+                                                    if (isMobile) setIsMobileSidebarOpen(false);
+                                                  }}
+                                                  className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-[11px] transition cursor-pointer ${isSubActive
                                                     ? 'bg-rose-50 font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50'
                                                     : 'font-medium text-slate-600 hover:bg-pearl-100/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-charcoal-800 dark:hover:text-slate-200'
-                                                }`}
-                                              >
-                                                <span className="truncate">{subChild.label}</span>
-                                                {subChild.badge && (
-                                                  <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                                                    {subChild.badge}
-                                                  </span>
-                                                )}
-                                              </button>
-                                            );
-                                          })}
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      onTabChange?.(child.id);
-                                      if (isMobile) setIsMobileSidebarOpen(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between py-1.5 px-2.5 rounded-xl text-xs transition cursor-pointer ${
-                                      isChildActive
+                                                    }`}
+                                                >
+                                                  <span className="truncate">{subChild.label}</span>
+                                                  {subChild.badge && (
+                                                    <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
+                                                      {subChild.badge}
+                                                    </span>
+                                                  )}
+                                                </button>
+                                              );
+                                            })}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onTabChange?.(child.id);
+                                        if (isMobile) setIsMobileSidebarOpen(false);
+                                      }}
+                                      className={`flex w-full items-center justify-between py-1.5 px-2.5 rounded-xl text-xs transition cursor-pointer ${isChildActive
                                         ? 'bg-rose-50 font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50'
                                         : 'font-semibold text-slate-700 hover:bg-pearl-100/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-charcoal-800 dark:hover:text-white'
-                                    }`}
-                                  >
-                                    <span className="truncate">{child.label}</span>
-                                    {child.badge && (
-                                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                                        {child.badge}
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                                        }`}
+                                    >
+                                      <span className="truncate">{child.label}</span>
+                                      {child.badge && (
+                                        <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
+                                          {child.badge}
+                                        </span>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                    {/* Collapsed Mode Floating Flyout Popover */}
-                    <AnimatePresence>
-                      {!isOpen && collapsedHoverSection === section.id && (
-                        <motion.div
-                          key="flyout"
-                          initial={{ opacity: 0, x: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, x: 0, scale: 1 }}
-                          exit={{ opacity: 0, x: -8, scale: 0.95 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute left-[calc(100%+14px)] top-0 z-50 w-64 max-h-[82vh] overflow-y-auto rounded-2xl p-2.5 backdrop-blur-2xl transition-colors scrollbar-none"
-                          style={{ ...glassFlyoutStyle, ...GLASS_BLUR_STYLE }}
-                        >
-                          <div className="flex items-center gap-2 px-2 pb-2 mb-1.5 border-b border-pearl-200/80 dark:border-charcoal-700">
-                            <IconComponent size={16} weight="fill" className="text-rose-600" />
-                            <span className="text-xs font-black text-slate-950 dark:text-white">
-                              {section.label}
-                            </span>
-                          </div>
+                      {/* Collapsed Mode Floating Flyout Popover */}
+                      <AnimatePresence>
+                        {!isOpen && collapsedHoverSection === section.id && (
+                          <motion.div
+                            key="flyout"
+                            initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: -8, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute left-[calc(100%+14px)] top-0 z-50 w-64 max-h-[82vh] overflow-y-auto rounded-2xl p-2.5 backdrop-blur-2xl transition-colors scrollbar-none"
+                            style={{ ...glassFlyoutStyle, ...GLASS_BLUR_STYLE }}
+                          >
+                            <div className="flex items-center gap-2 px-2 pb-2 mb-1.5 border-b border-pearl-200/80 dark:border-charcoal-700">
+                              <IconComponent size={16} weight="fill" className="text-rose-600" />
+                              <span className="text-xs font-black text-slate-950 dark:text-white">
+                                {section.label}
+                              </span>
+                            </div>
 
-                          <div className="space-y-1">
-                            {section.children?.map((child) => (
-                              <div key={child.id}>
-                                {child.children ? (
-                                  <div className="pt-1.5 pb-0.5">
-                                    <div className="px-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                      {child.label}
-                                    </div>
-                                    <div className="mt-1 space-y-0.5 pl-1.5">
-                                      {child.children.map((sub) => (
-                                        <button
-                                          key={sub.id}
-                                          type="button"
-                                          onClick={() => {
-                                            setCollapsedHoverSection(null);
-                                            onTabChange?.(sub.id);
-                                            if (isMobile) setIsMobileSidebarOpen(false);
-                                          }}
-                                          className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                            sub.id === currentTab
+                            <div className="space-y-1">
+                              {section.children?.map((child) => (
+                                <div key={child.id}>
+                                  {child.children ? (
+                                    <div className="pt-1.5 pb-0.5">
+                                      <div className="px-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                        {child.label}
+                                      </div>
+                                      <div className="mt-1 space-y-0.5 pl-1.5">
+                                        {child.children.map((sub) => (
+                                          <button
+                                            key={sub.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setCollapsedHoverSection(null);
+                                              onTabChange?.(sub.id);
+                                              if (isMobile) setIsMobileSidebarOpen(false);
+                                            }}
+                                            className={`flex w-full items-center justify-between py-1 px-2 rounded-lg text-xs font-semibold transition cursor-pointer ${sub.id === currentTab
                                               ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 font-bold'
                                               : 'text-slate-700 hover:bg-pearl-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-charcoal-800 dark:hover:text-white'
-                                          }`}
-                                        >
-                                          <span className="truncate">{sub.label}</span>
-                                          {sub.badge && (
-                                            <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                                              {sub.badge}
-                                            </span>
-                                          )}
-                                        </button>
-                                      ))}
+                                              }`}
+                                          >
+                                            <span className="truncate">{sub.label}</span>
+                                            {sub.badge && (
+                                              <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
+                                                {sub.badge}
+                                              </span>
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCollapsedHoverSection(null);
-                                      onTabChange?.(child.id);
-                                      if (isMobile) setIsMobileSidebarOpen(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                      child.id === currentTab
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCollapsedHoverSection(null);
+                                        onTabChange?.(child.id);
+                                        if (isMobile) setIsMobileSidebarOpen(false);
+                                      }}
+                                      className={`flex w-full items-center justify-between py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer ${child.id === currentTab
                                         ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
                                         : 'text-slate-700 hover:bg-pearl-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-charcoal-800 dark:hover:text-white'
-                                    }`}
-                                  >
-                                    <span className="truncate">{child.label}</span>
-                                    {child.badge && (
-                                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-                                        {child.badge}
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-          ) : isConnect ? (
-            /* ================================================================= */
-            /* CONNECT VARIANT: Authentic 3 Headings                              */
-            /* ================================================================= */
-            connectNavItems.map((item, index) => (
-              <NavItemRow
-                key={item.id}
-                item={{
-                  ...item,
-                  onAction: item.onAction
-                    ? () => {
+                                        }`}
+                                    >
+                                      <span className="truncate">{child.label}</span>
+                                      {child.badge && (
+                                        <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
+                                          {child.badge}
+                                        </span>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : isConnect ? (
+              /* ================================================================= */
+              /* CONNECT VARIANT: Authentic 3 Headings                              */
+              /* ================================================================= */
+              connectNavItems.map((item, index) => (
+                <NavItemRow
+                  key={item.id}
+                  item={{
+                    ...item,
+                    onAction: item.onAction
+                      ? () => {
                         item.onAction!();
                         if (isMobile) setIsMobileSidebarOpen(false);
                       }
-                    : undefined,
-                }}
-                index={index}
-                isActive={connectModule === item.id}
-                isOpen={isOpen}
-                onActivate={() => {
-                  setConnectModule(item.id as any);
-                  if (isMobile) setIsMobileSidebarOpen(false);
-                }}
-                theme={theme}
-              />
-            ))
-          ) : (
-            /* ================================================================= */
-            /* CENTRAL VARIANT: Authentic Central Headings                       */
-            /* ================================================================= */
-            centralNavItems.map((item, index) => (
-              <NavItemRow
-                key={item.id}
-                item={item}
-                index={index}
-                isActive={activeNavTab === item.id}
-                isOpen={isOpen}
-                onActivate={() => {
-                  setActiveNavTab(item.id);
-                  if (isMobile) setIsMobileSidebarOpen(false);
-                }}
-                theme={theme}
-              />
-            ))
-          )}
-        </div>
+                      : undefined,
+                  }}
+                  index={index}
+                  isActive={connectModule === item.id}
+                  isOpen={isOpen}
+                  onActivate={() => {
+                    setConnectModule(item.id as any);
+                    if (isMobile) setIsMobileSidebarOpen(false);
+                  }}
+                  theme={theme}
+                />
+              ))
+            ) : (
+              /* ================================================================= */
+              /* CENTRAL VARIANT: Authentic Central Headings                       */
+              /* ================================================================= */
+              centralNavItems.map((item, index) => (
+                <NavItemRow
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  isActive={activeNavTab === item.id}
+                  isOpen={isOpen}
+                  onActivate={() => {
+                    setActiveNavTab(item.id);
+                    if (isMobile) setIsMobileSidebarOpen(false);
+                  }}
+                  theme={theme}
+                />
+              ))
+            )}
+          </div>
 
-        {/* Bottom Section: User Profile Only */}
-        <div className="w-full flex flex-col gap-2 pt-2">
-          <div
-            className="w-full"
-            style={{
-              height: 1,
-              background:
-                theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-            }}
-          />
-
-          {/* User Profile Card */}
-          {isOpen ? (
+          {/* Bottom Section: User Profile Only */}
+          <div className="w-full flex flex-col gap-2 pt-2">
             <div
-              className="flex items-center gap-2.5 p-2 rounded-2xl border transition-colors"
+              className="w-full"
               style={{
+                height: 1,
                 background:
-                  theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
-                borderColor:
-                  theme === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)',
+                  theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
               }}
-            >
-              <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
-                  {isHomeHealth ? 'HM' : 'AN'}
+            />
+
+            {/* User Profile Card */}
+            {isOpen ? (
+              <div
+                className="flex items-center gap-2.5 p-2 rounded-2xl border transition-colors"
+                style={{
+                  background:
+                    theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                  borderColor:
+                    theme === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)',
+                }}
+              >
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
+                    {isHomeHealth ? 'HM' : 'AN'}
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-black text-slate-950 dark:text-white truncate flex items-center gap-1">
+                    {isHomeHealth ? 'Hilder M., RN' : 'Alexandria Nelson'}
+                    <ShieldCheck
+                      size={14}
+                      className="text-rose-600 dark:text-rose-400 shrink-0"
+                      weight="fill"
+                    />
+                  </div>
+                  <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
+                    Clinical Supervisor
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-black text-slate-950 dark:text-white truncate flex items-center gap-1">
-                  {isHomeHealth ? 'Hilder M., RN' : 'Alexandria Nelson'}
-                  <ShieldCheck
-                    size={14}
-                    className="text-rose-600 dark:text-rose-400 shrink-0"
-                    weight="fill"
-                  />
-                </div>
-                <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
-                  Clinical Supervisor
+            ) : (
+              <div
+                className="flex justify-center py-1"
+                title={
+                  isHomeHealth
+                    ? 'Hilder M., RN (Clinical Supervisor)'
+                    : 'Alexandria Nelson (Clinical Supervisor)'
+                }
+              >
+                <div className="relative shrink-0">
+                  <div className="w-[46px] h-[46px] rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
+                    {isHomeHealth ? 'HM' : 'AN'}
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
                 </div>
               </div>
-            </div>
-          ) : (
-            <div
-              className="flex justify-center py-1"
-              title={
-                isHomeHealth
-                  ? 'Hilder M., RN (Clinical Supervisor)'
-                  : 'Alexandria Nelson (Clinical Supervisor)'
-              }
-            >
-              <div className="relative shrink-0">
-                <div className="w-[46px] h-[46px] rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
-                  {isHomeHealth ? 'HM' : 'AN'}
-                </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-    </motion.aside>
+      </motion.aside>
     </>
   );
 };

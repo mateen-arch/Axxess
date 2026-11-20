@@ -111,7 +111,7 @@ export const TopHeader: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsNewPatientModalOpen(true)}
-          className="h-9 w-9 sm:w-auto px-0 sm:px-4 rounded-xl text-xs font-black text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-xs hover:shadow-sm active:translate-y-px transition-all flex items-center justify-center sm:justify-start gap-1.5 select-none shrink-0 cursor-pointer"
+          className="h-9 px-4 rounded-xl text-xs font-black text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-xs hover:shadow-sm active:translate-y-px transition-all flex items-center gap-1.5 select-none shrink-0 cursor-pointer"
           aria-label="New Patient"
         >
           <Plus size={15} className="stroke-[2.8]" />
