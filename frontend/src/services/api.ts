@@ -1020,4 +1020,22 @@ export const api = {
     if (!res.ok) throw new Error(json.error || 'Failed to execute schedule reassignment');
     return json;
   },
+
+  // Unscheduled Visits Report API
+  async getUnscheduledVisitsReport(filters: {
+    branch?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    disciplines?: string[];
+    payers?: string[];
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/unscheduled-visits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to generate unscheduled visits report');
+    return json;
+  },
 };

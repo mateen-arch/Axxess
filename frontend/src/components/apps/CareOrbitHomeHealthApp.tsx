@@ -49,6 +49,7 @@ import { MyScheduleTasksView } from '../homehealth/MyScheduleTasksView';
 import { ScheduleUnassignedVisitsView } from '../homehealth/ScheduleUnassignedVisitsView';
 import { ScheduleCenterView } from '../homehealth/ScheduleCenterView';
 import { ReassignScheduleView } from '../homehealth/ReassignScheduleView';
+import { UnscheduledVisitsReportView } from '../homehealth/UnscheduledVisitsReportView';
 import { MyMonthlyCalendarView } from '../homehealth/MyMonthlyCalendarView';
 import { QualityAssuranceCenterView } from '../homehealth/QualityAssuranceCenterView';
 import { PatientListView } from '../homehealth/PatientListView';
@@ -398,6 +399,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     'schedule-unassigned-visits',
     'schedule-center',
     'reassign-schedule',
+    'unscheduled-visits-report',
     'my-monthly-calendar',
     'qa-center',
     'list-patients',
@@ -888,6 +890,16 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             />
           )}
 
+          {currentTab === 'unscheduled-visits-report' && (
+            <UnscheduledVisitsReportView
+              onBack={() => setCurrentTab('dashboard')}
+              onNavigateToSchedule={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('schedule-unassigned-visits');
+              }}
+            />
+          )}
+
           {currentTab === 'my-monthly-calendar' && (
             <MyMonthlyCalendarView
               onBack={() => setCurrentTab('dashboard')}
@@ -1202,6 +1214,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             'schedule-unassigned-visits',
             'schedule-center',
             'reassign-schedule',
+            'unscheduled-visits-report',
             'my-monthly-calendar',
             'qa-center',
             'list-patients',
