@@ -992,4 +992,32 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch schedule authorizations');
     return res.json();
   },
+
+  // Reassign Schedule APIs
+  async getEligibleReassignTasks(params: { employeeFrom?: string; dateFrom?: string; dateTo?: string }) {
+    const query = new URLSearchParams();
+    if (params.employeeFrom) query.set('employeeFrom', params.employeeFrom);
+    if (params.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params.dateTo) query.set('dateTo', params.dateTo);
+    const res = await fetch(`${API_BASE_URL}/api/schedule/reassign/eligible-tasks?${query.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch eligible tasks for reassignment');
+    return res.json();
+  },
+
+  async executeReassignSchedule(data: {
+    employeeFrom?: string;
+    employeeTo: string;
+    dateFrom?: string;
+    dateTo?: string;
+    visitIds?: string[];
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/reassign/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to execute schedule reassignment');
+    return json;
+  },
 };

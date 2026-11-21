@@ -3290,8 +3290,8 @@ app.get('/api/schedule/clinicians', async (_req: Request, res: Response) => {
         u.email,
         u.avatar_url as "avatarUrl"
       FROM clinicians c
-      JOIN users u ON c.user_id = u.id
-      ORDER BY c.name;
+      LEFT JOIN users u ON c.user_id = u.id
+      ORDER BY COALESCE(c.name, u.full_name);
     `);
     res.json(result.rows);
   } catch (err: any) {
@@ -4234,7 +4234,129 @@ app.get('/api/schedule/center/authorizations/:patientId', async (req: Request, r
   }
 });
 
-// GET /api/schedule/my-schedule-tasks - Real Clinician My Schedule / Tasks
+// GET /api/schedule/reassign/eligible-tasks - Search tasks eligible for reassignment
+app.get('/api/schedule/reassign/eligible-tasks', async (req: Request, res: Response) => {
+  try {
+    const { employeeFrom, dateFrom, dateTo } = req.query;
+
+    let query = `
+      SELECT 
+        v.id,
+        COALESCE(v.patient_name, p.first_name || ' ' || p.last_name, 'Patient') as "patientName",
+        COALESCE(p.mrn, '1001') as mrn,
+        COALESCE(v.task, v.visit_type, 'Skilled Nursing Visit') as task,
+        TO_CHAR(COALESCE(v.scheduled_date, v.scheduled_start), 'MM/DD/YYYY') as "scheduledDate",
+        COALESCE(TO_CHAR(v.scheduled_date, 'YYYY-MM-DD'), TO_CHAR(v.scheduled_start, 'YYYY-MM-DD')) as "rawDate",
+        COALESCE(v.time_slot, '09:00 AM') as "timeSlot",
+        COALESCE(v.employee_name, c.name, 'Unassigned') as "assignedTo",
+        COALESCE(c.discipline, 'Nursing') as discipline,
+        COALESCE(v.status, 'Not Yet Due') as status
+      FROM visits v
+      LEFT JOIN patients p ON v.patient_id = p.id
+      LEFT JOIN clinicians c ON v.clinician_id::text = c.id::text
+      WHERE 
+        LOWER(COALESCE(v.status, '')) IN ('not yet due', 'not_yet_due', 'scheduled', 'not yet started', 'not_started', 'unassigned')
+    `;
+
+    const params: any[] = [];
+    let pIdx = 1;
+
+    if (employeeFrom && employeeFrom !== 'all' && employeeFrom !== '') {
+      query += ` AND (v.employee_name ILIKE $${pIdx} OR c.name ILIKE $${pIdx})`;
+      params.push(`%${employeeFrom}%`);
+      pIdx++;
+    }
+
+    if (dateFrom) {
+      query += ` AND COALESCE(v.scheduled_date, v.scheduled_start::date) >= $${pIdx}::date`;
+      params.push(dateFrom);
+      pIdx++;
+    }
+
+    if (dateTo) {
+      query += ` AND COALESCE(v.scheduled_date, v.scheduled_start::date) <= $${pIdx}::date`;
+      params.push(dateTo);
+      pIdx++;
+    }
+
+    query += ` ORDER BY COALESCE(v.scheduled_date, v.scheduled_start) ASC, v.time_slot ASC LIMIT 100;`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err: any) {
+    console.error('Error fetching eligible tasks for reassignment:', err);
+    res.status(500).json({ error: 'Failed to fetch eligible tasks' });
+  }
+});
+
+// POST /api/schedule/reassign/execute - Batch execute schedule task reassignment
+app.post('/api/schedule/reassign/execute', async (req: Request, res: Response) => {
+  try {
+    const { employeeFrom, employeeTo, dateFrom, dateTo, visitIds } = req.body;
+
+    if (!employeeTo) {
+      return res.status(400).json({ error: 'Missing employeeTo recipient' });
+    }
+
+    // Resolve target clinician id if available
+    const clinRes = await pool.query('SELECT id, name FROM clinicians WHERE name ILIKE $1 LIMIT 1', [`%${employeeTo}%`]);
+    const targetClinicianId = clinRes.rows[0]?.id || null;
+    const targetClinicianName = clinRes.rows[0]?.name || employeeTo;
+
+    let updateRes;
+    if (visitIds && Array.isArray(visitIds) && visitIds.length > 0) {
+      updateRes = await pool.query(`
+        UPDATE visits
+        SET 
+          clinician_id = COALESCE($1, clinician_id),
+          employee_name = $2
+        WHERE id::text = ANY($3::text[])
+        RETURNING id;
+      `, [targetClinicianId, targetClinicianName, visitIds]);
+    } else {
+      let updateQuery = `
+        UPDATE visits
+        SET 
+          clinician_id = COALESCE($1, clinician_id),
+          employee_name = $2
+        WHERE 
+          LOWER(COALESCE(status, '')) IN ('not yet due', 'not_yet_due', 'scheduled', 'not yet started', 'not_started', 'unassigned')
+      `;
+      const updateParams: any[] = [targetClinicianId, targetClinicianName];
+      let pIdx = 3;
+
+      if (employeeFrom && employeeFrom !== 'all' && employeeFrom !== '') {
+        updateQuery += ` AND employee_name ILIKE $${pIdx}`;
+        updateParams.push(`%${employeeFrom}%`);
+        pIdx++;
+      }
+
+      if (dateFrom) {
+        updateQuery += ` AND COALESCE(scheduled_date, scheduled_start::date) >= $${pIdx}::date`;
+        updateParams.push(dateFrom);
+        pIdx++;
+      }
+
+      if (dateTo) {
+        updateQuery += ` AND COALESCE(scheduled_date, scheduled_start::date) <= $${pIdx}::date`;
+        updateParams.push(dateTo);
+        pIdx++;
+      }
+
+      updateQuery += ` RETURNING id;`;
+      updateRes = await pool.query(updateQuery, updateParams);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully reassigned ${updateRes.rowCount} task(s) to ${targetClinicianName}.`,
+      reassignedCount: updateRes.rowCount
+    });
+  } catch (err: any) {
+    console.error('Error executing schedule reassignment:', err);
+    res.status(500).json({ error: 'Failed to execute reassignment' });
+  }
+});
 app.get('/api/schedule/my-schedule-tasks', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(`
