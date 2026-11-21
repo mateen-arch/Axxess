@@ -114,9 +114,9 @@ ALTER TABLE intake_referrals ADD COLUMN IF NOT EXISTS clinical_summary TEXT;
 
 -- 2.1 PATIENT_TASKS (Clinical charts tasks)
 CREATE TABLE IF NOT EXISTS patient_tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
-  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+  patient_id VARCHAR(100),
   task_name VARCHAR(255) DEFAULT 'Communication Note',
   discipline VARCHAR(100) DEFAULT 'Nursing',
   status VARCHAR(50) DEFAULT 'Not Yet Due',
@@ -126,6 +126,24 @@ CREATE TABLE IF NOT EXISTS patient_tasks (
   comments TEXT DEFAULT 'Not Available',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Standardize patient_tasks columns to VARCHAR(100) if they were created as UUID
+DO $$
+BEGIN
+  ALTER TABLE patient_tasks DROP CONSTRAINT IF EXISTS patient_tasks_patient_id_fkey;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'patient_tasks' AND column_name = 'patient_id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE patient_tasks ALTER COLUMN patient_id TYPE VARCHAR(100) USING patient_id::text;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'patient_tasks' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE patient_tasks ALTER COLUMN id TYPE VARCHAR(100) USING id::text;
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_patient_tasks_pid ON patient_tasks(patient_id);
 
 -- 2.2 EPISODES
@@ -695,8 +713,8 @@ BEGIN
       id, organization_id, patient_id, task_name, discipline, status,
       schedule_start, schedule_end, assigned_to, comments
     ) VALUES 
-      ('33333333-3333-4333-a333-333333333301', v_org_id, v_pat_id, 'OASIS-E Recertification Assessment', 'Nursing', 'Pending Review', '2026-11-03', '2026-11-03', 'Alexandria Nelson, RN', 'Requires 30-day compliance review lock'),
-      ('33333333-3333-4333-a333-333333333302', v_org_id, v_pat_id, 'Physician Face-to-Face Follow-up', 'Physician Liaison', 'Overdue', '2026-11-04', '2026-11-04', 'Selina Mwakipunda', 'Attending physician counter-signature pending')
+      ('33333333-3333-4333-a333-333333333301', v_org_id, v_pat_id::text, 'OASIS-E Recertification Assessment', 'Nursing', 'Pending Review', '2026-11-03', '2026-11-03', 'Alexandria Nelson, RN', 'Requires 30-day compliance review lock'),
+      ('33333333-3333-4333-a333-333333333302', v_org_id, v_pat_id::text, 'Physician Face-to-Face Follow-up', 'Physician Liaison', 'Overdue', '2026-11-04', '2026-11-04', 'Selina Mwakipunda', 'Attending physician counter-signature pending')
     ON CONFLICT (id) DO NOTHING;
   END IF;
 END $$;
@@ -772,14 +790,14 @@ BEGIN
   FOR r_patient IN SELECT id, first_name || ' ' || last_name AS full_name, mrn FROM patients LOOP
 
     -- A. Patient Tasks (if patient currently has no tasks)
-    IF NOT EXISTS (SELECT 1 FROM patient_tasks WHERE patient_id = r_patient.id) THEN
+    IF NOT EXISTS (SELECT 1 FROM patient_tasks WHERE patient_id = r_patient.id::text) THEN
       INSERT INTO patient_tasks (organization_id, patient_id, task_name, discipline, status, schedule_start, schedule_end, assigned_to, comments)
       VALUES 
-        (v_org_id, r_patient.id, 'Communication Note', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '3 days', CURRENT_DATE - INTERVAL '3 days', 'Sarah Jenkins, RN', 'Initial intake documentation and vital signs baseline recorded.'),
-        (v_org_id, r_patient.id, 'Coordination of Care', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day', 'Alexandria Nelson, RN', 'Interdisciplinary team conference held regarding medication compliance.'),
-        (v_org_id, r_patient.id, 'Face-to-Face Encounter', 'Physician Liaison', 'Returned w/ Physician Signature', CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE - INTERVAL '5 days', 'Selina Mwakipunda', 'Dr. Leslie Rigali counter-signed POC form.'),
-        (v_org_id, r_patient.id, 'LPN - Oral Med. Management', 'Nursing', 'Not Yet Due', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE + INTERVAL '2 days', 'Marrio Fortune', 'Pre-fill 7-day pill organizer and monitor for diuretic side effects.'),
-        (v_org_id, r_patient.id, 'Physical Therapy Evaluation', 'Physical Therapy', 'Completed', CURRENT_DATE - INTERVAL '4 days', CURRENT_DATE - INTERVAL '4 days', 'Andre Bellevue, PT', 'Gait and stability evaluation with rolling walker.');
+        (v_org_id, r_patient.id::text, 'Communication Note', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '3 days', CURRENT_DATE - INTERVAL '3 days', 'Sarah Jenkins, RN', 'Initial intake documentation and vital signs baseline recorded.'),
+        (v_org_id, r_patient.id::text, 'Coordination of Care', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day', 'Alexandria Nelson, RN', 'Interdisciplinary team conference held regarding medication compliance.'),
+        (v_org_id, r_patient.id::text, 'Face-to-Face Encounter', 'Physician Liaison', 'Returned w/ Physician Signature', CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE - INTERVAL '5 days', 'Selina Mwakipunda', 'Dr. Leslie Rigali counter-signed POC form.'),
+        (v_org_id, r_patient.id::text, 'LPN - Oral Med. Management', 'Nursing', 'Not Yet Due', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE + INTERVAL '2 days', 'Marrio Fortune', 'Pre-fill 7-day pill organizer and monitor for diuretic side effects.'),
+        (v_org_id, r_patient.id::text, 'Physical Therapy Evaluation', 'Physical Therapy', 'Completed', CURRENT_DATE - INTERVAL '4 days', CURRENT_DATE - INTERVAL '4 days', 'Andre Bellevue, PT', 'Gait and stability evaluation with rolling walker.');
     END IF;
 
     -- B. Episodes (if patient currently has no episodes)
