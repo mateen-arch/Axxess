@@ -99,9 +99,12 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     addNewPatient,
     setIsCommandPaletteOpen,
     setIsMobileSidebarOpen,
+    homeHealthTab,
+    setHomeHealthTab,
   } = useHealthcare();
 
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const currentTab = homeHealthTab;
+  const setCurrentTab = setHomeHealthTab;
   const [selectedEditPatientId, setSelectedEditPatientId] = useState<string>('p-1061');
   const [selectedEditFacilityId, setSelectedEditFacilityId] = useState<string>('fac-1');
   const [selectedEditPharmacyId, setSelectedEditPharmacyId] = useState<string>('ph-1');

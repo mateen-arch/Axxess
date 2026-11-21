@@ -4121,7 +4121,7 @@ app.post('/api/reports/generate', async (req: Request, res: Response) => {
           (t.status = 'Completed' OR t.status ILIKE '%signature%') as "isCompleted",
           (t.status = 'Not Yet Due') as "isInProgress"
         FROM patient_tasks t
-        JOIN patients p ON t.patient_id = p.id
+        JOIN patients p ON t.patient_id = p.id::text
         WHERE 1=1
       `;
       const params: any[] = [];
@@ -4674,9 +4674,9 @@ app.get('/api/planner/itinerary', async (req: Request, res: Response) => {
         v.status,
         COALESCE(c.name, v.employee_name, 'Staff Clinician') as "clinicianName"
       FROM visits v
-      LEFT JOIN clinicians c ON v.clinician_id = c.id
-      JOIN patients p ON v.patient_id = p.id
-      WHERE v.scheduled_date = $1
+      LEFT JOIN clinicians c ON v.clinician_id::text = c.id::text
+      LEFT JOIN patients p ON v.patient_id::text = p.id::text
+      WHERE (v.scheduled_date = $1::date OR v.scheduled_start::date = $1::date)
       ORDER BY v.scheduled_start ASC, v.time_slot ASC;
     `, [dateParam]);
 
@@ -4750,7 +4750,7 @@ app.get('/api/planner/past-due', async (_req: Request, res: Response) => {
         p.first_name || ' ' || p.last_name as "patientName",
         p.mrn as "patientMrn"
       FROM patient_tasks t
-      JOIN patients p ON t.patient_id = p.id
+      JOIN patients p ON t.patient_id = p.id::text
       WHERE t.status != 'completed' AND t.schedule_start < '2026-11-06'
       ORDER BY t.schedule_start ASC
       LIMIT 10;
@@ -4804,7 +4804,7 @@ app.get('/api/planner/alerts', async (_req: Request, res: Response) => {
     const returnedSigTasks = await pool.query(`
       SELECT t.id, t.task_name, t.assigned_to, p.id as "patientId", p.first_name || ' ' || p.last_name as "patientName"
       FROM patient_tasks t
-      JOIN patients p ON t.patient_id = p.id
+      JOIN patients p ON t.patient_id = p.id::text
       WHERE t.status = 'returned_with_signature'
       LIMIT 2;
     `);
@@ -5041,6 +5041,215 @@ async function initCoreTables() {
         day_of_week = EXTRACT(DOW FROM v.scheduled_start)::int,
         time_slot = TO_CHAR(v.scheduled_start, 'HH12:MI AM')
     WHERE v.scheduled_start IS NOT NULL AND (v.scheduled_date IS NULL OR v.day_of_week IS NULL OR v.time_slot IS NULL);
+  `);
+
+  // Step 8: Ensure Connect & Route Planner tables exist
+  await runStep('Ensure Connect and Route Planner tables', `
+    CREATE TABLE IF NOT EXISTS conversations (
+      id VARCHAR(100) PRIMARY KEY,
+      type VARCHAR(50) NOT NULL DEFAULT 'direct',
+      title VARCHAR(255) NOT NULL,
+      subtitle VARCHAR(255),
+      patient_id VARCHAR(100),
+      patient_name VARCHAR(255),
+      service_line VARCHAR(50) DEFAULT 'home_health',
+      is_pinned BOOLEAN DEFAULT FALSE,
+      is_urgent BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS conversation_participants (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      conversation_id VARCHAR(100) REFERENCES conversations(id) ON DELETE CASCADE,
+      clinician_id VARCHAR(100),
+      name VARCHAR(255) NOT NULL,
+      role VARCHAR(255),
+      status VARCHAR(50) DEFAULT 'online'
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id VARCHAR(100) PRIMARY KEY,
+      conversation_id VARCHAR(100) REFERENCES conversations(id) ON DELETE CASCADE,
+      sender_id VARCHAR(100) NOT NULL,
+      sender_name VARCHAR(255) NOT NULL,
+      sender_role VARCHAR(255),
+      content TEXT NOT NULL,
+      is_read BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      attachment_name VARCHAR(255),
+      attachment_type VARCHAR(50),
+      attachment_size VARCHAR(50),
+      attachment_url TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id VARCHAR(100) PRIMARY KEY,
+      contact_name VARCHAR(255) NOT NULL,
+      contact_role VARCHAR(255),
+      direction VARCHAR(20) NOT NULL,
+      call_type VARCHAR(20) NOT NULL DEFAULT 'audio',
+      duration VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Step 9: Seed Connect conversations and messages if empty
+  await runStep('Seed conversations and messages if empty', `
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM conversations LIMIT 1) THEN
+        INSERT INTO conversations (id, type, title, subtitle, patient_name, service_line, is_pinned, is_urgent, created_at, updated_at)
+        VALUES 
+          ('conv-care-abuissa', 'care_team', 'Heather Abuissa (1061) Care Team', 'Sarah Jenkins RN, Alexandria Nelson RN, Dr. Leslie Rigali', 'Heather Abuissa', 'home_health', true, false, '2026-11-06 08:30:00+00', '2026-11-06 10:24:00+00'),
+          ('conv-alexandria', 'direct', 'Alexandria Nelson, RN', 'Field Clinician • Skilled Nursing', NULL, 'home_health', true, false, '2026-11-05 14:00:00+00', '2026-11-06 09:50:00+00'),
+          ('conv-carolyn', 'direct', 'Carolyn Akukwe, RN', 'Case Manager • Rehabilitation & Care Coordination', NULL, 'home_health', false, true, '2026-11-04 11:00:00+00', '2026-11-06 08:45:00+00'),
+          ('conv-care-anis', 'care_team', 'Marie V. Anis (1036) Care Team', 'Susanna Welch BSN, Andre Bellevue PT, Dr. Leslie Rigali', 'Marie V. Anis', 'home_health', false, false, '2026-11-04 10:00:00+00', '2026-11-05 15:20:00+00'),
+          ('conv-andre', 'direct', 'Andre Bellevue, PT', 'Physical Therapist Lead • Mobility Assessment', NULL, 'home_health', false, false, '2026-11-03 12:00:00+00', '2026-11-05 17:10:00+00'),
+          ('conv-triage-channel', 'channel', 'Standards Home Care - Clinical Triage', 'Agency-wide on-call broadcast & critical intake', NULL, 'home_health', false, false, '2026-11-01 08:00:00+00', '2026-11-06 07:30:00+00')
+        ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO conversation_participants (conversation_id, name, role, status)
+        VALUES
+          ('conv-care-abuissa', 'Sarah Jenkins, RN', 'Primary Field Nurse (RN)', 'online'),
+          ('conv-care-abuissa', 'Alexandria Nelson, RN', 'Clinical Supervisor', 'online'),
+          ('conv-care-abuissa', 'Dr. Leslie Rigali, MD', 'Attending Physician', 'busy'),
+          ('conv-alexandria', 'Alexandria Nelson, RN', 'Field Clinician (RN)', 'online'),
+          ('conv-carolyn', 'Carolyn Akukwe, RN', 'Case Manager (RN)', 'online'),
+          ('conv-care-anis', 'Susanna Welch, BSN', 'Lead Staff Nurse', 'offline'),
+          ('conv-care-anis', 'Andre Bellevue, PT', 'Physical Therapist', 'online'),
+          ('conv-care-anis', 'Dr. Leslie Rigali, MD', 'Attending Physician', 'busy'),
+          ('conv-andre', 'Andre Bellevue, PT', 'Physical Therapist', 'online'),
+          ('conv-triage-channel', 'Clinical Operations Triage', 'Dispatch Coordinator', 'online');
+
+        INSERT INTO chat_messages (id, conversation_id, sender_id, sender_name, sender_role, content, is_read, created_at, attachment_name, attachment_type, attachment_size, attachment_url)
+        VALUES
+          ('msg-01', 'conv-care-abuissa', 'cli-jenkins', 'Sarah Jenkins, RN', 'Primary Field Nurse', 'Wound dressing change completed for right lower extremity diabetic ulcer. Clean granulated base observed.', true, '2026-11-06 09:15:00+00', NULL, NULL, NULL, NULL),
+          ('msg-02', 'conv-care-abuissa', 'cli-jenkins', 'Sarah Jenkins, RN', 'Primary Field Nurse', 'Attached operative debridement clinical record and updated photo measurements (2.1 x 1.4 cm).', true, '2026-11-06 09:42:00+00', 'DFU_Debridement_Note_Nov2026.pdf', 'pdf', '480 KB', '/api/connect/attachments/DFU_Debridement_Note_Nov2026.pdf'),
+          ('msg-03', 'conv-care-abuissa', 'cli-rigali', 'Dr. Leslie Rigali, MD', 'Attending Physician', 'Orders reviewed and approved. Continue Collagenase Santyl daily dressing changes x 14 days.', false, '2026-11-06 10:24:00+00', NULL, NULL, NULL, NULL),
+          ('msg-04', 'conv-alexandria', 'cli-nelson', 'Alexandria Nelson, RN', 'Clinical Supervisor', 'Good morning! Patient Heather Abuissa is scheduled for recertification evaluation today.', true, '2026-11-06 09:10:00+00', NULL, NULL, NULL, NULL),
+          ('msg-05', 'conv-alexandria', 'cli-nelson', 'Alexandria Nelson, RN', 'Clinical Supervisor', 'Here is the complete OASIS-E recertification clinical document packet.', false, '2026-11-06 09:50:00+00', 'OASIS_Recertification_Protocol.pdf', 'pdf', '640 KB', '/api/connect/attachments/OASIS_Recertification_Protocol.pdf'),
+          ('msg-06', 'conv-carolyn', 'cli-akukwe', 'Carolyn Akukwe, RN', 'Case Manager', 'Selina, could you review the pending 60-day discharge summary for Marie Anis?', true, '2026-11-05 16:30:00+00', NULL, NULL, NULL, NULL),
+          ('msg-07', 'conv-carolyn', 'cli-akukwe', 'Carolyn Akukwe, RN', 'Case Manager', 'Attached the draft discharge summary with functional outcome score improvements.', false, '2026-11-06 08:45:00+00', 'Discharge_Planning_Summary.pdf', 'pdf', '320 KB', '/api/connect/attachments/Discharge_Planning_Summary.pdf'),
+          ('msg-08', 'conv-care-anis', 'cli-welch', 'Susanna Welch, BSN', 'Lead Staff Nurse', 'Patient tolerance to BID Humalog sliding scale therapy has stabilized. Attached BG log.', true, '2026-11-05 15:20:00+00', 'Insulin_Administration_Log.pdf', 'pdf', '290 KB', '/api/connect/attachments/Insulin_Administration_Log.pdf'),
+          ('msg-09', 'conv-andre', 'cli-bellevue', 'Andre Bellevue, PT', 'Physical Therapist', 'Patient has progressed from walker to quad cane for short distances. Attached gait report.', true, '2026-11-05 17:10:00+00', 'Functional_Mobility_Assessment.pdf', 'pdf', '510 KB', '/api/connect/attachments/Functional_Mobility_Assessment.pdf'),
+          ('msg-10', 'conv-triage-channel', 'dispatch', 'Clinical Operations Triage', 'Dispatch Coordinator', 'URGENT: Standards Home Care emergency triage coverage roster updated for weekend.', true, '2026-11-06 07:30:00+00', NULL, NULL, NULL, NULL)
+        ON CONFLICT (id) DO NOTHING;
+      END IF;
+    END $$;
+  `);
+
+  // Step 10: Seed call_logs if empty
+  await runStep('Seed call_logs if empty', `
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM call_logs LIMIT 1) THEN
+        INSERT INTO call_logs (id, contact_name, contact_role, direction, call_type, duration, created_at)
+        VALUES 
+          ('call-1', 'Alexandria Nelson, RN', 'Field Clinician (RN)', 'incoming', 'audio', '4m 12s', '2026-11-06 10:15:00+00'),
+          ('call-2', 'Carolyn Akukwe, RN', 'Case Manager (RN)', 'outgoing', 'audio', '2m 45s', '2026-11-06 09:30:00+00'),
+          ('call-3', 'Andre Bellevue, PT', 'Physical Therapist', 'missed', 'audio', '0s', '2026-11-05 16:40:00+00'),
+          ('call-4', 'Susanna Welch, BSN', 'Lead Staff Nurse', 'incoming', 'audio', '6m 18s', '2026-11-05 11:20:00+00')
+        ON CONFLICT (id) DO NOTHING;
+      END IF;
+    END $$;
+  `);
+
+  // Step 11: Seed Route Planner visits for 2026-11-06 if none exist
+  await runStep('Seed Route Planner visits for 2026-11-06 if none exist', `
+    DO $$
+    DECLARE
+      v_org_id UUID;
+      v_clin_id UUID;
+      v_pat1_id UUID;
+      v_pat2_id UUID;
+      v_pat3_id UUID;
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM visits WHERE scheduled_date = '2026-11-06'::date) THEN
+        SELECT id INTO v_org_id FROM organizations LIMIT 1;
+        SELECT id INTO v_clin_id FROM clinicians WHERE name ILIKE '%Alexandria%' LIMIT 1;
+        IF v_clin_id IS NULL THEN
+          SELECT id INTO v_clin_id FROM clinicians LIMIT 1;
+        END IF;
+
+        SELECT id INTO v_pat1_id FROM patients WHERE mrn = '1061' LIMIT 1;
+        IF v_pat1_id IS NULL THEN SELECT id INTO v_pat1_id FROM patients LIMIT 1; END IF;
+
+        SELECT id INTO v_pat2_id FROM patients WHERE mrn = '1036' LIMIT 1;
+        IF v_pat2_id IS NULL THEN SELECT id INTO v_pat2_id FROM patients LIMIT 1; END IF;
+
+        SELECT id INTO v_pat3_id FROM patients WHERE id NOT IN (COALESCE(v_pat1_id, '00000000-0000-0000-0000-000000000000'::uuid), COALESCE(v_pat2_id, '00000000-0000-0000-0000-000000000000'::uuid)) LIMIT 1;
+        IF v_pat3_id IS NULL THEN v_pat3_id := v_pat1_id; END IF;
+
+        IF v_pat1_id IS NOT NULL THEN
+          INSERT INTO visits (
+            organization_id, clinician_id, patient_id, scheduled_start, scheduled_end,
+            time_slot, scheduled_date, day_of_week, status, visit_type, task,
+            service_line, address, latitude, longitude, employee_name, patient_name
+          ) VALUES (
+            v_org_id, v_clin_id, v_pat1_id,
+            '2026-11-06 09:00:00+00', '2026-11-06 10:00:00+00', '09:00 AM', '2026-11-06', 5,
+            'Scheduled', 'Skilled Nursing Visit', 'Wound Care & OASIS-E Recertification',
+            'home_health', '8305 Walton Blvd, Dallas TX', 32.8998, -96.9454,
+            'Alexandria Nelson, RN', 'Heather Abuissa'
+          );
+        END IF;
+
+        IF v_pat2_id IS NOT NULL THEN
+          INSERT INTO visits (
+            organization_id, clinician_id, patient_id, scheduled_start, scheduled_end,
+            time_slot, scheduled_date, day_of_week, status, visit_type, task,
+            service_line, address, latitude, longitude, employee_name, patient_name
+          ) VALUES (
+            v_org_id, v_clin_id, v_pat2_id,
+            '2026-11-06 11:00:00+00', '2026-11-06 12:30:00+00', '11:00 AM', '2026-11-06', 5,
+            'Scheduled', 'Physical Therapy Assessment', 'Gait Training & Fall Risk Mitigation',
+            'home_health', '1420 Mockingbird Ln, Dallas TX', 32.8252, -96.8612,
+            'Andre Bellevue, PT', 'Marie V. Anis'
+          );
+        END IF;
+
+        IF v_pat3_id IS NOT NULL THEN
+          INSERT INTO visits (
+            organization_id, clinician_id, patient_id, scheduled_start, scheduled_end,
+            time_slot, scheduled_date, day_of_week, status, visit_type, task,
+            service_line, address, latitude, longitude, employee_name, patient_name
+          ) VALUES (
+            v_org_id, v_clin_id, v_pat3_id,
+            '2026-11-06 14:00:00+00', '2026-11-06 15:00:00+00', '02:00 PM', '2026-11-06', 5,
+            'Scheduled', 'Skilled Nursing Visit', 'Cardiopulmonary & Med Management',
+            'home_health', '3812 Elm St, Dallas TX', 32.7842, -96.7820,
+            'Alexandria Nelson, RN', 'Jeffrey Antoniotti'
+          );
+        END IF;
+      END IF;
+    END $$;
+  `);
+
+  // Step 12: Seed patient_tasks if empty
+  await runStep('Seed patient_tasks if empty', `
+    DO $$
+    DECLARE
+      v_org_id UUID;
+      v_pat_id UUID;
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM patient_tasks LIMIT 1) THEN
+        SELECT id INTO v_org_id FROM organizations LIMIT 1;
+        SELECT id INTO v_pat_id FROM patients WHERE mrn = '1061' LIMIT 1;
+        IF v_pat_id IS NULL THEN SELECT id INTO v_pat_id FROM patients LIMIT 1; END IF;
+
+        IF v_pat_id IS NOT NULL THEN
+          INSERT INTO patient_tasks (
+            organization_id, patient_id, task_name, discipline, status,
+            schedule_start, schedule_end, assigned_to, comments
+          ) VALUES
+            (v_org_id, v_pat_id::text, 'OASIS-E Recertification Assessment', 'Nursing', 'Pending Review', '2026-11-03', '2026-11-03', 'Alexandria Nelson, RN', 'Requires 30-day compliance review lock'),
+            (v_org_id, v_pat_id::text, 'Physician Face-to-Face Follow-up', 'Physician Liaison', 'Overdue', '2026-11-04', '2026-11-04', 'Selina Mwakipunda', 'Attending physician counter-signature pending'),
+            (v_org_id, v_pat_id::text, 'Wound Assessment & Debridement Protocol', 'Nursing', 'returned_with_signature', '2026-11-05', '2026-11-05', 'Alexandria Nelson, RN', 'Physician signed off on Collagenase Santyl'),
+            (v_org_id, v_pat_id::text, '60-Day Medication Reconciliation', 'Pharmacy', 'Completed', '2026-11-02', '2026-11-02', 'CVS Clinical Pharmacy', 'Reconciliation verified with Dr. Rigali');
+        END IF;
+      END IF;
+    END $$;
   `);
 
   console.log('[initCoreTables] Core table initialization completed.');

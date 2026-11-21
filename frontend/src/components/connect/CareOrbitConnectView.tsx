@@ -44,11 +44,14 @@ export const CareOrbitConnectView: React.FC = () => {
     patients,
     setSelectedPatient,
     fetchMessagesForConversation,
-    refreshConnectConversations
+    refreshConnectConversations,
+    connectRailTab,
+    setConnectRailTab
   } = useHealthcare();
 
   // Rail State: 'chat' | 'calls'
-  const [activeRailTab, setActiveRailTab] = useState<'chat' | 'calls'>('chat');
+  const activeRailTab = connectRailTab;
+  const setActiveRailTab = setConnectRailTab;
   const [mobileShowChat, setMobileShowChat] = useState(false);
 
   // Filter & Search

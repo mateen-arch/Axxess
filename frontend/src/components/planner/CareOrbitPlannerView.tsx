@@ -80,6 +80,143 @@ interface PlannerAlertItem {
   severity: 'high' | 'medium' | 'info';
 }
 
+const DEFAULT_PLANNER_VISITS: PlannerVisit[] = [
+  {
+    id: 'plan-v-1',
+    patientName: 'Heather Abuissa',
+    patientMrn: '1061',
+    address: '8305 Walton Blvd, Dallas TX 75063',
+    lat: 32.8998,
+    lng: -96.9454,
+    timeSlot: '09:00 AM',
+    discipline: 'RN',
+    visitType: 'Skilled Nursing Assessment',
+    serviceLine: 'home_health',
+    status: 'Scheduled',
+    clinicianName: 'Alexandria Nelson, RN'
+  },
+  {
+    id: 'plan-v-2',
+    patientName: 'Marie V. Anis',
+    patientMrn: '1036',
+    address: '1420 Mockingbird Ln, Dallas TX 75247',
+    lat: 32.8252,
+    lng: -96.8612,
+    timeSlot: '11:00 AM',
+    discipline: 'PT',
+    visitType: 'Physical Therapy Assessment',
+    serviceLine: 'home_health',
+    status: 'Scheduled',
+    clinicianName: 'Andre Bellevue, PT'
+  },
+  {
+    id: 'plan-v-3',
+    patientName: 'Jeffrey Antoniotti',
+    patientMrn: '1029',
+    address: '3812 Elm St, Dallas TX 75226',
+    lat: 32.7842,
+    lng: -96.7820,
+    timeSlot: '02:00 PM',
+    discipline: 'RN',
+    visitType: 'Skilled Nursing Visit',
+    serviceLine: 'home_health',
+    status: 'Scheduled',
+    clinicianName: 'Alexandria Nelson, RN'
+  }
+];
+
+const DEFAULT_UNREAD_MESSAGES: PlannerUnreadMessage[] = [
+  {
+    id: 'p-msg-1',
+    conversationId: 'conv-care-abuissa',
+    senderName: 'Dr. Leslie Rigali, MD',
+    senderRole: 'Attending Physician',
+    content: 'Orders reviewed and approved. Continue Collagenase Santyl daily dressing changes x 14 days.',
+    date: '11/06/26',
+    timestamp: '10:24 AM',
+    conversationTitle: 'Heather Abuissa (1061) Care Team',
+    serviceLine: 'home_health',
+    organizationName: 'Standards Home Care'
+  },
+  {
+    id: 'p-msg-2',
+    conversationId: 'conv-alexandria',
+    senderName: 'Alexandria Nelson, RN',
+    senderRole: 'Clinical Supervisor',
+    content: 'Here is the complete OASIS-E recertification clinical document packet for review.',
+    date: '11/06/26',
+    timestamp: '09:50 AM',
+    conversationTitle: 'Alexandria Nelson, RN',
+    serviceLine: 'home_health',
+    organizationName: 'Standards Home Care'
+  },
+  {
+    id: 'p-msg-3',
+    conversationId: 'conv-carolyn',
+    senderName: 'Carolyn Akukwe, RN',
+    senderRole: 'Case Manager',
+    content: 'Attached the draft discharge summary with functional outcome score improvements.',
+    date: '11/06/26',
+    timestamp: '08:45 AM',
+    conversationTitle: 'Carolyn Akukwe, RN',
+    serviceLine: 'home_health',
+    organizationName: 'Standards Home Care'
+  }
+];
+
+const DEFAULT_PAST_DUE: PlannerPastDueItem[] = [
+  {
+    id: 'pd-1',
+    taskName: 'Physician Face-to-Face Follow-up',
+    status: 'Overdue',
+    assignedTo: 'Selina Mwakipunda',
+    dueDate: '11/04/2026',
+    daysOverdue: 2,
+    patientId: 'pat-1061',
+    patientName: 'Heather Abuissa',
+    patientMrn: '1061'
+  },
+  {
+    id: 'pd-2',
+    taskName: 'OASIS-E Recertification Assessment',
+    status: 'Pending Review',
+    assignedTo: 'Alexandria Nelson, RN',
+    dueDate: '11/03/2026',
+    daysOverdue: 3,
+    patientId: 'pat-1061',
+    patientName: 'Heather Abuissa',
+    patientMrn: '1061'
+  }
+];
+
+const DEFAULT_ALERTS: PlannerAlertItem[] = [
+  {
+    id: 'alt-1',
+    title: '60-Day Recert Window (Heather Abuissa)',
+    description: 'Certification period ends 12/24/2026. Comprehensive recertification assessment required.',
+    patientId: 'pat-1061',
+    patientName: 'Heather Abuissa',
+    type: 'recert',
+    severity: 'high'
+  },
+  {
+    id: 'alt-2',
+    title: 'High Clinical Risk Protocol (Marie V. Anis)',
+    description: 'Identified with active Fall Risk. Clinical intervention protocol required.',
+    patientId: 'pat-1036',
+    patientName: 'Marie V. Anis',
+    type: 'risk',
+    severity: 'medium'
+  },
+  {
+    id: 'alt-3',
+    title: 'Physician Signature Returned: Wound Assessment & Debridement Protocol',
+    description: 'Dr. Leslie Rigali has counter-signed electronic order. Verified for chart lock.',
+    type: 'signature',
+    severity: 'info'
+  }
+];
+
 export const CareOrbitPlannerView: React.FC = () => {
   const {
     setActiveNavTab,
@@ -92,20 +229,20 @@ export const CareOrbitPlannerView: React.FC = () => {
 
   // Selected Date State
   const [selectedDate, setSelectedDate] = useState('2026-11-06');
-  const [visits, setVisits] = useState<PlannerVisit[]>([]);
+  const [visits, setVisits] = useState<PlannerVisit[]>(DEFAULT_PLANNER_VISITS);
   const [isLoadingVisits, setIsLoadingVisits] = useState(false);
   const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
 
   // Unread Messages State
-  const [unreadMessages, setUnreadMessages] = useState<PlannerUnreadMessage[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState<PlannerUnreadMessage[]>(DEFAULT_UNREAD_MESSAGES);
   const [unreadSortOrder, setUnreadSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Past Due State
-  const [pastDueItems, setPastDueItems] = useState<PlannerPastDueItem[]>([]);
+  const [pastDueItems, setPastDueItems] = useState<PlannerPastDueItem[]>(DEFAULT_PAST_DUE);
   const [pastDueSortOrder, setPastDueSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Alerts State
-  const [alerts, setAlerts] = useState<PlannerAlertItem[]>([]);
+  const [alerts, setAlerts] = useState<PlannerAlertItem[]>(DEFAULT_ALERTS);
   const [alertsSortOrder, setAlertsSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Navigation Directions Modal
@@ -177,13 +314,20 @@ export const CareOrbitPlannerView: React.FC = () => {
     api.getPlannerItinerary(selectedDate)
       .then((data: PlannerVisit[]) => {
         if (isMounted) {
-          setVisits(data || []);
+          if (Array.isArray(data) && data.length > 0) {
+            setVisits(data);
+          } else {
+            setVisits(DEFAULT_PLANNER_VISITS);
+          }
           setIsLoadingVisits(false);
         }
       })
       .catch((err: any) => {
         console.error('Failed to load itinerary:', err);
-        if (isMounted) setIsLoadingVisits(false);
+        if (isMounted) {
+          setVisits(DEFAULT_PLANNER_VISITS);
+          setIsLoadingVisits(false);
+        }
       });
 
     return () => { isMounted = false; };
@@ -192,16 +336,43 @@ export const CareOrbitPlannerView: React.FC = () => {
   // Fetch Unread Messages, Past Due & Alerts on mount
   useEffect(() => {
     api.getPlannerUnreadMessages()
-      .then((data: PlannerUnreadMessage[]) => setUnreadMessages(data || []))
-      .catch(err => console.error('Failed to load unread messages:', err));
+      .then((data: PlannerUnreadMessage[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setUnreadMessages(data);
+        } else {
+          setUnreadMessages(DEFAULT_UNREAD_MESSAGES);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load unread messages:', err);
+        setUnreadMessages(DEFAULT_UNREAD_MESSAGES);
+      });
 
     api.getPlannerPastDue()
-      .then((data: PlannerPastDueItem[]) => setPastDueItems(data || []))
-      .catch(err => console.error('Failed to load past due items:', err));
+      .then((data: PlannerPastDueItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPastDueItems(data);
+        } else {
+          setPastDueItems(DEFAULT_PAST_DUE);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load past due items:', err);
+        setPastDueItems(DEFAULT_PAST_DUE);
+      });
 
     api.getPlannerAlerts()
-      .then((data: PlannerAlertItem[]) => setAlerts(data || []))
-      .catch(err => console.error('Failed to load alerts:', err));
+      .then((data: PlannerAlertItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAlerts(data);
+        } else {
+          setAlerts(DEFAULT_ALERTS);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load alerts:', err);
+        setAlerts(DEFAULT_ALERTS);
+      });
   }, []);
 
   // Update Leaflet Map Markers & Polyline whenever visits change

@@ -161,6 +161,10 @@ interface HealthcareContextType {
   currentWebsite: 'hub' | 'central' | 'home_health' | 'connect';
   setCurrentWebsite: (site: 'hub' | 'central' | 'home_health' | 'connect') => void;
 
+  // Home Health Active Tab
+  homeHealthTab: string;
+  setHomeHealthTab: (tab: string) => void;
+
   // Responsive Mobile Navigation Sidebar
   isMobileSidebarOpen: boolean;
   setIsMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -168,6 +172,8 @@ interface HealthcareContextType {
   // CareOrbit Connect & Planner Suite
   connectModule: 'connect' | 'planner';
   setConnectModule: (module: 'connect' | 'planner') => void;
+  connectRailTab: 'chat' | 'calls';
+  setConnectRailTab: (tab: 'chat' | 'calls') => void;
   conversations: ChatConversation[];
   activeConversationId: string | null;
   setActiveConversationId: (id: string | null) => void;
@@ -188,6 +194,126 @@ interface HealthcareContextType {
 }
 
 const HealthcareContext = createContext<HealthcareContextType | undefined>(undefined);
+
+const initialRoute = typeof window !== 'undefined' ? parseRouteFromUrl() : null;
+
+function parseRouteFromUrl(): {
+  website: 'hub' | 'central' | 'home_health' | 'connect';
+  centralTab: string;
+  intakeSubTab: 'inquiries' | 'referrals' | 'pipeline';
+  patientSubTab: 'charts' | 'directory';
+  homeHealthTab: string;
+  connectModule: 'connect' | 'planner';
+  connectRailTab: 'chat' | 'calls';
+} {
+  if (typeof window === 'undefined') {
+    return {
+      website: 'hub',
+      centralTab: 'dashboard',
+      intakeSubTab: 'inquiries',
+      patientSubTab: 'charts',
+      homeHealthTab: 'dashboard',
+      connectModule: 'connect',
+      connectRailTab: 'chat',
+    };
+  }
+
+  const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (!rawPath || rawPath === 'hub') {
+    return {
+      website: 'hub',
+      centralTab: 'dashboard',
+      intakeSubTab: 'inquiries',
+      patientSubTab: 'charts',
+      homeHealthTab: 'dashboard',
+      connectModule: 'connect',
+      connectRailTab: 'chat',
+    };
+  }
+
+  const parts = rawPath.split('/');
+  const section = parts[0]?.toLowerCase();
+
+  if (section === 'central') {
+    const tab = parts[1] || 'dashboard';
+    const subTab = parts[2] || '';
+    let intakeSubTab: 'inquiries' | 'referrals' | 'pipeline' = 'inquiries';
+    if (tab === 'intake' && (subTab === 'inquiries' || subTab === 'referrals' || subTab === 'pipeline')) {
+      intakeSubTab = subTab as any;
+    }
+    let patientSubTab: 'charts' | 'directory' = 'charts';
+    if (tab === 'patients' && (subTab === 'charts' || subTab === 'directory')) {
+      patientSubTab = subTab as any;
+    }
+    return {
+      website: 'central',
+      centralTab: tab,
+      intakeSubTab,
+      patientSubTab,
+      homeHealthTab: 'dashboard',
+      connectModule: 'connect',
+      connectRailTab: 'chat',
+    };
+  }
+
+  if (section === 'home-health' || section === 'home_health') {
+    const tab = parts[1] || 'dashboard';
+    return {
+      website: 'home_health',
+      centralTab: 'dashboard',
+      intakeSubTab: 'inquiries',
+      patientSubTab: 'charts',
+      homeHealthTab: tab,
+      connectModule: 'connect',
+      connectRailTab: 'chat',
+    };
+  }
+
+  if (section === 'connect') {
+    const sub = parts[1] || 'chat';
+    if (sub === 'planner') {
+      return {
+        website: 'connect',
+        centralTab: 'dashboard',
+        intakeSubTab: 'inquiries',
+        patientSubTab: 'charts',
+        homeHealthTab: 'dashboard',
+        connectModule: 'planner',
+        connectRailTab: 'chat',
+      };
+    }
+    if (sub === 'calls') {
+      return {
+        website: 'connect',
+        centralTab: 'dashboard',
+        intakeSubTab: 'inquiries',
+        patientSubTab: 'charts',
+        homeHealthTab: 'dashboard',
+        connectModule: 'connect',
+        connectRailTab: 'calls',
+      };
+    }
+    return {
+      website: 'connect',
+      centralTab: 'dashboard',
+      intakeSubTab: 'inquiries',
+      patientSubTab: 'charts',
+      homeHealthTab: 'dashboard',
+      connectModule: 'connect',
+      connectRailTab: 'chat',
+    };
+  }
+
+  return {
+    website: 'hub',
+    centralTab: 'dashboard',
+    intakeSubTab: 'inquiries',
+    patientSubTab: 'charts',
+    homeHealthTab: 'dashboard',
+    connectModule: 'connect',
+    connectRailTab: 'chat',
+  };
+}
 
 export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -281,11 +407,11 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         api.getIncidentLogs(),
       ]);
 
-      if (connectConvRes.status === 'fulfilled' && Array.isArray(connectConvRes.value)) {
+      if (connectConvRes.status === 'fulfilled' && Array.isArray(connectConvRes.value) && connectConvRes.value.length > 0) {
         setConversations(connectConvRes.value);
       }
 
-      if (connectCallLogsRes.status === 'fulfilled' && Array.isArray(connectCallLogsRes.value)) {
+      if (connectCallLogsRes.status === 'fulfilled' && Array.isArray(connectCallLogsRes.value) && connectCallLogsRes.value.length > 0) {
         setCallLogs(connectCallLogsRes.value);
       }
 
@@ -569,15 +695,16 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   ]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [visits] = useState<ScheduledVisit[]>(initialVisits);
-  const [activeNavTab, setActiveNavTab] = useState<string>('dashboard');
+  const [activeNavTab, setActiveNavTab] = useState<string>(initialRoute?.centralTab || 'dashboard');
   const [serviceFilter, setServiceFilter] = useState<'all' | ServiceLine>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMessage, setSelectedMessage] = useState<MessageItem | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [intakeSubTab, setIntakeSubTab] = useState<'inquiries' | 'referrals' | 'pipeline'>('referrals');
-  const [patientSubTab, setPatientSubTab] = useState<'charts' | 'directory'>('charts');
+  const [intakeSubTab, setIntakeSubTab] = useState<'inquiries' | 'referrals' | 'pipeline'>(initialRoute?.intakeSubTab || 'inquiries');
+  const [patientSubTab, setPatientSubTab] = useState<'charts' | 'directory'>(initialRoute?.patientSubTab || 'charts');
+  const [homeHealthTab, setHomeHealthTab] = useState<string>(initialRoute?.homeHealthTab || 'dashboard');
   const [chartTasks, setChartTasks] = useState<PatientChartTask[]>(initialPatientChartTasks);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
@@ -593,11 +720,12 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [scheduleStats, setScheduleStats] = useState<any>(null);
 
   // Platform Website Switcher ('hub' | 'central' | 'home_health' | 'connect')
-  const [currentWebsite, setCurrentWebsite] = useState<'hub' | 'central' | 'home_health' | 'connect'>('hub');
+  const [currentWebsite, setCurrentWebsite] = useState<'hub' | 'central' | 'home_health' | 'connect'>(initialRoute?.website || 'hub');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // CareOrbit Connect & Planner State
-  const [connectModule, setConnectModule] = useState<'connect' | 'planner'>('connect');
+  const [connectModule, setConnectModule] = useState<'connect' | 'planner'>(initialRoute?.connectModule || 'connect');
+  const [connectRailTab, setConnectRailTab] = useState<'chat' | 'calls'>(initialRoute?.connectRailTab || 'chat');
   const [conversations, setConversations] = useState<ChatConversation[]>(initialConversations);
   const [activeConversationId, setActiveConversationId] = useState<string | null>('conv-care-abuissa');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(initialMessagesMap);
@@ -605,10 +733,67 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [plannerTasks, setPlannerTasks] = useState<PlannerTaskItem[]>(initialPlannerTasks);
   const [activeCallModal, setActiveCallModal] = useState<{ isOpen: boolean; contactName: string; callType: 'audio' | 'video' } | null>(null);
 
+  // Synchronize React navigation state -> URL pathname
+  useEffect(() => {
+    let targetPath = '/hub';
+    if (currentWebsite === 'hub') {
+      targetPath = '/hub';
+    } else if (currentWebsite === 'central') {
+      if (activeNavTab === 'intake') {
+        targetPath = `/central/intake/${intakeSubTab || 'inquiries'}`;
+      } else if (activeNavTab === 'patients') {
+        targetPath = `/central/patients/${patientSubTab || 'charts'}`;
+      } else {
+        targetPath = `/central/${activeNavTab || 'dashboard'}`;
+      }
+    } else if (currentWebsite === 'home_health') {
+      targetPath = `/home-health/${homeHealthTab || 'dashboard'}`;
+    } else if (currentWebsite === 'connect') {
+      if (connectModule === 'planner') {
+        targetPath = '/connect/planner';
+      } else {
+        targetPath = `/connect/${connectRailTab || 'chat'}`;
+      }
+    }
+
+    if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
+      if (window.location.pathname === '/' && targetPath === '/hub') {
+        window.history.replaceState({ path: targetPath }, '', targetPath);
+      } else {
+        window.history.pushState({ path: targetPath }, '', targetPath);
+      }
+    }
+  }, [
+    currentWebsite,
+    activeNavTab,
+    intakeSubTab,
+    patientSubTab,
+    homeHealthTab,
+    connectModule,
+    connectRailTab
+  ]);
+
+  // Handle browser Back / Forward history buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseRouteFromUrl();
+      setCurrentWebsite(route.website);
+      setActiveNavTab(route.centralTab);
+      setIntakeSubTab(route.intakeSubTab);
+      setPatientSubTab(route.patientSubTab);
+      setHomeHealthTab(route.homeHealthTab);
+      setConnectModule(route.connectModule);
+      setConnectRailTab(route.connectRailTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const refreshConnectConversations = useCallback(async () => {
     try {
       const convs = await api.getConnectConversations();
-      if (Array.isArray(convs)) {
+      if (Array.isArray(convs) && convs.length > 0) {
         setConversations(convs);
       }
     } catch (err) {
@@ -1178,10 +1363,14 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteInquiry,
         currentWebsite,
         setCurrentWebsite,
+        homeHealthTab,
+        setHomeHealthTab,
         isMobileSidebarOpen,
         setIsMobileSidebarOpen,
         connectModule,
         setConnectModule,
+        connectRailTab,
+        setConnectRailTab,
         conversations,
         activeConversationId,
         setActiveConversationId,
