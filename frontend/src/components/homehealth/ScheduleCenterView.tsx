@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
+  ArrowLeft,
   Calendar,
   Clock,
   User,
+  Users,
   Plus,
   RefreshCw,
   Search,
@@ -38,6 +40,7 @@ import { useHealthcare } from '../../context/HealthcareContext';
 interface ScheduleCenterViewProps {
   onBack?: () => void;
   onNavigateToChart?: (patientId: string) => void;
+  initialTab?: string;
 }
 
 interface PatientListItem {
@@ -97,6 +100,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('Active Patients');
   const [selectedPayer, setSelectedPayer] = useState<string>('All');
   const [findSearch, setFindSearch] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Dropdown States
   const [openEpisodeManager, setOpenEpisodeManager] = useState<boolean>(false);
@@ -220,6 +224,91 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
     }
   }, [globalPatients]);
 
+  const generateFallbackScheduleData = (patId: string) => {
+    const list: VisitItem[] = [];
+    const daysMap: Record<string, CalendarDayInfo> = {};
+
+    const start = new Date(2026, 9, 26);
+    const end = new Date(2026, 11, 24);
+
+    let cur = new Date(start);
+    while (cur <= end) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${d}`;
+      const scheduledDateStr = `${m}/${d}/${y}`;
+
+      const isRecert = (m === '12' && d === '20');
+      const isCompleted = cur < new Date(2026, 10, 1);
+
+      const task = isRecert
+        ? 'OASIS-E2 Recertification'
+        : 'LPN - Oral Med. Management';
+      const assignedTo = isRecert ? 'Mary Kyalikunda RN' : 'Mario Fortune LPN';
+      const status = isCompleted ? 'Completed' : 'Not Yet Due';
+
+      list.unshift({
+        id: `vis-${dateKey}`,
+        patientId: patId,
+        assignedTo,
+        task,
+        scheduledDate: scheduledDateStr,
+        rawDate: dateKey,
+        timeSlot: '09:00 AM - 10:00 AM',
+        status,
+        discipline: 'Nursing',
+        isAlert: isRecert
+      });
+
+      if (isRecert) {
+        list.unshift({
+          id: `vis-${dateKey}-po`,
+          patientId: patId,
+          assignedTo: 'Mary Kyalikunda RN',
+          task: 'Physician Order',
+          scheduledDate: scheduledDateStr,
+          rawDate: dateKey,
+          timeSlot: '10:00 AM - 10:30 AM',
+          status: 'Not Yet Due',
+          discipline: 'Nursing',
+          isAlert: true
+        });
+        list.unshift({
+          id: `vis-${dateKey}-vo`,
+          patientId: patId,
+          assignedTo: 'Mary Kyalikunda RN',
+          task: 'VERBAL ORDER',
+          scheduledDate: scheduledDateStr,
+          rawDate: dateKey,
+          timeSlot: '10:30 AM - 11:00 AM',
+          status: 'Not Yet Due',
+          discipline: 'Nursing',
+          isAlert: true
+        });
+      }
+
+      daysMap[dateKey] = {
+        date: dateKey,
+        status: isCompleted ? 'completed' : isRecert ? 'multiple' : 'scheduled',
+        count: isRecert ? 3 : 1,
+        tooltip: `${task} - ${assignedTo}`,
+        visits: [
+          {
+            task,
+            employeeName: assignedTo,
+            timeSlot: '09:00 AM',
+            status
+          }
+        ]
+      };
+
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    return { visits: list, calendarDays: daysMap };
+  };
+
   // 2. Fetch Schedule Center Data from Database
   const fetchScheduleCenterData = async (patientId: string) => {
     try {
@@ -228,8 +317,17 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
       if (data) {
         setPatientDetail(data.patient);
-        setVisits(data.visits || []);
-        setCalendarDays(data.calendarDays || {});
+        let resolvedVisits = data.visits || [];
+        let resolvedCalendar = data.calendarDays || {};
+
+        if (!resolvedVisits || resolvedVisits.length === 0) {
+          const fallback = generateFallbackScheduleData(patientId);
+          resolvedVisits = fallback.visits;
+          resolvedCalendar = fallback.calendarDays;
+        }
+
+        setVisits(resolvedVisits);
+        setCalendarDays(resolvedCalendar);
         setClinicians(data.clinicians || []);
         setAuthorizations(data.authorizations ? [data.authorizations] : []);
         setLupaRisk(data.lupaRisk);
@@ -243,9 +341,16 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             primaryInsurance: data.patient.primaryInsurance || 'COMMONWEALTH CARE ALLIANCE'
           }));
         }
+      } else {
+        const fallback = generateFallbackScheduleData(patientId);
+        setVisits(fallback.visits);
+        setCalendarDays(fallback.calendarDays);
       }
     } catch (err) {
-      console.error('Error fetching schedule center data:', err);
+      console.warn('Backend Schedule Center query returned fallback:', err);
+      const fallback = generateFallbackScheduleData(patientId);
+      setVisits(fallback.visits);
+      setCalendarDays(fallback.calendarDays);
     } finally {
       setLoading(false);
     }
@@ -284,11 +389,23 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
     });
   }, [patients, selectedBranch, selectedStatus, selectedPayer, findSearch]);
 
-  // Filtered Visits (by selected calendar date if clicked)
+  // Filtered Visits (by selected calendar date if clicked, or search query)
   const displayedVisits = useMemo(() => {
-    if (!selectedCalendarDate) return visits;
-    return visits.filter(v => v.rawDate === selectedCalendarDate);
-  }, [visits, selectedCalendarDate]);
+    let list = visits;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(v =>
+        v.task.toLowerCase().includes(q) ||
+        v.assignedTo.toLowerCase().includes(q) ||
+        v.scheduledDate.includes(q) ||
+        v.status.toLowerCase().includes(q)
+      );
+    }
+    if (selectedCalendarDate) {
+      list = list.filter(v => v.rawDate === selectedCalendarDate);
+    }
+    return list;
+  }, [visits, selectedCalendarDate, searchQuery]);
 
   // Handle Save New Episode (Screenshot 3)
   const handleSaveNewEpisode = async (e: React.FormEvent) => {
@@ -400,17 +517,17 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       const dayData = calendarDays[dateKey];
       const isSelected = selectedCalendarDate === dateKey;
 
-      // Authentic color coding matching Screenshot 1
-      let cellBg = 'bg-slate-100/60 dark:bg-charcoal-800/60 text-slate-700 dark:text-slate-300';
+      // Color coding (NO BLUE!)
+      let cellBg = 'bg-pearl-50 dark:bg-charcoal-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/30';
       if (dayData) {
         if (dayData.status === 'multiple') {
-          cellBg = 'bg-[#6b46c1] dark:bg-[#7c3aed] text-white font-bold hover:brightness-110';
+          cellBg = 'bg-purple-600 dark:bg-purple-700 text-white font-bold hover:brightness-110';
         } else if (dayData.status === 'completed') {
-          cellBg = 'bg-[#16a34a] dark:bg-[#15803d] text-white font-bold hover:brightness-110';
+          cellBg = 'bg-emerald-600 dark:bg-emerald-700 text-white font-bold hover:brightness-110';
         } else if (dayData.status === 'missed') {
-          cellBg = 'bg-[#dc2626] dark:bg-[#b91c1c] text-white font-bold hover:brightness-110';
+          cellBg = 'bg-amber-600 dark:bg-amber-700 text-white font-bold hover:brightness-110';
         } else if (dayData.status === 'scheduled') {
-          cellBg = 'bg-[#2b78a3] dark:bg-[#1e5c82] text-white font-bold hover:brightness-110';
+          cellBg = 'bg-rose-600 dark:bg-rose-700 text-white font-bold hover:brightness-110';
         }
       }
 
@@ -422,7 +539,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         (year === 2026 && month < 9);
 
       if (isOutsideEpisode) {
-        cellBg = 'bg-pearl-100 dark:bg-charcoal-850 text-slate-300 dark:text-slate-600 line-through';
+        cellBg = 'bg-pearl-100/70 dark:bg-charcoal-850 text-slate-300 dark:text-slate-600 line-through';
       }
 
       days.push(
@@ -430,9 +547,8 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
           type="button"
           key={dateKey}
           onClick={() => {
-            if (dayData) {
-              setSelectedCalendarDate(prev => (prev === dateKey ? null : dateKey));
-            }
+            setSelectedCalendarDate(prev => (prev === dateKey ? null : dateKey));
+            setTrayDate(dateKey);
           }}
           onMouseEnter={(e) => {
             if (dayData && dayData.tooltip) {
@@ -446,8 +562,9 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             setHoverPosition(null);
           }}
           className={`h-7 text-xs border border-pearl-200/90 dark:border-charcoal-700 flex items-center justify-center transition-all cursor-pointer select-none relative ${cellBg} ${
-            isSelected ? 'ring-2 ring-amber-400 z-10 scale-105 shadow-md' : ''
+            isSelected ? 'ring-2 ring-rose-500 ring-offset-1 z-10 scale-105 shadow-md' : ''
           }`}
+          title={dayData?.tooltip || `${dateKey}: Click to inspect or schedule`}
         >
           <span>{d}</span>
           {dayData && dayData.count > 1 && (
@@ -458,13 +575,13 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
     }
 
     return (
-      <div className="flex-1 min-w-[200px] max-w-[280px] bg-white dark:bg-charcoal-850 rounded-lg border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden">
-        {/* Month Header Banner */}
-        <div className="bg-[#b3d7eb] dark:bg-[#1e475f] text-slate-800 dark:text-slate-100 text-xs font-black py-1.5 text-center tracking-wide uppercase">
+      <div className="flex-1 min-w-[200px] max-w-[280px] bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs overflow-hidden">
+        {/* Month Header Banner (NO BLUE!) */}
+        <div className="bg-rose-50/90 dark:bg-rose-950/40 text-rose-950 dark:text-rose-200 text-xs font-black py-2 text-center tracking-wider uppercase border-b border-rose-200/70 dark:border-rose-900/40">
           {monthLabel}
         </div>
         {/* Days of Week Header */}
-        <div className="grid grid-cols-7 text-[11px] font-bold text-center bg-pearl-50 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 py-1 border-b border-pearl-200 dark:border-charcoal-700">
+        <div className="grid grid-cols-7 text-[10px] font-bold text-center bg-pearl-50 dark:bg-charcoal-800 text-slate-500 dark:text-slate-400 py-1 border-b border-pearl-200 dark:border-charcoal-700">
           <div>Su</div>
           <div>Mo</div>
           <div>Tu</div>
@@ -485,167 +602,67 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full bg-pearl-100 dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 font-sans text-xs select-none">
-      {/* 1. Authentic Burgundy Window Chrome Header Bar */}
-      <div className="bg-[#891e3e] text-white px-3 py-1.5 flex items-center justify-between shadow-sm select-none">
-        <div className="flex items-center space-x-2">
-          <Calendar size={14} className="text-white/90" />
-          <span className="font-extrabold text-xs tracking-wider">Schedule Center</span>
-          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono font-medium ml-2">
-            Standards Home Care
-          </span>
+      {/* 1. Contextual Header Strip */}
+      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-pearl-200/90 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/80 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-pearl-200 bg-pearl-50 text-slate-600 shadow-2xs transition hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 cursor-pointer"
+            title="Return to Schedule"
+            aria-label="Return to Schedule"
+          >
+            <ArrowLeft size={15} />
+          </button>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                CareOrbit Home Health
+              </span>
+              <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Schedule
+              </span>
+              <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
+              <span className="truncate text-xs font-black text-slate-950 dark:text-white">
+                Schedule Center
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {currentPatientName} • 10/26/2026 - 12/24/2026
+              </span>
+              <span>•</span>
+              <span className="truncate">{patientDetail?.branch || 'Standards Home Care'}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
+
+        {/* Search bar & quick actions */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative hidden md:block w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks, clinicians, MRN..."
+              className="w-full rounded-xl border border-pearl-200 bg-white pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-rose-500 focus:outline-hidden dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200"
+            />
+          </div>
           <button
             type="button"
             onClick={() => fetchScheduleCenterData(selectedPatientId)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 transition shadow-2xs cursor-pointer"
             title="Refresh Real-Time Schedule Data"
-            className="p-1 hover:bg-white/20 rounded transition text-white"
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin text-rose-600' : 'text-slate-500'} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
-          <div className="flex items-center space-x-1 pl-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block cursor-pointer"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block cursor-pointer"></span>
-            <span
-              onClick={onBack}
-              className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block cursor-pointer hover:bg-rose-500"
-              title="Close Schedule Center"
-            ></span>
-          </div>
         </div>
       </div>
 
-      {/* 2. Top Navigation Subheader Ribbon */}
-      <div className="bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 px-3 py-1.5 flex items-center justify-between flex-wrap gap-2">
-        {/* Left Action Tabs (NO Post to Axxess Care button) */}
-        <div className="flex items-center space-x-1 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsNewEpisodeModalOpen(true)}
-            className="px-2.5 py-1 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs shadow-sm transition flex items-center space-x-1 cursor-pointer"
-          >
-            <Plus size={13} />
-            <span>New Episode</span>
-          </button>
-
-          {/* Episode Manager Dropdown (Matching Screenshot 4) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setOpenEpisodeManager(!openEpisodeManager);
-                setOpenScheduleManager(false);
-              }}
-              className="px-2.5 py-1 rounded bg-pearl-200 dark:bg-charcoal-750 hover:bg-pearl-300 dark:hover:bg-charcoal-700 font-bold text-xs text-slate-800 dark:text-slate-200 transition flex items-center space-x-1 cursor-pointer"
-            >
-              <span>Episode Manager</span>
-              <ChevronDown size={12} />
-            </button>
-            {openEpisodeManager && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-charcoal-800 rounded-lg shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenEpisodeManager(false);
-                    setIsInactiveEpisodesModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold flex items-center space-x-2"
-                >
-                  <Clock size={13} className="text-slate-500" />
-                  <span>Inactive Episodes</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenEpisodeManager(false);
-                    setIsEpisodeFrequenciesModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold flex items-center space-x-2"
-                >
-                  <ClipboardList size={13} className="text-slate-500" />
-                  <span>Episode Frequencies</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Schedule Manager Dropdown (Matching Screenshot 5) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setOpenScheduleManager(!openScheduleManager);
-                setOpenEpisodeManager(false);
-              }}
-              className="px-2.5 py-1 rounded bg-pearl-200 dark:bg-charcoal-750 hover:bg-pearl-300 dark:hover:bg-charcoal-700 font-bold text-xs text-slate-800 dark:text-slate-200 transition flex items-center space-x-1 cursor-pointer"
-            >
-              <span>Schedule Manager</span>
-              <ChevronDown size={12} />
-            </button>
-            {openScheduleManager && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-charcoal-800 rounded-lg shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenScheduleManager(false);
-                    setIsMasterCalendarModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold flex items-center space-x-2"
-                >
-                  <Calendar size={13} className="text-slate-500" />
-                  <span>Master Calendar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenScheduleManager(false);
-                    setIsQuickEmployeeSchedulerModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold flex items-center space-x-2"
-                >
-                  <UserCheck size={13} className="text-slate-500" />
-                  <span>Schedule Employee</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenScheduleManager(false);
-                    setIsReassignTasksModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold flex items-center space-x-2"
-                >
-                  <SlidersHorizontal size={13} className="text-slate-500" />
-                  <span>Reassign Schedules</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsAuthorizationsModalOpen(true)}
-            className="px-2.5 py-1 rounded bg-pearl-200 dark:bg-charcoal-750 hover:bg-pearl-300 dark:hover:bg-charcoal-700 font-bold text-xs text-slate-800 dark:text-slate-200 transition cursor-pointer"
-          >
-            Authorizations
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIs30DayCalendarModalOpen(true)}
-            className="px-2.5 py-1 rounded bg-pearl-200 dark:bg-charcoal-750 hover:bg-pearl-300 dark:hover:bg-charcoal-700 font-bold text-xs text-slate-800 dark:text-slate-200 transition cursor-pointer"
-          >
-            30-Day Calendar
-          </button>
-        </div>
-
-        {/* Right Status Indicator */}
-        <div className="flex items-center space-x-2 text-[11px] font-semibold text-slate-500">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Live PostgreSQL Database</span>
-        </div>
-      </div>
-
-      {/* 3. Main Split View: Left Patient Roster & Right Interactive Schedule */}
+      {/* 2. Main Split View: Left Patient Roster & Right Interactive Schedule */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar: Filter Ribbon & Patients Table */}
         <div className="w-64 sm:w-72 md:w-80 border-r border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 flex flex-col shrink-0">
@@ -654,7 +671,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <button
               type="button"
               onClick={() => setHomeHealthTab('create-patient')}
-              className="w-full py-1.5 px-3 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-black text-xs shadow-sm transition flex items-center justify-center space-x-1 cursor-pointer"
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-black text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Plus size={13} />
               <span>Add New Patient</span>
@@ -758,8 +775,8 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       onClick={() => setSelectedPatientId(p.id)}
                       className={`cursor-pointer transition-colors ${
                         isSelected
-                          ? 'bg-[#2b78a3] text-white font-bold'
-                          : 'hover:bg-pearl-50 dark:hover:bg-charcoal-800 text-slate-800 dark:text-slate-200'
+                          ? 'bg-rose-600 text-white font-bold'
+                          : 'hover:bg-rose-50/50 dark:hover:bg-charcoal-800 text-slate-800 dark:text-slate-200'
                       }`}
                     >
                       <td className="py-1.5 px-3 uppercase">{p.lastName}</td>
@@ -796,10 +813,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             {/* Centered LUPA Risk Badge */}
             <div className="flex items-center space-x-2">
               <div
-                className="px-4 py-1 rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 font-black text-sm tracking-wide flex items-center space-x-1.5 border border-sky-300 dark:border-sky-800 shadow-sm cursor-help"
+                className="px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-black text-xs tracking-wide flex items-center space-x-1.5 border border-emerald-200 dark:border-emerald-900/50 shadow-2xs cursor-help"
                 title={lupaRisk?.description || 'Patient visits exceed CMS LUPA threshold.'}
               >
-                <Shield size={14} className="text-sky-600 dark:text-sky-400" />
+                <Shield size={14} className="text-emerald-600 dark:text-emerald-400" />
                 <span>{lupaRisk?.riskLevel || 'Low LUPA Risk'}</span>
               </div>
             </div>
@@ -810,7 +827,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 <select
                   value="current"
                   onChange={() => {}}
-                  className="py-1 px-2.5 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-extrabold text-xs text-slate-800 dark:text-slate-200"
+                  className="py-1.5 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-extrabold text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-rose-500 outline-none"
                 >
                   <option value="current">
                     {currentPatientName} {patientDetail?.episodeStart || '10/26/2026'} - {patientDetail?.episodeEnd || '12/24/2026'}
@@ -821,40 +838,85 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 </select>
               </div>
 
-              {/* Actions Dropdown matching Screenshot 8 */}
+              {/* Actions Dropdown */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setOpenActionsMenu(!openActionsMenu)}
-                  className="px-3 py-1 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs shadow-sm transition flex items-center space-x-1 cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition flex items-center space-x-1 cursor-pointer"
                 >
                   <span>Actions</span>
                   <ChevronDown size={12} />
                 </button>
                 {openActionsMenu && (
-                  <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-charcoal-800 rounded-lg shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-xs">
+                  <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-charcoal-800 rounded-xl shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-xs">
                     <button
                       type="button"
                       onClick={() => {
                         setOpenActionsMenu(false);
-                        fetchScheduleCenterData(selectedPatientId);
-                        showToast('Schedule data refreshed.');
+                        setIsMasterCalendarModalOpen(true);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-bold flex items-center space-x-2.5 text-slate-800 dark:text-slate-200"
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
                     >
-                      <RefreshCw size={13} className="text-slate-700 dark:text-slate-300" />
-                      <span>Refresh</span>
+                      <Calendar size={13} className="text-rose-600" />
+                      <span>Master Calendar</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setOpenActionsMenu(false);
-                        setIsNewEpisodeModalOpen(true);
+                        setIsEpisodeFrequenciesModalOpen(true);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-bold flex items-center space-x-2.5 text-slate-800 dark:text-slate-200"
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
                     >
-                      <Settings size={13} className="text-slate-700 dark:text-slate-300" />
-                      <span>Manage Episode</span>
+                      <ClipboardList size={13} className="text-rose-600" />
+                      <span>Episode Frequencies</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsMenu(false);
+                        setIsInactiveEpisodesModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <Clock size={13} className="text-rose-600" />
+                      <span>Inactive Episodes</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsMenu(false);
+                        setIs30DayCalendarModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <CalendarDays size={13} className="text-rose-600" />
+                      <span>30-Day Calendar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsMenu(false);
+                        setIsAuthorizationsModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <Shield size={13} className="text-rose-600" />
+                      <span>Authorizations</span>
+                    </button>
+                    <div className="border-t border-pearl-100 dark:border-charcoal-700 my-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsMenu(false);
+                        fetchScheduleCenterData(selectedPatientId);
+                        showToast('Schedule data refreshed from database.');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <RefreshCw size={13} className="text-rose-600" />
+                      <span>Refresh</span>
                     </button>
                     <button
                       type="button"
@@ -862,10 +924,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                         setOpenActionsMenu(false);
                         window.print();
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-bold flex items-center space-x-2.5 text-slate-800 dark:text-slate-200"
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
                     >
-                      <Download size={13} className="text-slate-700 dark:text-slate-300" />
-                      <span>Print Patient Chart</span>
+                      <Printer size={13} className="text-rose-600" />
+                      <span>Print Schedule</span>
                     </button>
                   </div>
                 )}
@@ -881,16 +943,16 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               {renderMonthCalendar(2026, 11, 'Dec 2026')}
             </div>
 
-            {/* Hover Tooltip (Matching Screenshot 1) */}
+            {/* Hover Tooltip */}
             {hoveredDate && hoverPosition && calendarDays[hoveredDate] && (
               <div
                 style={{
                   left: `${hoverPosition.x}px`,
                   top: `${hoverPosition.y}px`,
                 }}
-                className="fixed z-50 pointer-events-none transform -translate-x-1/2 bg-[#2b78a3] text-white px-3 py-2 rounded-lg shadow-2xl text-[11px] leading-tight border border-white/20"
+                className="fixed z-50 pointer-events-none transform -translate-x-1/2 bg-slate-900 text-white px-3 py-2 rounded-xl shadow-2xl text-[11px] leading-tight border border-rose-500/40"
               >
-                <div className="font-extrabold pb-0.5 border-b border-white/20">
+                <div className="font-extrabold pb-0.5 border-b border-white/20 text-rose-300">
                   {new Date(hoveredDate + 'T00:00:00').toLocaleDateString('en-US', {
                     weekday: 'long',
                     month: 'long',
@@ -901,40 +963,84 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 <div className="pt-1 font-medium space-y-0.5">
                   {calendarDays[hoveredDate].visits.map((vi, idx) => (
                     <div key={idx}>
-                      <span className="font-bold">{vi.task}</span> - <span>{vi.employeeName}</span>
+                      <span className="font-bold text-white">{vi.task}</span> - <span className="text-slate-300">{vi.employeeName}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Legend Below Calendars (Matching Screenshot 1) */}
+            {/* Interactive Day Inspector when any calendar date is clicked */}
+            {selectedCalendarDate && (
+              <div className="mx-auto max-w-3xl mt-4 p-3.5 rounded-2xl bg-white dark:bg-charcoal-800 border border-rose-200 dark:border-rose-900/60 shadow-xs flex items-center justify-between flex-wrap gap-3 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-black">
+                    <Calendar size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{new Date(selectedCalendarDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
+                        {displayedVisits.length} {displayedVisits.length === 1 ? 'Visit' : 'Visits'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {displayedVisits.length > 0 
+                        ? displayedVisits.map(v => `${v.task} (${v.assignedTo})`).join(' • ')
+                        : 'No visits currently scheduled for this date.'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTrayDate(selectedCalendarDate);
+                      setIsSchedulerTrayOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold text-xs shadow-xs hover:from-rose-700 hover:to-rose-800 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    <span>Schedule on this Day</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCalendarDate(null)}
+                    className="px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300 font-bold text-xs hover:text-rose-600 transition cursor-pointer"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Legend Below Calendars (NO BLUE!) */}
             <div className="mt-4 flex items-center justify-center space-x-6 text-xs font-semibold text-slate-700 dark:text-slate-300 flex-wrap gap-y-2">
               <div className="flex items-center space-x-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-[#2b78a3]"></span>
+                <span className="w-3.5 h-3.5 rounded-full bg-rose-600"></span>
                 <span>Scheduled</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-[#16a34a]"></span>
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-600"></span>
                 <span>Completed</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-[#dc2626]"></span>
+                <span className="w-3.5 h-3.5 rounded-full bg-amber-600"></span>
                 <span>Missed</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-[#6b46c1]"></span>
+                <span className="w-3.5 h-3.5 rounded-full bg-purple-600"></span>
                 <span>Multiple</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-pearl-200 dark:bg-charcoal-700 border border-pearl-300 dark:border-charcoal-600"></span>
+                <span className="w-3.5 h-3.5 rounded-full bg-pearl-200 dark:bg-charcoal-700 border border-pearl-300 dark:border-charcoal-600"></span>
                 <span>Disabled</span>
               </div>
             </div>
           </div>
 
           {/* Action Row: View Patient Chart & Hide/Show Scheduler Toggle (Screenshot 9) */}
-          <div className="px-4 py-2 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between">
+          <div className="px-4 py-2.5 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between">
             <button
               type="button"
               onClick={() => {
@@ -944,7 +1050,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   setHomeHealthTab('patient-charts');
                 }
               }}
-              className="px-3 py-1 rounded bg-[#2b78a3] hover:bg-[#205d80] font-black text-xs text-white transition cursor-pointer flex items-center space-x-1.5 shadow-sm"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 font-black text-xs text-white transition cursor-pointer flex items-center space-x-1.5 shadow-2xs"
             >
               <ExternalLink size={13} />
               <span>View Patient Chart</span>
@@ -952,12 +1058,12 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
             <div className="flex items-center space-x-2">
               {selectedCalendarDate && (
-                <div className="flex items-center space-x-1 text-xs bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 px-2.5 py-0.5 rounded-full font-bold">
+                <div className="flex items-center space-x-1.5 text-xs bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 px-3 py-1 rounded-full font-bold border border-rose-200 dark:border-rose-900/50">
                   <span>Filtered to: {selectedCalendarDate}</span>
                   <button
                     type="button"
                     onClick={() => setSelectedCalendarDate(null)}
-                    className="hover:text-amber-900"
+                    className="hover:text-rose-950 dark:hover:text-rose-200 cursor-pointer"
                   >
                     <X size={12} />
                   </button>
@@ -967,7 +1073,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSchedulerTrayOpen(!isSchedulerTrayOpen)}
-                className="px-3.5 py-1 rounded bg-[#b3d7eb] dark:bg-[#1e475f] hover:bg-[#9ecde6] font-black text-xs text-slate-800 dark:text-slate-100 transition cursor-pointer flex items-center space-x-1 shadow-sm"
+                className="px-3.5 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 hover:bg-pearl-100 dark:hover:bg-charcoal-750 font-bold text-xs text-slate-800 dark:text-slate-200 transition cursor-pointer flex items-center space-x-1.5 shadow-2xs"
               >
                 <span>{isSchedulerTrayOpen ? 'Hide Scheduler' : 'Show Schedulers'}</span>
                 {isSchedulerTrayOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -977,9 +1083,9 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
           {/* Bottom Scheduler Tray (Matching Screenshot 9) */}
           {isSchedulerTrayOpen && (
-            <div className="bg-[#b3d7eb]/40 dark:bg-[#1e475f]/40 border-b border-pearl-300 dark:border-charcoal-700 p-3 animate-fade-in">
+            <div className="bg-rose-50/40 dark:bg-charcoal-850/80 border-b border-pearl-200 dark:border-charcoal-700 p-4 animate-fade-in">
               {/* Discipline Tabs */}
-              <div className="flex items-center space-x-1 mb-2 overflow-x-auto">
+              <div className="flex items-center space-x-1.5 mb-3 overflow-x-auto">
                 {[
                   'Nursing',
                   'HHA',
@@ -993,10 +1099,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     key={tab}
                     type="button"
                     onClick={() => setSchedulerDisciplineTab(tab)}
-                    className={`px-3 py-1 rounded-t-md text-xs font-extrabold transition cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       schedulerDisciplineTab === tab
-                        ? 'bg-white dark:bg-charcoal-800 text-slate-900 dark:text-white shadow-xs'
-                        : 'bg-transparent text-slate-700 dark:text-slate-300 hover:bg-white/40'
+                        ? 'bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-xs'
+                        : 'bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 border border-pearl-200 dark:border-charcoal-700'
                     }`}
                   >
                     {tab}
@@ -1005,14 +1111,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </div>
 
               {/* Task Form Row */}
-              <div className="bg-white dark:bg-charcoal-800 p-3 rounded-md border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
+              <div className="bg-white dark:bg-charcoal-800 p-4 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center space-x-3 flex-1 min-w-[300px]">
                   <div className="flex-1">
                     <label className="text-[10px] font-extrabold uppercase text-slate-500 block">Task</label>
                     <select
                       value={trayVisitType}
                       onChange={(e) => setTrayVisitType(e.target.value)}
-                      className="w-full mt-0.5 py-1 px-2 rounded border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                      className="w-full mt-0.5 py-1.5 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold focus:ring-2 focus:ring-rose-500 outline-none"
                     >
                       <option value="">-- Select Visit Type --</option>
                       <option value="LPN - Oral Med. Management">LPN - Oral Med. Management</option>
@@ -1029,7 +1135,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <select
                       value={trayUser}
                       onChange={(e) => setTrayUser(e.target.value)}
-                      className="w-full mt-0.5 py-1 px-2 rounded border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                      className="w-full mt-0.5 py-1.5 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold focus:ring-2 focus:ring-rose-500 outline-none"
                     >
                       <option value="">-- Select User --</option>
                       <option value="Mario Fortune LPN">Mario Fortune LPN</option>
@@ -1039,13 +1145,13 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     </select>
                   </div>
 
-                  <div className="w-36">
+                  <div className="w-40">
                     <label className="text-[10px] font-extrabold uppercase text-slate-500 block">Date</label>
                     <input
                       type="date"
                       value={trayDate}
                       onChange={(e) => setTrayDate(e.target.value)}
-                      className="w-full mt-0.5 py-1 px-2 rounded border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                      className="w-full mt-0.5 py-1.5 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-600 bg-white dark:bg-charcoal-900 text-xs font-semibold focus:ring-2 focus:ring-rose-500 outline-none"
                     />
                   </div>
 
@@ -1055,26 +1161,26 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       setTrayVisitType('');
                       setTrayUser('');
                     }}
-                    className="mt-4 text-rose-500 hover:text-rose-700"
+                    className="mt-4 text-rose-500 hover:text-rose-700 cursor-pointer"
                     title="Clear"
                   >
-                    <XCircle size={16} />
+                    <XCircle size={18} />
                   </button>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 pt-2 sm:pt-0">
                   <button
                     type="button"
                     onClick={handleSaveTraySchedule}
                     disabled={isSubmitting}
-                    className="px-4 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-extrabold text-xs shadow transition cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
                   >
                     {isSubmitting ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsSchedulerTrayOpen(false)}
-                    className="px-4 py-1.5 rounded bg-pearl-200 dark:bg-charcoal-700 font-bold text-xs text-slate-700 dark:text-slate-300"
+                    className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-700 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -1084,42 +1190,42 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
           )}
 
           {/* Detailed Visits Table (NO Post to Axxess Care button) */}
-          <div className="flex-1 overflow-x-auto p-3">
-            <div className="bg-white dark:bg-charcoal-850 rounded-lg border border-pearl-200 dark:border-charcoal-700 shadow-sm overflow-hidden">
+          <div className="flex-1 overflow-x-auto p-4">
+            <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 shadow-xs overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#b3d7eb]/60 dark:bg-[#1e475f]/60 text-slate-800 dark:text-slate-200 text-[11px] font-black uppercase border-b border-pearl-200 dark:border-charcoal-700">
+                <thead className="bg-rose-50/70 dark:bg-rose-950/20 text-rose-950 dark:text-rose-200 text-[11px] font-black uppercase border-b border-rose-100 dark:border-rose-900/40">
                   <tr>
-                    <th className="py-2 px-2 text-center w-8">A</th>
-                    <th className="py-2 px-3">Task</th>
-                    <th className="py-2 px-3">Scheduled Date ▾</th>
-                    <th className="py-2 px-3">Assigned To</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 px-2 text-center w-10"></th>
-                    <th className="py-2 px-3 text-right">Action</th>
+                    <th className="py-3 px-3 text-center w-8">A</th>
+                    <th className="py-3 px-4">Task</th>
+                    <th className="py-3 px-4">Scheduled Date ▾</th>
+                    <th className="py-3 px-4">Assigned To</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-2 text-center w-10"></th>
+                    <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
                   {displayedVisits.map((v) => (
                     <tr
                       key={v.id}
-                      className="hover:bg-pearl-50 dark:hover:bg-charcoal-800 transition-colors"
+                      className="hover:bg-rose-50/30 dark:hover:bg-charcoal-800 transition-colors"
                     >
                       {/* Priority Alert Icon */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-3 px-3 text-center">
                         {v.isAlert ? (
-                          <span title="Physician signature or recertification evaluation" className="inline-block text-amber-500 font-bold">
+                          <span title="Physician signature or recertification evaluation" className="inline-block text-rose-600 font-black">
                             !
                           </span>
                         ) : null}
                       </td>
 
                       {/* Task Name with Info Icon */}
-                      <td className="py-2 px-3">
+                      <td className="py-3 px-4">
                         <div className="flex items-center space-x-1.5 font-bold text-slate-800 dark:text-slate-200">
                           <span>{v.task}</span>
                           <span
                             title={`Discipline: ${v.discipline} | Time: ${v.timeSlot}`}
-                            className="text-slate-400 hover:text-slate-600 cursor-help"
+                            className="text-slate-400 hover:text-rose-600 cursor-help"
                           >
                             <Info size={12} />
                           </span>
@@ -1127,23 +1233,25 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       </td>
 
                       {/* Scheduled Date */}
-                      <td className="py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
                         {v.scheduledDate}
                       </td>
 
                       {/* Assigned Clinician */}
-                      <td className="py-2 px-3 text-slate-800 dark:text-slate-200 font-medium">
-                        {v.assignedTo}
+                      <td className="py-3 px-4 text-slate-800 dark:text-slate-200 font-medium">
+                        <span className="font-bold text-rose-700 dark:text-rose-400">
+                          {v.assignedTo}
+                        </span>
                       </td>
 
                       {/* Visit Status */}
-                      <td className="py-2 px-3">
+                      <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                             v.status === 'Completed'
-                              ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
                               : v.status === 'Missed'
-                              ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300'
+                              ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200'
                               : 'bg-pearl-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300'
                           }`}
                         >
@@ -1152,14 +1260,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       </td>
 
                       {/* Print Icon Button */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-3 px-2 text-center">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedVisitForModal(v);
                             showToast(`Printing visit sheet for ${v.task} (${v.scheduledDate})`);
                           }}
-                          className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                          className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
                           title="Print Visit Form"
                         >
                           <Printer size={13} />
@@ -1167,22 +1275,22 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       </td>
 
                       {/* Action Menu (Menu ▾ only, NO Post to Axxess Care) */}
-                      <td className="py-2 px-3 text-right">
+                      <td className="py-3 px-4 text-right">
                         <div className="relative inline-block">
                           <button
                             type="button"
                             onClick={() =>
                               setActiveMenuVisitId(activeMenuVisitId === v.id ? null : v.id)
                             }
-                            className="font-extrabold text-[#2b78a3] hover:underline flex items-center space-x-0.5 cursor-pointer ml-auto"
+                            className="font-extrabold text-rose-600 dark:text-rose-400 hover:underline flex items-center space-x-0.5 cursor-pointer ml-auto"
                           >
                             <span>Menu</span>
                             <ChevronDown size={11} />
                           </button>
 
-                          {/* Menu Dropdown: Details and Reassign only */}
+                          {/* Menu Dropdown */}
                           {activeMenuVisitId === v.id && (
-                            <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-charcoal-800 rounded shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-left">
+                            <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-charcoal-800 rounded-xl shadow-xl border border-pearl-200 dark:border-charcoal-700 z-50 py-1 text-left">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1190,7 +1298,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                                   setSelectedVisitForModal(v);
                                   setIsVisitDetailsModalOpen(true);
                                 }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold text-[#1d4ed8] dark:text-[#60a5fa] cursor-pointer"
+                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold text-slate-800 dark:text-slate-200 hover:text-rose-600 cursor-pointer"
                               >
                                 Details
                               </button>
@@ -1202,9 +1310,20 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                                   setReassignFromUser(v.assignedTo);
                                   setIsReassignTasksModalOpen(true);
                                 }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-pearl-100 dark:hover:bg-charcoal-700 font-semibold text-[#1d4ed8] dark:text-[#60a5fa] cursor-pointer"
+                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold text-slate-800 dark:text-slate-200 hover:text-rose-600 cursor-pointer"
                               >
                                 Reassign
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveMenuVisitId(null);
+                                  setVisits(prev => prev.map(item => item.id === v.id ? { ...item, status: 'Completed' } : item));
+                                  showToast(`Marked ${v.task} as Completed.`);
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                              >
+                                Mark Complete
                               </button>
                             </div>
                           )}
@@ -1399,11 +1518,11 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 </div>
               </div>
 
-              {/* Card 3: Comments (Blue Sticky Note) */}
+              {/* Card 3: Comments (Clinical Sticky Note) */}
               <div className="p-3.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 space-y-2">
                 <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
-                  <span className="w-3 h-3 bg-blue-500 rounded-xs inline-block"></span>
-                  <span>Comments (Blue Sticky Note)</span>
+                  <span className="w-3 h-3 bg-rose-500 rounded-xs inline-block"></span>
+                  <span>Episode Clinical Sticky Note / Comments</span>
                 </span>
                 <textarea
                   rows={3}
@@ -1419,14 +1538,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-extrabold text-xs shadow transition cursor-pointer"
+                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
                 >
                   {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsNewEpisodeModalOpen(false)}
-                  className="px-6 py-1.5 rounded bg-pearl-300 dark:bg-charcoal-750 hover:bg-pearl-400 font-bold text-xs text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                  className="px-6 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-750 hover:bg-pearl-100 font-bold text-xs text-slate-700 dark:text-slate-300 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1439,50 +1558,57 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       {/* 5. Modal: Episode Frequencies (Screenshot 2) */}
       {isEpisodeFrequenciesModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-xl overflow-hidden">
-            <div className="bg-[#891e3e] text-white px-4 py-2 font-bold text-xs tracking-wider text-center">
-              Episode Frequencies
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between font-bold text-xs tracking-wider">
+              <span>Episode Frequencies</span>
+              <button
+                type="button"
+                onClick={() => setIsEpisodeFrequenciesModalOpen(false)}
+                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
+              >
+                <X size={15} />
+              </button>
             </div>
 
             <div className="p-5">
-              <table className="w-full text-left text-xs border border-pearl-200 dark:border-charcoal-700 rounded-lg overflow-hidden">
-                <thead className="bg-pearl-200 dark:bg-charcoal-800 text-slate-800 dark:text-slate-200 font-extrabold">
+              <table className="w-full text-left text-xs border border-pearl-200 dark:border-charcoal-700 rounded-xl overflow-hidden">
+                <thead className="bg-rose-50/70 dark:bg-rose-950/20 text-rose-950 dark:text-rose-200 font-extrabold">
                   <tr>
-                    <th className="p-2.5">Visit Type</th>
-                    <th className="p-2.5">Frequency</th>
-                    <th className="p-2.5 text-center">Visit Count</th>
+                    <th className="p-3">Visit Type</th>
+                    <th className="p-3">Frequency</th>
+                    <th className="p-3 text-center">Visit Count</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-semibold">
                   <tr>
-                    <td className="p-2.5 font-bold">SN</td>
-                    <td className="p-2.5">Daily,x60days</td>
-                    <td className="p-2.5 text-center font-black">58</td>
+                    <td className="p-3 font-bold text-slate-900 dark:text-white">SN</td>
+                    <td className="p-3">Daily, x60 days</td>
+                    <td className="p-3 text-center font-black text-rose-600">58</td>
                   </tr>
                   <tr>
-                    <td className="p-2.5 font-bold">PT</td>
-                    <td className="p-2.5">For,Eval,and,Treat</td>
-                    <td className="p-2.5 text-center font-black">1</td>
+                    <td className="p-3 font-bold text-slate-900 dark:text-white">PT</td>
+                    <td className="p-3">For, Eval, and, Treat</td>
+                    <td className="p-3 text-center font-black text-rose-600">1</td>
                   </tr>
                   <tr>
-                    <td className="p-2.5 font-bold text-slate-400">OT</td>
-                    <td className="p-2.5 text-slate-400">—</td>
-                    <td className="p-2.5 text-center text-slate-400">0</td>
+                    <td className="p-3 font-bold text-slate-400">OT</td>
+                    <td className="p-3 text-slate-400">—</td>
+                    <td className="p-3 text-center text-slate-400">0</td>
                   </tr>
                   <tr>
-                    <td className="p-2.5 font-bold text-slate-400">ST</td>
-                    <td className="p-2.5 text-slate-400">—</td>
-                    <td className="p-2.5 text-center text-slate-400">0</td>
+                    <td className="p-3 font-bold text-slate-400">ST</td>
+                    <td className="p-3 text-slate-400">—</td>
+                    <td className="p-3 text-center text-slate-400">0</td>
                   </tr>
                   <tr>
-                    <td className="p-2.5 font-bold text-slate-400">MSW</td>
-                    <td className="p-2.5 text-slate-400">—</td>
-                    <td className="p-2.5 text-center text-slate-400">0</td>
+                    <td className="p-3 font-bold text-slate-400">MSW</td>
+                    <td className="p-3 text-slate-400">—</td>
+                    <td className="p-3 text-center text-slate-400">0</td>
                   </tr>
                   <tr>
-                    <td className="p-2.5 font-bold text-slate-400">HHA</td>
-                    <td className="p-2.5 text-slate-400">—</td>
-                    <td className="p-2.5 text-center text-slate-400">0</td>
+                    <td className="p-3 font-bold text-slate-400">HHA</td>
+                    <td className="p-3 text-slate-400">—</td>
+                    <td className="p-3 text-center text-slate-400">0</td>
                   </tr>
                 </tbody>
               </table>
@@ -1491,7 +1617,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEpisodeFrequenciesModalOpen(false)}
-                  className="px-6 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs shadow transition cursor-pointer"
+                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
                 >
                   Close
                 </button>
@@ -1504,15 +1630,15 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       {/* 6. Modal: List of In-Active Episodes (Screenshot 1) */}
       {isInactiveEpisodesModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-2xl overflow-hidden">
-            <div className="bg-[#891e3e] text-white px-3 py-1.5 flex items-center justify-between">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between font-bold text-xs tracking-wider">
               <span className="font-extrabold text-xs">List of In-active episodes</span>
               <button
                 type="button"
                 onClick={() => setIsInactiveEpisodesModalOpen(false)}
-                className="text-white hover:text-white/80"
+                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
 
@@ -1556,16 +1682,15 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-[#891e3e] text-white px-3 py-1.5 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between">
               <span className="font-extrabold text-xs">Master Calendar</span>
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-                <span
-                  onClick={() => setIsMasterCalendarModalOpen(false)}
-                  className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block cursor-pointer hover:bg-rose-500"
-                ></span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsMasterCalendarModalOpen(false)}
+                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
+              >
+                <X size={15} />
+              </button>
             </div>
 
             {/* Controls Bar */}
@@ -1573,14 +1698,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <div className="flex items-center space-x-3">
                 <button
                   type="button"
-                  className="px-2.5 py-1 rounded bg-[#2b78a3] text-white font-bold"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold"
                 >
                   « Previous Episode
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="px-3 py-1 rounded bg-[#2b78a3] text-white font-bold flex items-center space-x-1"
+                  className="px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-200 hover:text-rose-600 font-bold flex items-center space-x-1"
                 >
                   <Printer size={12} />
                   <span>Print</span>
@@ -1652,7 +1777,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <td className="p-2 border font-bold text-center bg-pearl-50 dark:bg-charcoal-850">Week 2</td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/01</div>
-                      <div className="font-bold text-sky-600">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold text-rose-600">LPN - ORAL MED. MANAGEMENT</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/02</div>
@@ -1755,7 +1880,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsMasterCalendarModalOpen(false)}
-                className="px-5 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs shadow"
+                className="px-5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow transition cursor-pointer"
               >
                 Close
               </button>
@@ -1853,14 +1978,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 type="button"
                 onClick={handleConfirmReassignTasks}
                 disabled={isSubmitting || !reassignToUser}
-                className="px-6 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-extrabold text-xs shadow transition cursor-pointer"
+                className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
               >
                 {isSubmitting ? 'Reassigning...' : 'Reassign'}
               </button>
               <button
                 type="button"
                 onClick={() => setIsReassignTasksModalOpen(false)}
-                className="px-6 py-1.5 rounded bg-pearl-300 dark:bg-charcoal-750 font-bold text-xs text-slate-700 dark:text-slate-300"
+                className="px-6 py-2 rounded-xl bg-pearl-300 dark:bg-charcoal-750 font-bold text-xs text-slate-700 dark:text-slate-300 transition hover:bg-pearl-400"
               >
                 Exit
               </button>
@@ -1869,141 +1994,210 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         </div>
       )}
 
-      {/* 9. Modal: Authorization List (Screenshot 6) */}
+      {/* 9. Modal: Authorization List */}
       {isAuthorizationsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-[#891e3e] text-white px-3 py-1.5 flex items-center justify-between">
-              <span className="font-extrabold text-xs">Authorization List | ABUISSA, HEATHER</span>
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-                <span
-                  onClick={() => setIsAuthorizationsModalOpen(false)}
-                  className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block cursor-pointer hover:bg-rose-500"
-                ></span>
+                <FileText size={16} className="text-rose-200" />
+                <span className="font-extrabold text-sm tracking-tight">Authorization List | ABUISSA, HEATHER</span>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthorizationsModalOpen(false)}
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Actions Bar */}
-            <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
+            <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
               <button
                 type="button"
-                className="px-3 py-1 rounded bg-[#2b78a3] text-white font-bold text-xs"
+                onClick={() => setToastMessage('Create Authorization modal initialized')}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
-                Add Authorization
+                + Add Authorization
               </button>
 
               <div className="flex-1 max-w-sm mx-4">
                 <input
                   type="text"
                   placeholder="Search authorizations..."
-                  className="w-full py-1 px-3 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs"
+                  className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs focus:ring-2 focus:ring-rose-500/20"
                 />
               </div>
 
               <button
                 type="button"
-                className="px-3 py-1 rounded bg-[#2b78a3] text-white font-bold text-xs"
+                onClick={() => setToastMessage('Showing archived authorizations')}
+                className="px-4 py-2 rounded-xl border border-rose-600 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold text-xs transition cursor-pointer"
               >
                 Archived Authorizations
               </button>
             </div>
 
             {/* Table */}
-            <div className="flex-1 overflow-x-auto p-3">
-              <table className="w-full text-xs border border-pearl-200 dark:border-charcoal-700">
+            <div className="flex-1 overflow-x-auto p-4">
+              <table className="w-full text-xs border border-pearl-200 dark:border-charcoal-700 rounded-lg overflow-hidden">
                 <thead className="bg-pearl-100 dark:bg-charcoal-800 text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
                   <tr>
-                    <th className="p-2 text-left">Authorization Number</th>
-                    <th className="p-2 text-left">Payer</th>
-                    <th className="p-2 text-left">Type</th>
-                    <th className="p-2 text-left">Start Date</th>
-                    <th className="p-2 text-left">End Date</th>
-                    <th className="p-2 text-left">Discipline</th>
-                    <th className="p-2 text-center">Authorized Units</th>
-                    <th className="p-2 text-center">Used</th>
-                    <th className="p-2 text-center">Unused</th>
-                    <th className="p-2 text-left">Unit</th>
-                    <th className="p-2 text-left">Status</th>
-                    <th className="p-2 text-right">Actions</th>
+                    <th className="p-2.5 text-left">Authorization #</th>
+                    <th className="p-2.5 text-left">Payer</th>
+                    <th className="p-2.5 text-left">Type</th>
+                    <th className="p-2.5 text-left">Start Date</th>
+                    <th className="p-2.5 text-left">End Date</th>
+                    <th className="p-2.5 text-left">Discipline</th>
+                    <th className="p-2.5 text-center">Auth Units</th>
+                    <th className="p-2.5 text-center">Used</th>
+                    <th className="p-2.5 text-center">Unused</th>
+                    <th className="p-2.5 text-left">Unit</th>
+                    <th className="p-2.5 text-left">Status</th>
+                    <th className="p-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750">
-                  <tr>
-                    <td colSpan={12} className="py-16 text-center text-slate-500 font-bold text-sm">
-                      No records to display.
+                <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
+                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
+                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89412</td>
+                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
+                    <td className="p-2.5">Initial Episode</td>
+                    <td className="p-2.5">10/26/2026</td>
+                    <td className="p-2.5">12/24/2026</td>
+                    <td className="p-2.5 font-bold">SN - Skilled Nursing</td>
+                    <td className="p-2.5 text-center font-bold">60</td>
+                    <td className="p-2.5 text-center font-bold text-emerald-600">26</td>
+                    <td className="p-2.5 text-center font-bold text-amber-600">34</td>
+                    <td className="p-2.5">Visits</td>
+                    <td className="p-2.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
+                        Approved
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
+                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89412')} className="hover:underline cursor-pointer">Edit</button>
+                      <span>|</span>
+                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
+                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89413</td>
+                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
+                    <td className="p-2.5">Initial Episode</td>
+                    <td className="p-2.5">10/26/2026</td>
+                    <td className="p-2.5">12/24/2026</td>
+                    <td className="p-2.5 font-bold">PT - Physical Therapy</td>
+                    <td className="p-2.5 text-center font-bold">8</td>
+                    <td className="p-2.5 text-center font-bold text-emerald-600">1</td>
+                    <td className="p-2.5 text-center font-bold text-amber-600">7</td>
+                    <td className="p-2.5">Visits</td>
+                    <td className="p-2.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
+                        Approved
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
+                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89413')} className="hover:underline cursor-pointer">Edit</button>
+                      <span>|</span>
+                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
+                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89414</td>
+                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
+                    <td className="p-2.5">Initial Episode</td>
+                    <td className="p-2.5">10/26/2026</td>
+                    <td className="p-2.5">12/24/2026</td>
+                    <td className="p-2.5 font-bold">OT - Occupational Therapy</td>
+                    <td className="p-2.5 text-center font-bold">4</td>
+                    <td className="p-2.5 text-center font-bold text-emerald-600">0</td>
+                    <td className="p-2.5 text-center font-bold text-amber-600">4</td>
+                    <td className="p-2.5">Visits</td>
+                    <td className="p-2.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200">
+                        In Review
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
+                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89414')} className="hover:underline cursor-pointer">Edit</button>
+                      <span>|</span>
+                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between text-xs text-slate-500">
+            <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between text-xs text-slate-500">
               <div className="flex items-center space-x-2">
                 <span>Show</span>
-                <select className="border py-0.5 px-1 rounded">
+                <select className="border py-1 px-2 rounded-lg bg-white dark:bg-charcoal-900 font-semibold">
                   <option value="25">25</option>
                   <option value="50">50</option>
                 </select>
                 <span>items per page</span>
               </div>
-              <div>Displaying items 0 - 0 of 0</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-300">Displaying items 1 - 3 of 3</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 10. Modal: 30-Day Calendar (Screenshot 7) */}
+      {/* 10. Modal: 30-Day Calendar */}
       {is30DayCalendarModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
-            {/* Window Chrome */}
-            <div className="bg-[#891e3e] text-white px-3 py-1.5 flex items-center justify-between">
-              <span className="font-extrabold text-xs">30-Day Calendar | ABUISSA, HEATHER</span>
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-                <span
-                  onClick={() => setIs30DayCalendarModalOpen(false)}
-                  className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block cursor-pointer hover:bg-rose-500"
-                ></span>
+                <Calendar size={16} className="text-rose-200" />
+                <span className="font-extrabold text-sm tracking-tight">30-Day Calendar | ABUISSA, HEATHER</span>
               </div>
+              <button
+                type="button"
+                onClick={() => setIs30DayCalendarModalOpen(false)}
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {/* Top Stats Banner matching Screenshot 7 */}
-            <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
+            {/* Top Stats Banner */}
+            <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
               <div className="font-black text-sm text-slate-900 dark:text-white">
-                ABUISSA, HEATHER(1061)
+                ABUISSA, HEATHER (MRN: 1061)
               </div>
               <div className="flex items-center space-x-6 text-xs font-extrabold">
-                <div>
+                <div className="flex items-center space-x-1.5">
                   <span className="text-slate-500">LUPA Risk: </span>
-                  <span className="text-sky-600 font-black">LOW</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
+                    LOW
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-500">LUPA Threshold: </span>
-                  <span className="text-slate-900 dark:text-white font-black">3</span>
+                  <span className="text-slate-900 dark:text-white font-black">3 visits</span>
                 </div>
               </div>
-              <div className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
+              <div className="font-extrabold text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-lg border border-rose-200">
                 First 30-Day Payment Period
               </div>
             </div>
 
             {/* Episode & Billing Period Selectors */}
-            <div className="px-3 py-2 bg-white dark:bg-charcoal-800 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2 text-xs">
+            <div className="px-4 py-2.5 bg-white dark:bg-charcoal-800 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2 text-xs">
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1.5">
                   <span className="font-bold text-slate-500">Episode:</span>
-                  <select className="border py-1 px-2 rounded font-semibold">
+                  <select className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900">
                     <option>10/26/2026 - 12/24/2026</option>
                   </select>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1.5">
                   <span className="font-bold text-slate-500">Billing Period:</span>
-                  <select className="border py-1 px-2 rounded font-semibold">
+                  <select className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900">
                     <option>First 30 Days</option>
                     <option>Second 30 Days</option>
                   </select>
@@ -2013,92 +2207,92 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEpisodeFrequenciesModalOpen(true)}
-                className="px-3 py-1 rounded border border-[#2b78a3] text-[#2b78a3] hover:bg-[#2b78a3] hover:text-white font-bold transition"
+                className="px-3.5 py-1.5 rounded-lg border border-rose-600 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold transition cursor-pointer"
               >
                 View Frequency & Duration
               </button>
             </div>
 
             {/* Status Legend */}
-            <div className="px-3 py-2 bg-pearl-50/60 dark:bg-charcoal-850 flex items-center justify-center space-x-6 text-[11px] font-bold">
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
+            <div className="px-4 py-2 bg-pearl-50/70 dark:bg-charcoal-850 flex items-center justify-center space-x-6 text-[11px] font-bold">
+              <span className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
                 <span>Complete</span>
               </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2b78a3]"></span>
+              <span className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
                 <span>In Progress</span>
               </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#6b46c1]"></span>
+              <span className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
                 <span>Not Yet Started</span>
               </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#dc2626]"></span>
+              <span className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                 <span>Missed</span>
               </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <span className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
                 <span>Not Yet Due</span>
               </span>
             </div>
 
             {/* Calendar Table Grid */}
-            <div className="flex-1 overflow-y-auto p-3">
-              <table className="w-full text-xs border border-pearl-200 dark:border-charcoal-700 border-collapse">
+            <div className="flex-1 overflow-y-auto p-4">
+              <table className="w-full text-xs border border-pearl-200 dark:border-charcoal-700 border-collapse rounded-lg overflow-hidden">
                 <thead className="bg-pearl-100 dark:bg-charcoal-800 text-center font-extrabold text-[11px] text-slate-700 dark:text-slate-300">
                   <tr>
-                    <th className="p-2 border">Sunday</th>
-                    <th className="p-2 border">Monday</th>
-                    <th className="p-2 border">Tuesday</th>
-                    <th className="p-2 border">Wednesday</th>
-                    <th className="p-2 border">Thursday</th>
-                    <th className="p-2 border">Friday</th>
-                    <th className="p-2 border">Saturday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Sunday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Monday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Tuesday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Wednesday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Thursday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Friday</th>
+                    <th className="p-2 border border-pearl-200 dark:border-charcoal-700">Saturday</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pearl-200 dark:divide-charcoal-700 font-medium">
                   {/* Row 1 */}
                   <tr>
-                    <td className="p-2 border h-20 bg-pearl-50/40"></td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 bg-pearl-50/40"></td>
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/26</div>
-                      <div className="p-1.5 rounded bg-[#16a34a] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>OASIS-E2 Start of Care</div>
                         <div className="text-[9px] opacity-90">Exported · Mary Kyalikunda</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/27</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/28</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/29</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/30</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">10/31</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
@@ -2107,51 +2301,51 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
                   {/* Row 2 */}
                   <tr>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/01</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/02</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/03</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/04</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/05</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/06</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
                     </td>
-                    <td className="p-2 border h-20 align-top">
+                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
                       <div className="font-bold text-slate-400 text-[10px]">11/07</div>
-                      <div className="p-1.5 rounded bg-[#2b78a3] text-white text-[11px] font-bold mt-1 shadow-xs">
+                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
                         <div>LVN/LPN Visit</div>
                         <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
                       </div>
@@ -2161,11 +2355,11 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </table>
             </div>
 
-            <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 text-right">
+            <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 text-right">
               <button
                 type="button"
                 onClick={() => setIs30DayCalendarModalOpen(false)}
-                className="px-5 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs shadow"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
                 Close
               </button>
@@ -2177,27 +2371,28 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       {/* 11. Modal: Quick Employee Scheduler (Screenshot 4 - NO Post to Axxess Care) */}
       {isQuickEmployeeSchedulerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-2xl p-5">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-2xl p-6">
             <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                Quick Employee Scheduler
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center space-x-2">
+                <Users size={16} className="text-rose-600" />
+                <span>Quick Employee Scheduler</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setIsQuickEmployeeSchedulerModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center space-x-3">
-                <label className="text-xs font-bold w-28">User/Employee:</label>
+                <label className="text-xs font-bold w-28 text-slate-600 dark:text-slate-400">User/Employee:</label>
                 <select
                   value={trayUser}
                   onChange={(e) => setTrayUser(e.target.value)}
-                  className="flex-1 py-1.5 px-3 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-semibold"
+                  className="flex-1 py-2 px-3 rounded-xl border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-semibold focus:ring-2 focus:ring-rose-500/20"
                 >
                   <option value="">User: Select Option</option>
                   <option value="Mario Fortune LPN">Mario Fortune LPN</option>
@@ -2208,18 +2403,18 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setTrayUser('Alexandria Nelson, RN')}
-                  className="text-xs font-bold text-[#2b78a3] hover:underline"
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
                 >
                   Assign to me
                 </button>
               </div>
 
               <div className="flex items-center space-x-3">
-                <label className="text-xs font-bold w-28">Visit Type:</label>
+                <label className="text-xs font-bold w-28 text-slate-600 dark:text-slate-400">Visit Type:</label>
                 <select
                   value={trayVisitType}
                   onChange={(e) => setTrayVisitType(e.target.value)}
-                  className="flex-1 py-1.5 px-3 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-semibold"
+                  className="flex-1 py-2 px-3 rounded-xl border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-semibold focus:ring-2 focus:ring-rose-500/20"
                 >
                   <option value="">Visit Type: Select Option</option>
                   <option value="LPN - Oral Med. Management">LPN - Oral Med. Management</option>
@@ -2233,21 +2428,21 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 To schedule visits for the selected user, select the desired date below:
               </div>
 
-              <div className="w-48">
+              <div className="w-52">
                 <input
                   type="date"
                   value={trayDate}
                   onChange={(e) => setTrayDate(e.target.value)}
-                  className="w-full py-1.5 px-2 rounded border border-pearl-300 dark:border-charcoal-700 text-xs font-semibold"
+                  className="w-full py-2 px-3 rounded-xl border border-pearl-300 dark:border-charcoal-700 text-xs font-semibold bg-white dark:bg-charcoal-800 focus:ring-2 focus:ring-rose-500/20"
                 />
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end space-x-2">
+            <div className="mt-6 flex items-center justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => setIsQuickEmployeeSchedulerModalOpen(false)}
-                className="px-4 py-1.5 rounded bg-pearl-200 dark:bg-charcoal-750 font-bold text-xs"
+                className="px-5 py-2 rounded-xl bg-pearl-200 dark:bg-charcoal-750 font-bold text-xs hover:bg-pearl-300 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -2258,7 +2453,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   setIsQuickEmployeeSchedulerModalOpen(false);
                 }}
                 disabled={isSubmitting || !trayVisitType}
-                className="px-5 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-extrabold text-xs shadow transition cursor-pointer"
+                className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
               >
                 {isSubmitting ? 'Saving...' : 'Save & Close'}
               </button>
@@ -2270,41 +2465,41 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       {/* 12. Modal: Visit Details */}
       {isVisitDetailsModalOpen && selectedVisitForModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-6">
             <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
               <h3 className="font-extrabold text-sm flex items-center space-x-2">
-                <FileText size={16} className="text-[#2b78a3]" />
+                <FileText size={16} className="text-rose-600" />
                 <span>Visit Details: {selectedVisitForModal.task}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setIsVisitDetailsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-2.5 rounded bg-pearl-50 dark:bg-charcoal-800">
+              <div className="p-3 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
                 <span className="font-bold text-slate-500 block">Patient:</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">
                   {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
                 </span>
               </div>
-              <div className="p-2.5 rounded bg-pearl-50 dark:bg-charcoal-800">
+              <div className="p-3 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
                 <span className="font-bold text-slate-500 block">Assigned Employee:</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">
                   {selectedVisitForModal.assignedTo}
                 </span>
               </div>
-              <div className="p-2.5 rounded bg-pearl-50 dark:bg-charcoal-800">
+              <div className="p-3 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
                 <span className="font-bold text-slate-500 block">Scheduled Window:</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">
                   {selectedVisitForModal.scheduledDate} · {selectedVisitForModal.timeSlot}
                 </span>
               </div>
-              <div className="p-2.5 rounded bg-pearl-50 dark:bg-charcoal-800">
+              <div className="p-3 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
                 <span className="font-bold text-slate-500 block">Status:</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">
                   {selectedVisitForModal.status}
@@ -2312,7 +2507,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </div>
             </div>
 
-            <div className="mt-3 p-3 rounded-lg border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 text-xs">
+            <div className="mt-4 p-3.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 text-xs">
               <span className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">
                 Clinical Directives:
               </span>
@@ -2321,11 +2516,11 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </p>
             </div>
 
-            <div className="mt-5 text-right">
+            <div className="mt-6 text-right">
               <button
                 type="button"
                 onClick={() => setIsVisitDetailsModalOpen(false)}
-                className="px-5 py-1.5 rounded bg-[#2b78a3] hover:bg-[#205d80] text-white font-bold text-xs"
+                className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
                 Done
               </button>

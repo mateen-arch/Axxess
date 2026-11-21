@@ -68,7 +68,17 @@ export const HOME_HEALTH_NAV_SECTIONS: HomeHealthNavNode[] = [
     children: [
       { id: 'my-schedule-tasks', label: 'My Schedule / Tasks' },
       { id: 'schedule-unassigned-visits', label: 'Schedule Unassigned Visits' },
-      { id: 'schedule-center', label: 'Schedule Center' },
+      {
+        id: 'schedule-center-group',
+        label: 'Schedule Center',
+        children: [
+          { id: 'schedule-center', label: 'Schedule Center' },
+          { id: 'episode-manager', label: 'Episode Manager' },
+          { id: 'schedule-manager', label: 'Schedule Manager' },
+          { id: 'authorizations', label: 'Authorizations' },
+          { id: 'thirty-day-calendar', label: '30-Day Calendar' },
+        ],
+      },
       { id: 'reassign-schedule', label: 'Reassign Schedule' },
       { id: 'unscheduled-visits-report', label: 'Unscheduled Visits Report' },
       { id: 'schedule-report', label: 'Schedule Report' },

@@ -240,7 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isOpen, setIsOpen] = useState(true);
   const [toggleHovered, setToggleHovered] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['home']));
-  const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(new Set(['new', 'lists']));
+  const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(new Set(['new', 'lists', 'schedule-center-group']));
   const [collapsedHoverSection, setCollapsedHoverSection] = useState<string | null>(null);
 
   const {
