@@ -4917,6 +4917,104 @@ async function initIntakeTables() {
 }
 initIntakeTables();
 
+// ==========================================
+// AUTO-MIGRATION: Ensure all columns exist for patients, visits, clinicians, patient_tasks
+// ==========================================
+async function initCoreTables() {
+  try {
+    await pool.query(`
+      -- patients: add missing columns the API queries expect
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS secondary_phone VARCHAR(30);
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS branch VARCHAR(100) DEFAULT 'Main Branch';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS episode_start DATE;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS episode_end DATE;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS start_of_care_date DATE;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS attending_physician VARCHAR(255) DEFAULT '';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS insurance_name VARCHAR(255) DEFAULT '';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS policy_number VARCHAR(100) DEFAULT '';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS primary_contact VARCHAR(255) DEFAULT '';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS secondary_contact VARCHAR(255) DEFAULT '';
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS fall_risk BOOLEAN DEFAULT false;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS hospitalization_risk BOOLEAN DEFAULT false;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS infection_risk BOOLEAN DEFAULT false;
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS full_code BOOLEAN DEFAULT true;
+
+      -- clinicians: add missing columns the schedule-clinicians API expects
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS title VARCHAR(100) DEFAULT 'Registered Nurse';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS credentials VARCHAR(50) DEFAULT 'RN';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS discipline VARCHAR(100) DEFAULT 'Nursing';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS branch VARCHAR(100) DEFAULT 'Standards Home Care';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS service_lines TEXT[] DEFAULT ARRAY['home_health'];
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,7) DEFAULT 32.7767;
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,7) DEFAULT -96.7970;
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS current_address VARCHAR(255) DEFAULT 'Dallas Metro TX';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
+      ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS work_status VARCHAR(50) DEFAULT 'Available';
+
+      -- visits: add missing columns the schedule/visits API expects
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS employee_name VARCHAR(255);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS patient_name VARCHAR(255);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS time_slot VARCHAR(50);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS scheduled_date DATE;
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS day_of_week INT;
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS location_type VARCHAR(50) DEFAULT 'home';
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS evv_status VARCHAR(50) DEFAULT 'pending';
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS address VARCHAR(500);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,7);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,7);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS task VARCHAR(255);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS huv_sfv_type VARCHAR(50);
+      ALTER TABLE visits ADD COLUMN IF NOT EXISTS notes TEXT;
+
+      -- patient_tasks table (for Patient Charts clinical tasks)
+      CREATE TABLE IF NOT EXISTS patient_tasks (
+        id VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        organization_id UUID,
+        patient_id VARCHAR(100),
+        task_name VARCHAR(255) DEFAULT 'Communication Note',
+        discipline VARCHAR(100) DEFAULT 'Nursing',
+        status VARCHAR(50) DEFAULT 'Not Yet Due',
+        schedule_start DATE DEFAULT CURRENT_DATE,
+        schedule_end DATE DEFAULT CURRENT_DATE,
+        assigned_to VARCHAR(255) DEFAULT 'Unassigned Clinician',
+        comments TEXT DEFAULT 'Not Available',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Back-fill clinicians.name from users.full_name where null
+    await pool.query(`
+      UPDATE clinicians c SET name = u.full_name
+      FROM users u WHERE c.user_id = u.id AND c.name IS NULL;
+    `);
+
+    // Back-fill visits denormalized fields from joined tables where null
+    await pool.query(`
+      UPDATE visits v SET
+        employee_name = COALESCE(v.employee_name, c.name, u.full_name),
+        patient_name  = COALESCE(v.patient_name, p.first_name || ' ' || p.last_name),
+        scheduled_date = COALESCE(v.scheduled_date, v.scheduled_start::date),
+        day_of_week   = COALESCE(v.day_of_week, EXTRACT(DOW FROM v.scheduled_start)::int),
+        time_slot     = COALESCE(v.time_slot, TO_CHAR(v.scheduled_start, 'HH12:MI AM')),
+        address       = COALESCE(v.address, p.address_street || ', ' || p.address_city),
+        latitude      = COALESCE(v.latitude, p.latitude),
+        longitude     = COALESCE(v.longitude, p.longitude)
+      FROM clinicians c
+      LEFT JOIN users u ON c.user_id = u.id
+      LEFT JOIN patients p ON v.patient_id = p.id
+      WHERE v.clinician_id = c.id AND (v.employee_name IS NULL OR v.patient_name IS NULL OR v.scheduled_date IS NULL);
+    `);
+
+    console.log('[initCoreTables] All core table columns ensured.');
+  } catch (err) {
+    console.error('Failed to init core tables:', err);
+  }
+}
+initCoreTables();
+
 // GET /api/hospitalizations
 app.get('/api/hospitalizations', async (_req: Request, res: Response) => {
   try {
