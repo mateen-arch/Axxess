@@ -41,7 +41,87 @@ interface ScheduleCenterViewProps {
   onBack?: () => void;
   onNavigateToChart?: (patientId: string) => void;
   initialTab?: string;
+  onCloseSubTab?: () => void;
 }
+
+interface AuthorizationRecord {
+  id: string;
+  authNumber: string;
+  payer: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  discipline: string;
+  authorizedUnits: number;
+  usedUnits: number;
+  unusedUnits: number;
+  unit: string;
+  status: 'Approved' | 'In Review' | 'Archived';
+  isArchived: boolean;
+}
+
+const INITIAL_AUTHORIZATIONS: AuthorizationRecord[] = [
+  {
+    id: 'auth-1',
+    authNumber: 'AUTH-2026-89412',
+    payer: 'MASSHEALTH STANDARD',
+    type: 'Initial Episode',
+    startDate: '10/26/2026',
+    endDate: '12/24/2026',
+    discipline: 'SN - Skilled Nursing',
+    authorizedUnits: 60,
+    usedUnits: 26,
+    unusedUnits: 34,
+    unit: 'Visits',
+    status: 'Approved',
+    isArchived: false,
+  },
+  {
+    id: 'auth-2',
+    authNumber: 'AUTH-2026-89413',
+    payer: 'MASSHEALTH STANDARD',
+    type: 'Initial Episode',
+    startDate: '10/26/2026',
+    endDate: '12/24/2026',
+    discipline: 'PT - Physical Therapy',
+    authorizedUnits: 8,
+    usedUnits: 1,
+    unusedUnits: 7,
+    unit: 'Visits',
+    status: 'Approved',
+    isArchived: false,
+  },
+  {
+    id: 'auth-3',
+    authNumber: 'AUTH-2026-89414',
+    payer: 'MASSHEALTH STANDARD',
+    type: 'Initial Episode',
+    startDate: '10/26/2026',
+    endDate: '12/24/2026',
+    discipline: 'OT - Occupational Therapy',
+    authorizedUnits: 4,
+    usedUnits: 0,
+    unusedUnits: 4,
+    unit: 'Visits',
+    status: 'In Review',
+    isArchived: false,
+  },
+  {
+    id: 'auth-4',
+    authNumber: 'AUTH-2025-41092',
+    payer: 'COMMONWEALTH CARE ALLIANCE',
+    type: 'Prior Episode',
+    startDate: '08/08/2025',
+    endDate: '10/06/2025',
+    discipline: 'SN - Skilled Nursing',
+    authorizedUnits: 30,
+    usedUnits: 30,
+    unusedUnits: 0,
+    unit: 'Visits',
+    status: 'Archived',
+    isArchived: true,
+  },
+];
 
 interface PatientListItem {
   id: string;
@@ -67,7 +147,7 @@ interface VisitItem {
   timeSlot: string;
   status: string;
   discipline: string;
-  isAlert: boolean;
+  isAlert?: boolean;
 }
 
 interface CalendarDayInfo {
@@ -81,6 +161,8 @@ interface CalendarDayInfo {
 export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
   onBack,
   onNavigateToChart,
+  initialTab,
+  onCloseSubTab,
 }) => {
   const { patients: globalPatients, setHomeHealthTab } = useHealthcare();
 
@@ -119,17 +201,43 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
   const [trayVisitType, setTrayVisitType] = useState<string>('');
   const [trayUser, setTrayUser] = useState<string>('');
   const [trayDate, setTrayDate] = useState<string>('2026-11-06');
+  const [activeEpisodeView, setActiveEpisodeView] = useState<'current' | 'prev'>('current');
 
   // Modals
   const [isNewEpisodeModalOpen, setIsNewEpisodeModalOpen] = useState<boolean>(false);
+  const [isEpisodeManagerModalOpen, setIsEpisodeManagerModalOpen] = useState<boolean>(false);
+  const [episodeManagerTab, setEpisodeManagerTab] = useState<'details' | 'frequencies' | 'inactive'>('details');
   const [isEpisodeFrequenciesModalOpen, setIsEpisodeFrequenciesModalOpen] = useState<boolean>(false);
   const [isInactiveEpisodesModalOpen, setIsInactiveEpisodesModalOpen] = useState<boolean>(false);
   const [isMasterCalendarModalOpen, setIsMasterCalendarModalOpen] = useState<boolean>(false);
+  const [masterCalendarEpisode, setMasterCalendarEpisode] = useState<'current' | 'previous'>('current');
+  const [showMissedVisitsOnly, setShowMissedVisitsOnly] = useState<boolean>(false);
   const [isReassignTasksModalOpen, setIsReassignTasksModalOpen] = useState<boolean>(false);
   const [isAuthorizationsModalOpen, setIsAuthorizationsModalOpen] = useState<boolean>(false);
   const [is30DayCalendarModalOpen, setIs30DayCalendarModalOpen] = useState<boolean>(false);
+  const [billingPeriod30Day, setBillingPeriod30Day] = useState<'first' | 'second'>('first');
+  const [episode30Day, setEpisode30Day] = useState<string>('current');
   const [isVisitDetailsModalOpen, setIsVisitDetailsModalOpen] = useState<boolean>(false);
   const [isQuickEmployeeSchedulerModalOpen, setIsQuickEmployeeSchedulerModalOpen] = useState<boolean>(false);
+
+  // Authorizations Rich State
+  const [authList, setAuthList] = useState<AuthorizationRecord[]>(INITIAL_AUTHORIZATIONS);
+  const [showArchivedAuths, setShowArchivedAuths] = useState<boolean>(false);
+  const [authSearchText, setAuthSearchText] = useState<string>('');
+  const [isAddAuthModalOpen, setIsAddAuthModalOpen] = useState<boolean>(false);
+  const [editingAuth, setEditingAuth] = useState<AuthorizationRecord | null>(null);
+  const [viewingAuth, setViewingAuth] = useState<AuthorizationRecord | null>(null);
+  const [authForm, setAuthForm] = useState({
+    authNumber: 'AUTH-2026-90415',
+    payer: 'MASSHEALTH STANDARD',
+    type: 'Initial Episode',
+    startDate: '10/26/2026',
+    endDate: '12/24/2026',
+    discipline: 'SN - Skilled Nursing',
+    authorizedUnits: 30,
+    unit: 'Visits',
+    status: 'Approved' as 'Approved' | 'In Review' | 'Archived',
+  });
 
   // Specific Visit Modal State
   const [selectedVisitForModal, setSelectedVisitForModal] = useState<VisitItem | null>(null);
@@ -224,6 +332,20 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
     }
   }, [globalPatients]);
 
+  // Sync with initial tab if accessed directly from sidebar collapsible
+  useEffect(() => {
+    if (initialTab === 'authorizations') {
+      setIsAuthorizationsModalOpen(true);
+    } else if (initialTab === 'episode-manager') {
+      setIsEpisodeManagerModalOpen(true);
+      setEpisodeManagerTab('details');
+    } else if (initialTab === 'schedule-manager') {
+      setIsMasterCalendarModalOpen(true);
+    } else if (initialTab === 'thirty-day-calendar') {
+      setIs30DayCalendarModalOpen(true);
+    }
+  }, [initialTab]);
+
   const generateFallbackScheduleData = (patId: string) => {
     const list: VisitItem[] = [];
     const daysMap: Record<string, CalendarDayInfo> = {};
@@ -311,12 +433,27 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
   // 2. Fetch Schedule Center Data from Database
   const fetchScheduleCenterData = async (patientId: string) => {
+    // Immediately sync patientDetail from current roster
+    const matchedRosterPatient = patients.find(p => p.id === patientId || p.mrn === patientId);
+    if (matchedRosterPatient) {
+      setPatientDetail(matchedRosterPatient);
+      setEpisodeForm(prev => ({
+        ...prev,
+        startOfCareDate: matchedRosterPatient.episodeStart || '10/26/2026',
+        caseManager: 'Mary Kyalikunda RN',
+        primaryPhysician: matchedRosterPatient.attendingPhysician || 'Rigali, Leslie DO',
+        primaryInsurance: matchedRosterPatient.insuranceName || 'COMMONWEALTH CARE ALLIANCE'
+      }));
+    }
+
     try {
       setLoading(true);
       const data = await api.getScheduleCenterData(patientId);
 
       if (data) {
-        setPatientDetail(data.patient);
+        if (data.patient) {
+          setPatientDetail(data.patient);
+        }
         let resolvedVisits = data.visits || [];
         let resolvedCalendar = data.calendarDays || {};
 
@@ -772,7 +909,11 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   return (
                     <tr
                       key={p.id}
-                      onClick={() => setSelectedPatientId(p.id)}
+                      onClick={() => {
+                        setSelectedPatientId(p.id);
+                        setPatientDetail(p);
+                        fetchScheduleCenterData(p.id);
+                      }}
                       className={`cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-rose-600 text-white font-bold'
@@ -803,10 +944,20 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <div className="flex items-center space-x-2">
               <button
                 type="button"
-                onClick={() => showToast('Previous episode loaded.')}
+                onClick={() => {
+                  const next = activeEpisodeView === 'current' ? 'prev' : 'current';
+                  setActiveEpisodeView(next);
+                  if (next === 'prev') {
+                    setPatientDetail((prev: any) => prev ? { ...prev, episodeStart: '08/27/2026', episodeEnd: '10/25/2026' } : null);
+                    showToast('Loaded Previous Episode (08/27/2026 - 10/25/2026)');
+                  } else {
+                    setPatientDetail((prev: any) => prev ? { ...prev, episodeStart: '10/26/2026', episodeEnd: '12/24/2026' } : null);
+                    showToast('Loaded Current Episode (10/26/2026 - 12/24/2026)');
+                  }
+                }}
                 className="px-2.5 py-1 rounded border border-pearl-300 dark:border-charcoal-700 bg-pearl-100 dark:bg-charcoal-750 hover:bg-pearl-200 font-bold text-xs text-slate-800 dark:text-slate-200 transition cursor-pointer"
               >
-                « Previous Episode
+                {activeEpisodeView === 'current' ? '« Previous Episode' : 'Next Episode »'}
               </button>
             </div>
 
@@ -825,12 +976,20 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1">
                 <select
-                  value="current"
-                  onChange={() => {}}
+                  value={activeEpisodeView}
+                  onChange={(e) => {
+                    const next = e.target.value as 'current' | 'prev';
+                    setActiveEpisodeView(next);
+                    if (next === 'prev') {
+                      setPatientDetail((prev: any) => prev ? { ...prev, episodeStart: '08/27/2026', episodeEnd: '10/25/2026' } : null);
+                    } else {
+                      setPatientDetail((prev: any) => prev ? { ...prev, episodeStart: '10/26/2026', episodeEnd: '12/24/2026' } : null);
+                    }
+                  }}
                   className="py-1.5 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-extrabold text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-rose-500 outline-none"
                 >
                   <option value="current">
-                    {currentPatientName} {patientDetail?.episodeStart || '10/26/2026'} - {patientDetail?.episodeEnd || '12/24/2026'}
+                    {currentPatientName} 10/26/2026 - 12/24/2026
                   </option>
                   <option value="prev">
                     {currentPatientName} 08/27/2026 - 10/25/2026
@@ -854,6 +1013,18 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       type="button"
                       onClick={() => {
                         setOpenActionsMenu(false);
+                        setIsEpisodeManagerModalOpen(true);
+                        setEpisodeManagerTab('details');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <ClipboardList size={13} className="text-rose-600" />
+                      <span>Episode Manager</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenActionsMenu(false);
                         setIsMasterCalendarModalOpen(true);
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
@@ -865,7 +1036,8 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       type="button"
                       onClick={() => {
                         setOpenActionsMenu(false);
-                        setIsEpisodeFrequenciesModalOpen(true);
+                        setIsEpisodeManagerModalOpen(true);
+                        setEpisodeManagerTab('frequencies');
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
                     >
@@ -876,7 +1048,8 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       type="button"
                       onClick={() => {
                         setOpenActionsMenu(false);
-                        setIsInactiveEpisodesModalOpen(true);
+                        setIsEpisodeManagerModalOpen(true);
+                        setEpisodeManagerTab('inactive');
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-rose-50/50 dark:hover:bg-charcoal-700 font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-200 cursor-pointer"
                     >
@@ -1245,17 +1418,26 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       </td>
 
                       {/* Visit Status */}
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap shadow-2xs ${
                             v.status === 'Completed'
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
                               : v.status === 'Missed'
                               ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200'
-                              : 'bg-pearl-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300'
+                              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200'
                           }`}
                         >
-                          {v.status}
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              v.status === 'Completed'
+                                ? 'bg-emerald-500'
+                                : v.status === 'Missed'
+                                ? 'bg-rose-500'
+                                : 'bg-amber-500'
+                            }`}
+                          />
+                          <span>{v.status}</span>
                         </span>
                       </td>
 
@@ -1555,139 +1737,409 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         </div>
       )}
 
-      {/* 5. Modal: Episode Frequencies (Screenshot 2) */}
-      {isEpisodeFrequenciesModalOpen && (
+      {/* 5. Comprehensive Modal: Episode Manager (Directives, Frequencies, Inactive Episodes) */}
+      {(isEpisodeManagerModalOpen || isEpisodeFrequenciesModalOpen || isInactiveEpisodesModalOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between font-bold text-xs tracking-wider">
-              <span>Episode Frequencies</span>
-              <button
-                type="button"
-                onClick={() => setIsEpisodeFrequenciesModalOpen(false)}
-                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="p-5">
-              <table className="w-full text-left text-xs border border-pearl-200 dark:border-charcoal-700 rounded-xl overflow-hidden">
-                <thead className="bg-rose-50/70 dark:bg-rose-950/20 text-rose-950 dark:text-rose-200 font-extrabold">
-                  <tr>
-                    <th className="p-3">Visit Type</th>
-                    <th className="p-3">Frequency</th>
-                    <th className="p-3 text-center">Visit Count</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-semibold">
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">SN</td>
-                    <td className="p-3">Daily, x60 days</td>
-                    <td className="p-3 text-center font-black text-rose-600">58</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-900 dark:text-white">PT</td>
-                    <td className="p-3">For, Eval, and, Treat</td>
-                    <td className="p-3 text-center font-black text-rose-600">1</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-400">OT</td>
-                    <td className="p-3 text-slate-400">—</td>
-                    <td className="p-3 text-center text-slate-400">0</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-400">ST</td>
-                    <td className="p-3 text-slate-400">—</td>
-                    <td className="p-3 text-center text-slate-400">0</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-400">MSW</td>
-                    <td className="p-3 text-slate-400">—</td>
-                    <td className="p-3 text-center text-slate-400">0</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-bold text-slate-400">HHA</td>
-                    <td className="p-3 text-slate-400">—</td>
-                    <td className="p-3 text-center text-slate-400">0</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="mt-5 text-center">
-                <button
-                  type="button"
-                  onClick={() => setIsEpisodeFrequenciesModalOpen(false)}
-                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Modal: List of In-Active Episodes (Screenshot 1) */}
-      {isInactiveEpisodesModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between font-bold text-xs tracking-wider">
-              <span className="font-extrabold text-xs">List of In-active episodes</span>
-              <button
-                type="button"
-                onClick={() => setIsInactiveEpisodesModalOpen(false)}
-                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <div className="border border-pearl-200 dark:border-charcoal-700 rounded-lg overflow-hidden">
-                <div className="bg-pearl-200 dark:bg-charcoal-800 py-1.5 px-3 text-center font-black text-xs">
-                  Inactive Episode(s)
-                </div>
-                <table className="w-full text-xs">
-                  <thead className="bg-pearl-100 dark:bg-charcoal-750 text-slate-600 font-extrabold">
-                    <tr>
-                      <th className="py-2 px-3 text-left">Episode Range</th>
-                      <th className="py-2 px-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-semibold">
-                    <tr>
-                      <td className="py-2.5 px-3">08/08/2025 - 10/06/2025</td>
-                      <td className="py-2.5 px-3 text-right text-[#1d4ed8]">
-                        <span className="cursor-pointer hover:underline">Activate</span> |{' '}
-                        <span className="cursor-pointer hover:underline">Edit</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 px-3">01/09/2026 - 03/09/2026</td>
-                      <td className="py-2.5 px-3 text-right text-[#1d4ed8]">
-                        <span className="cursor-pointer hover:underline">Activate</span> |{' '}
-                        <span className="cursor-pointer hover:underline">Edit</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 7. Modal: Master Calendar (Screenshot 3) */}
-      {isMasterCalendarModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
             {/* Header */}
             <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between">
-              <span className="font-extrabold text-xs">Master Calendar</span>
+              <div className="flex items-center gap-2">
+                <ClipboardList size={18} className="text-rose-200" />
+                <span className="font-extrabold text-sm tracking-tight">
+                  Episode Manager | {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={() => setIsMasterCalendarModalOpen(false)}
-                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10"
+                onClick={() => {
+                  setIsEpisodeManagerModalOpen(false);
+                  setIsEpisodeFrequenciesModalOpen(false);
+                  setIsInactiveEpisodesModalOpen(false);
+                  onCloseSubTab?.();
+                }}
+                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Sub-tab Navigation */}
+            <div className="flex items-center gap-2 px-5 pt-3 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-850">
+              <button
+                type="button"
+                onClick={() => setEpisodeManagerTab('details')}
+                className={`px-4 py-2 font-black text-xs border-b-2 cursor-pointer transition ${
+                  episodeManagerTab === 'details'
+                    ? 'border-rose-600 text-rose-700 dark:text-rose-400 bg-white dark:bg-charcoal-900 rounded-t-lg'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Directives & Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setEpisodeManagerTab('frequencies')}
+                className={`px-4 py-2 font-black text-xs border-b-2 cursor-pointer transition ${
+                  episodeManagerTab === 'frequencies'
+                    ? 'border-rose-600 text-rose-700 dark:text-rose-400 bg-white dark:bg-charcoal-900 rounded-t-lg'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Episode Frequencies
+              </button>
+              <button
+                type="button"
+                onClick={() => setEpisodeManagerTab('inactive')}
+                className={`px-4 py-2 font-black text-xs border-b-2 cursor-pointer transition ${
+                  episodeManagerTab === 'inactive'
+                    ? 'border-rose-600 text-rose-700 dark:text-rose-400 bg-white dark:bg-charcoal-900 rounded-t-lg'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Inactive Episodes
+              </button>
+            </div>
+
+            {/* Tab 1: Directives & Details */}
+            {episodeManagerTab === 'details' && (
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="p-4 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Start of Care Date:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.startOfCareDate}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, startOfCareDate: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Case Manager:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.caseManager}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, caseManager: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Episode Start Date:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.episodeStartDate}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, episodeStartDate: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Episode End Date:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.episodeEndDate}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, episodeEndDate: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Primary Attending Physician:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.primaryPhysician}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, primaryPhysician: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      Primary Insurance:
+                    </label>
+                    <input
+                      type="text"
+                      value={episodeForm.primaryInsurance}
+                      onChange={(e) => setEpisodeForm({ ...episodeForm, primaryInsurance: e.target.value })}
+                      className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Clinical Directives & Comments:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={episodeForm.comments}
+                    onChange={(e) => setEpisodeForm({ ...episodeForm, comments: e.target.value })}
+                    placeholder="Enter episode directives, orders adherence, or specialized physician instructions..."
+                    className="w-full p-2.5 rounded-xl border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-medium"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEpisodeForm({
+                        startOfCareDate: patientDetail?.episodeStart || '10/26/2026',
+                        episodeStartDate: patientDetail?.episodeStart || '10/26/2026',
+                        episodeEndDate: patientDetail?.episodeEnd || '12/24/2026',
+                        caseManager: 'Mary Kyalikunda RN',
+                        primaryPhysician: patientDetail?.attendingPhysician || 'Rigali, Leslie DO',
+                        primaryInsurance: patientDetail?.insuranceName || 'COMMONWEALTH CARE ALLIANCE',
+                        secondaryInsurance: '',
+                        visitAuthRequired: 'No',
+                        comments: ''
+                      });
+                      showToast('Form reset to saved values.');
+                    }}
+                    className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-pearl-100 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (patientDetail) {
+                        setPatientDetail({
+                          ...patientDetail,
+                          episodeStart: episodeForm.episodeStartDate,
+                          episodeEnd: episodeForm.episodeEndDate,
+                          attendingPhysician: episodeForm.primaryPhysician,
+                          insuranceName: episodeForm.primaryInsurance
+                        });
+                      }
+                      showToast('Episode details and directives saved successfully!');
+                    }}
+                    className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
+                  >
+                    Save Episode Changes
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Episode Frequencies */}
+            {episodeManagerTab === 'frequencies' && (
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="rounded-xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-rose-50/70 dark:bg-rose-950/20 text-rose-950 dark:text-rose-200 font-extrabold">
+                      <tr>
+                        <th className="p-3">Visit Type</th>
+                        <th className="p-3">Frequency</th>
+                        <th className="p-3 text-center">Visit Count</th>
+                        <th className="p-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-semibold">
+                      <tr>
+                        <td className="p-3 font-bold text-slate-900 dark:text-white">SN - Skilled Nursing</td>
+                        <td className="p-3">Daily, x60 days</td>
+                        <td className="p-3 text-center font-black text-rose-600">58</td>
+                        <td className="p-3 text-right">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Active</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-slate-900 dark:text-white">PT - Physical Therapy</td>
+                        <td className="p-3">For Eval and Treat</td>
+                        <td className="p-3 text-center font-black text-rose-600">1</td>
+                        <td className="p-3 text-right">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Active</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-slate-400">OT - Occupational Therapy</td>
+                        <td className="p-3 text-slate-400">—</td>
+                        <td className="p-3 text-center text-slate-400">0</td>
+                        <td className="p-3 text-right text-slate-400">Inactive</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-slate-400">ST - Speech Therapy</td>
+                        <td className="p-3 text-slate-400">—</td>
+                        <td className="p-3 text-center text-slate-400">0</td>
+                        <td className="p-3 text-right text-slate-400">Inactive</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-slate-400">MSW - Social Work</td>
+                        <td className="p-3 text-slate-400">—</td>
+                        <td className="p-3 text-center text-slate-400">0</td>
+                        <td className="p-3 text-right text-slate-400">Inactive</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-slate-400">HHA - Home Health Aide</td>
+                        <td className="p-3 text-slate-400">—</td>
+                        <td className="p-3 text-center text-slate-400">0</td>
+                        <td className="p-3 text-right text-slate-400">Inactive</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-800 rounded-xl border border-pearl-200 dark:border-charcoal-700 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-600 dark:text-slate-400">
+                    Total Ordered Episode Visits: <strong className="text-rose-600 font-black">59 Visits</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => showToast('Episode frequencies synchronized with patient chart orders.')}
+                    className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold cursor-pointer hover:from-rose-700 hover:to-rose-800 shadow-2xs"
+                  >
+                    Sync Frequencies
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Inactive Episodes */}
+            {episodeManagerTab === 'inactive' && (
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="border border-pearl-200 dark:border-charcoal-700 rounded-xl overflow-hidden">
+                  <div className="bg-pearl-100 dark:bg-charcoal-800 py-2 px-3 font-black text-xs text-slate-700 dark:text-slate-300">
+                    Inactive Episodes Archive
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead className="bg-pearl-50 dark:bg-charcoal-750 text-slate-600 dark:text-slate-400 font-extrabold">
+                      <tr>
+                        <th className="py-2.5 px-3 text-left">Episode Range</th>
+                        <th className="py-2.5 px-3 text-left">Payer</th>
+                        <th className="py-2.5 px-3 text-center">Visits</th>
+                        <th className="py-2.5 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-semibold">
+                      <tr>
+                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">08/08/2025 - 10/06/2025</td>
+                        <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">MEDICARE ADVANTAGE</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-emerald-600">50 Completed</td>
+                        <td className="py-2.5 px-3 text-right space-x-2 text-rose-600 font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (patientDetail) {
+                                setPatientDetail({
+                                  ...patientDetail,
+                                  episodeStart: '08/08/2025',
+                                  episodeEnd: '10/06/2025'
+                                });
+                              }
+                              showToast('Activated episode range 08/08/2025 - 10/06/2025.');
+                            }}
+                            className="hover:underline cursor-pointer"
+                          >
+                            Activate
+                          </button>
+                          <span>|</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEpisodeForm(prev => ({
+                                ...prev,
+                                episodeStartDate: '08/08/2025',
+                                episodeEndDate: '10/06/2025'
+                              }));
+                              setEpisodeManagerTab('details');
+                              showToast('Loaded 08/08/2025 - 10/06/2025 for editing.');
+                            }}
+                            className="hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">01/09/2026 - 03/09/2026</td>
+                        <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">MASSHEALTH STANDARD</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-emerald-600">42 Completed</td>
+                        <td className="py-2.5 px-3 text-right space-x-2 text-rose-600 font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (patientDetail) {
+                                setPatientDetail({
+                                  ...patientDetail,
+                                  episodeStart: '01/09/2026',
+                                  episodeEnd: '03/09/2026'
+                                });
+                              }
+                              showToast('Activated episode range 01/09/2026 - 03/09/2026.');
+                            }}
+                            className="hover:underline cursor-pointer"
+                          >
+                            Activate
+                          </button>
+                          <span>|</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEpisodeForm(prev => ({
+                                ...prev,
+                                episodeStartDate: '01/09/2026',
+                                episodeEndDate: '03/09/2026'
+                              }));
+                              setEpisodeManagerTab('details');
+                              showToast('Loaded 01/09/2026 - 03/09/2026 for editing.');
+                            }}
+                            className="hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEpisodeManagerModalOpen(false);
+                  setIsEpisodeFrequenciesModalOpen(false);
+                  setIsInactiveEpisodesModalOpen(false);
+                  onCloseSubTab?.();
+                }}
+                className="px-6 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Modal: Master Calendar (Schedule Manager) */}
+      {isMasterCalendarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-rose-200" />
+                <span className="font-extrabold text-xs tracking-wide">
+                  Master Calendar | {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMasterCalendarModalOpen(false);
+                  onCloseSubTab?.();
+                }}
+                className="text-white hover:text-white/80 p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
               >
                 <X size={15} />
               </button>
@@ -1695,33 +2147,50 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
             {/* Controls Bar */}
             <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2 text-xs">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold"
+                  onClick={() => {
+                    const next = masterCalendarEpisode === 'current' ? 'previous' : 'current';
+                    setMasterCalendarEpisode(next);
+                    showToast(next === 'previous' ? 'Loaded Previous Episode (08/27/2026 - 10/25/2026)' : 'Loaded Current Episode (10/26/2026 - 12/24/2026)');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold transition cursor-pointer"
                 >
-                  « Previous Episode
+                  {masterCalendarEpisode === 'current' ? '« Previous Episode' : 'Next Episode »'}
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-200 hover:text-rose-600 font-bold flex items-center space-x-1"
+                  className="px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-200 hover:text-rose-600 font-bold flex items-center space-x-1 cursor-pointer"
                 >
                   <Printer size={12} />
                   <span>Print</span>
                 </button>
-                <label className="flex items-center space-x-1 font-bold text-slate-700 dark:text-slate-300">
-                  <input type="checkbox" />
-                  <span>Show Missed Visits</span>
+                <button
+                  type="button"
+                  onClick={() => setIsReassignTasksModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold hover:bg-rose-100 transition cursor-pointer"
+                >
+                  Reassign Tasks
+                </button>
+                <label className="flex items-center space-x-1.5 font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showMissedVisitsOnly}
+                    onChange={(e) => setShowMissedVisitsOnly(e.target.checked)}
+                    className="rounded text-rose-600 focus:ring-rose-500"
+                  />
+                  <span>Show Missed Visits Only</span>
                 </label>
               </div>
 
               <div className="text-right text-xs">
                 <div className="font-extrabold text-slate-900 dark:text-white">
-                  Patient Name: {currentPatientName}
+                  Episode: {masterCalendarEpisode === 'current' ? '10/26/2026 - 12/24/2026' : '08/27/2026 - 10/25/2026'}
                 </div>
                 <div className="text-[11px] text-slate-500 font-semibold">
-                  Frequencies: SN Frequency:Daily,x60days, PT Frequency:For,Eval,and,Treat.
+                  SN: Daily, x60 days • PT: For Eval & Treat
                 </div>
               </div>
             </div>
@@ -1748,27 +2217,141 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <td className="p-2 border bg-slate-50 dark:bg-charcoal-900/50"></td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/26</div>
-                      <div className="font-black text-emerald-600">OASIS SOC</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-1',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mary Kyalikunda RN',
+                            task: 'OASIS-E2 Start of Care',
+                            scheduledDate: '10/26/2026',
+                            rawDate: '2026-10-26',
+                            timeSlot: '09:00 AM - 11:00 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-black text-emerald-600 cursor-pointer"
+                      >
+                        OASIS SOC
+                      </button>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/27</div>
-                      <div className="font-bold">LVN/LPN VISIT</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-2',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mario Fortune LPN',
+                            task: 'LVN/LPN VISIT',
+                            scheduledDate: '10/27/2026',
+                            rawDate: '2026-10-27',
+                            timeSlot: '10:00 AM - 11:00 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        LVN/LPN VISIT
+                      </button>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/28</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-3',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mario Fortune LPN',
+                            task: 'LPN - ORAL MED. MANAGEMENT',
+                            scheduledDate: '10/28/2026',
+                            rawDate: '2026-10-28',
+                            timeSlot: '09:30 AM - 10:30 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        LPN - ORAL MED.
+                      </button>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/29</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-4',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mario Fortune LPN',
+                            task: 'LPN - ORAL MED. MANAGEMENT',
+                            scheduledDate: '10/29/2026',
+                            rawDate: '2026-10-29',
+                            timeSlot: '09:30 AM - 10:30 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        LPN - ORAL MED.
+                      </button>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/30</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-5',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mario Fortune LPN',
+                            task: 'LPN - ORAL MED. MANAGEMENT',
+                            scheduledDate: '10/30/2026',
+                            rawDate: '2026-10-30',
+                            timeSlot: '09:30 AM - 10:30 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        LPN - ORAL MED.
+                      </button>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">10/31</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVisitForModal({
+                            id: 'mc-6',
+                            patientId: selectedPatientId,
+                            assignedTo: 'Mario Fortune LPN',
+                            task: 'LPN - ORAL MED. MANAGEMENT',
+                            scheduledDate: '10/31/2026',
+                            rawDate: '2026-10-31',
+                            timeSlot: '09:30 AM - 10:30 AM',
+                            status: 'Completed',
+                            discipline: 'Nursing'
+                          });
+                          setIsVisitDetailsModalOpen(true);
+                        }}
+                        className="text-left w-full hover:underline font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                      >
+                        LPN - ORAL MED.
+                      </button>
                     </td>
                   </tr>
 
@@ -1777,31 +2360,31 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <td className="p-2 border font-bold text-center bg-pearl-50 dark:bg-charcoal-850">Week 2</td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/01</div>
-                      <div className="font-bold text-rose-600">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold text-rose-600">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/02</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/03</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/04</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/05</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/06</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/07</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                   </tr>
 
@@ -1810,32 +2393,32 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <td className="p-2 border font-bold text-center bg-pearl-50 dark:bg-charcoal-850">Week 3</td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/08</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/09</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
-                      <div className="font-black text-purple-600">PT EVAL</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
+                      <div className="font-black text-rose-700">PT EVAL</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/10</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/11</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/12</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/13</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/14</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                   </tr>
 
@@ -1845,31 +2428,30 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/15</div>
                       <div className="font-bold text-amber-600">LVN SUP VISIT</div>
-                      <div className="font-bold text-slate-600">COC</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/16</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/17</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/18</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/19</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/20</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                     <td className="p-2 border">
                       <div className="font-bold text-slate-400 text-[10px]">11/21</div>
-                      <div className="font-bold">LPN - ORAL MED. MANAGEMENT</div>
+                      <div className="font-bold">LPN - ORAL MED.</div>
                     </td>
                   </tr>
                 </tbody>
@@ -1879,7 +2461,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <div className="p-3 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 text-right">
               <button
                 type="button"
-                onClick={() => setIsMasterCalendarModalOpen(false)}
+                onClick={() => {
+                  setIsMasterCalendarModalOpen(false);
+                  onCloseSubTab?.();
+                }}
                 className="px-5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow transition cursor-pointer"
               >
                 Close
@@ -1889,10 +2474,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         </div>
       )}
 
-      {/* 8. Modal: Reassign Tasks (Screenshot 5) */}
+      {/* 7. Modal: Reassign Tasks */}
       {isReassignTasksModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5">
+          <div className="bg-white dark:bg-charcoal-900 rounded-xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5 animate-fade-in">
             <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
                 Reassign Tasks
@@ -1906,7 +2491,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-500">Patient Name:</span>
                 <span className="font-extrabold text-slate-900 dark:text-white">
-                  Abuissa, Heather
+                  {currentPatientName}
                 </span>
               </div>
 
@@ -1919,7 +2504,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   onChange={(e) => setReassignFromUser(e.target.value)}
                   className="w-full py-1.5 px-3 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
                 >
-                  <option value="">-- Select User --</option>
+                  <option value="">-- All Assigned Employees --</option>
                   <option value="Mario Fortune LPN">Mario Fortune LPN</option>
                   <option value="Mary Kyalikunda RN">Mary Kyalikunda RN</option>
                   <option value="Alexandria Nelson, RN">Alexandria Nelson, RN</option>
@@ -1928,14 +2513,14 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                  Employee To:
+                  Employee To: <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={reassignToUser}
                   onChange={(e) => setReassignToUser(e.target.value)}
                   className="w-full py-1.5 px-3 rounded border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs font-semibold"
                 >
-                  <option value="">-- Select User --</option>
+                  <option value="">-- Select Recipient User --</option>
                   <option value="Sarah Jenkins, RN">Sarah Jenkins, RN</option>
                   <option value="Alexandria Nelson, RN">Alexandria Nelson, RN</option>
                   <option value="Mary Kyalikunda RN">Mary Kyalikunda RN</option>
@@ -1985,7 +2570,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsReassignTasksModalOpen(false)}
-                className="px-6 py-2 rounded-xl bg-pearl-300 dark:bg-charcoal-750 font-bold text-xs text-slate-700 dark:text-slate-300 transition hover:bg-pearl-400"
+                className="px-6 py-2 rounded-xl bg-pearl-300 dark:bg-charcoal-750 font-bold text-xs text-slate-700 dark:text-slate-300 transition hover:bg-pearl-400 cursor-pointer"
               >
                 Exit
               </button>
@@ -1994,20 +2579,25 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         </div>
       )}
 
-      {/* 9. Modal: Authorization List */}
+      {/* 8. Modal: Authorization List (with Real CRUD & Filtering) */}
       {isAuthorizationsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
             {/* Header */}
-            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <FileText size={16} className="text-rose-200" />
-                <span className="font-extrabold text-sm tracking-tight">Authorization List | ABUISSA, HEATHER</span>
+                <Shield size={16} className="text-rose-200" />
+                <span className="font-extrabold text-sm tracking-tight">
+                  Authorization List | {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
+                </span>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAuthorizationsModalOpen(false)}
-                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition"
+                onClick={() => {
+                  setIsAuthorizationsModalOpen(false);
+                  onCloseSubTab?.();
+                }}
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -2017,7 +2607,20 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setToastMessage('Create Authorization modal initialized')}
+                onClick={() => {
+                  setAuthForm({
+                    authNumber: `AUTH-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+                    payer: patientDetail?.primaryInsurance || 'MASSHEALTH STANDARD',
+                    type: 'Initial Episode',
+                    startDate: '10/26/2026',
+                    endDate: '12/24/2026',
+                    discipline: 'SN - Skilled Nursing',
+                    authorizedUnits: 20,
+                    unit: 'Visits',
+                    status: 'Approved'
+                  });
+                  setIsAddAuthModalOpen(true);
+                }}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
                 + Add Authorization
@@ -2026,17 +2629,23 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <div className="flex-1 max-w-sm mx-4">
                 <input
                   type="text"
-                  placeholder="Search authorizations..."
+                  placeholder="Search by Auth #, payer, discipline..."
+                  value={authSearchText}
+                  onChange={(e) => setAuthSearchText(e.target.value)}
                   className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 text-xs focus:ring-2 focus:ring-rose-500/20"
                 />
               </div>
 
               <button
                 type="button"
-                onClick={() => setToastMessage('Showing archived authorizations')}
-                className="px-4 py-2 rounded-xl border border-rose-600 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold text-xs transition cursor-pointer"
+                onClick={() => setShowArchivedAuths(!showArchivedAuths)}
+                className={`px-4 py-2 rounded-xl border font-bold text-xs transition cursor-pointer ${
+                  showArchivedAuths
+                    ? 'bg-rose-600 text-white border-rose-600'
+                    : 'border-rose-600 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                }`}
               >
-                Archived Authorizations
+                {showArchivedAuths ? 'Show Active Authorizations' : 'Archived Authorizations'}
               </button>
             </div>
 
@@ -2060,104 +2669,414 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
-                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
-                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89412</td>
-                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
-                    <td className="p-2.5">Initial Episode</td>
-                    <td className="p-2.5">10/26/2026</td>
-                    <td className="p-2.5">12/24/2026</td>
-                    <td className="p-2.5 font-bold">SN - Skilled Nursing</td>
-                    <td className="p-2.5 text-center font-bold">60</td>
-                    <td className="p-2.5 text-center font-bold text-emerald-600">26</td>
-                    <td className="p-2.5 text-center font-bold text-amber-600">34</td>
-                    <td className="p-2.5">Visits</td>
-                    <td className="p-2.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
-                        Approved
-                      </span>
-                    </td>
-                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
-                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89412')} className="hover:underline cursor-pointer">Edit</button>
-                      <span>|</span>
-                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
-                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89413</td>
-                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
-                    <td className="p-2.5">Initial Episode</td>
-                    <td className="p-2.5">10/26/2026</td>
-                    <td className="p-2.5">12/24/2026</td>
-                    <td className="p-2.5 font-bold">PT - Physical Therapy</td>
-                    <td className="p-2.5 text-center font-bold">8</td>
-                    <td className="p-2.5 text-center font-bold text-emerald-600">1</td>
-                    <td className="p-2.5 text-center font-bold text-amber-600">7</td>
-                    <td className="p-2.5">Visits</td>
-                    <td className="p-2.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
-                        Approved
-                      </span>
-                    </td>
-                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
-                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89413')} className="hover:underline cursor-pointer">Edit</button>
-                      <span>|</span>
-                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
-                    <td className="p-2.5 font-mono font-bold text-rose-600">AUTH-2026-89414</td>
-                    <td className="p-2.5 font-bold">MASSHEALTH STANDARD</td>
-                    <td className="p-2.5">Initial Episode</td>
-                    <td className="p-2.5">10/26/2026</td>
-                    <td className="p-2.5">12/24/2026</td>
-                    <td className="p-2.5 font-bold">OT - Occupational Therapy</td>
-                    <td className="p-2.5 text-center font-bold">4</td>
-                    <td className="p-2.5 text-center font-bold text-emerald-600">0</td>
-                    <td className="p-2.5 text-center font-bold text-amber-600">4</td>
-                    <td className="p-2.5">Visits</td>
-                    <td className="p-2.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200">
-                        In Review
-                      </span>
-                    </td>
-                    <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
-                      <button type="button" onClick={() => setToastMessage('Opening Authorization AUTH-2026-89414')} className="hover:underline cursor-pointer">Edit</button>
-                      <span>|</span>
-                      <button type="button" onClick={() => setToastMessage('Viewing Authorization details')} className="hover:underline cursor-pointer">View</button>
-                    </td>
-                  </tr>
+                  {authList
+                    .filter(a => {
+                      if (showArchivedAuths) {
+                        if (a.status !== 'Archived') return false;
+                      } else {
+                        if (a.status === 'Archived') return false;
+                      }
+                      if (authSearchText.trim()) {
+                        const q = authSearchText.toLowerCase();
+                        return (
+                          a.authNumber.toLowerCase().includes(q) ||
+                          a.payer.toLowerCase().includes(q) ||
+                          a.discipline.toLowerCase().includes(q) ||
+                          a.status.toLowerCase().includes(q)
+                        );
+                      }
+                      return true;
+                    })
+                    .map((a) => (
+                      <tr key={a.id} className="hover:bg-pearl-50/60 dark:hover:bg-charcoal-800/60 transition">
+                        <td className="p-2.5 font-mono font-bold text-rose-600">{a.authNumber}</td>
+                        <td className="p-2.5 font-bold">{a.payer}</td>
+                        <td className="p-2.5">{a.type}</td>
+                        <td className="p-2.5">{a.startDate}</td>
+                        <td className="p-2.5">{a.endDate}</td>
+                        <td className="p-2.5 font-bold">{a.discipline}</td>
+                        <td className="p-2.5 text-center font-bold">{a.authorizedUnits}</td>
+                        <td className="p-2.5 text-center font-bold text-emerald-600">{a.usedUnits}</td>
+                        <td className="p-2.5 text-center font-bold text-amber-600">
+                          {Math.max(0, a.authorizedUnits - a.usedUnits)}
+                        </td>
+                        <td className="p-2.5">{a.unit}</td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                            a.status === 'Approved'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200'
+                              : a.status === 'In Review'
+                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200'
+                              : 'bg-slate-100 text-slate-700 dark:bg-charcoal-700 dark:text-slate-300 border-slate-300'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-right space-x-2 text-rose-600 font-bold">
+                          <button
+                            type="button"
+                            onClick={() => setEditingAuth(a)}
+                            className="hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <span>|</span>
+                          <button
+                            type="button"
+                            onClick={() => setViewingAuth(a)}
+                            className="hover:underline cursor-pointer"
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  {authList.length === 0 && (
+                    <tr>
+                      <td colSpan={12} className="py-8 text-center text-slate-400 font-semibold">
+                        No authorizations found.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
             <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center space-x-2">
-                <span>Show</span>
-                <select className="border py-1 px-2 rounded-lg bg-white dark:bg-charcoal-900 font-semibold">
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                </select>
-                <span>items per page</span>
-              </div>
-              <div className="font-semibold text-slate-700 dark:text-slate-300">Displaying items 1 - 3 of 3</div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                Total Authorizations: {authList.length} records
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAuthorizationsModalOpen(false);
+                  onCloseSubTab?.();
+                }}
+                className="px-5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 10. Modal: 30-Day Calendar */}
+      {/* Submodal: Add Authorization */}
+      {isAddAuthModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
+              <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                New Authorization
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsAddAuthModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setAuthList(prev => [
+                  {
+                    id: `auth-${Date.now()}`,
+                    authNumber: authForm.authNumber,
+                    payer: authForm.payer,
+                    type: authForm.type,
+                    startDate: authForm.startDate,
+                    endDate: authForm.endDate,
+                    discipline: authForm.discipline,
+                    authorizedUnits: Number(authForm.authorizedUnits) || 10,
+                    usedUnits: 0,
+                    unusedUnits: Number(authForm.authorizedUnits) || 10,
+                    unit: authForm.unit,
+                    status: authForm.status as any,
+                    isArchived: authForm.status === 'Archived'
+                  },
+                  ...prev
+                ]);
+                setIsAddAuthModalOpen(false);
+                showToast(`Authorization ${authForm.authNumber} added successfully.`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Authorization #</label>
+                  <input
+                    type="text"
+                    required
+                    value={authForm.authNumber}
+                    onChange={(e) => setAuthForm({ ...authForm, authNumber: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Payer</label>
+                  <input
+                    type="text"
+                    required
+                    value={authForm.payer}
+                    onChange={(e) => setAuthForm({ ...authForm, payer: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Start Date</label>
+                  <input
+                    type="text"
+                    required
+                    value={authForm.startDate}
+                    onChange={(e) => setAuthForm({ ...authForm, startDate: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">End Date</label>
+                  <input
+                    type="text"
+                    required
+                    value={authForm.endDate}
+                    onChange={(e) => setAuthForm({ ...authForm, endDate: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Discipline</label>
+                  <select
+                    value={authForm.discipline}
+                    onChange={(e) => setAuthForm({ ...authForm, discipline: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  >
+                    <option value="SN - Skilled Nursing">SN - Skilled Nursing</option>
+                    <option value="PT - Physical Therapy">PT - Physical Therapy</option>
+                    <option value="OT - Occupational Therapy">OT - Occupational Therapy</option>
+                    <option value="ST - Speech Therapy">ST - Speech Therapy</option>
+                    <option value="HHA - Home Health Aide">HHA - Home Health Aide</option>
+                    <option value="MSW - Social Work">MSW - Social Work</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Authorized Units</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={authForm.authorizedUnits}
+                    onChange={(e) => setAuthForm({ ...authForm, authorizedUnits: Number(e.target.value) || 1 })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddAuthModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 font-bold text-slate-600 dark:text-slate-400 hover:bg-pearl-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold shadow-xs cursor-pointer"
+                >
+                  Save Authorization
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Submodal: Edit Authorization */}
+      {editingAuth && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
+              <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                Edit Authorization: {editingAuth.authNumber}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setEditingAuth(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Authorized Units</label>
+                  <input
+                    type="number"
+                    value={editingAuth.authorizedUnits}
+                    onChange={(e) => setEditingAuth({ ...editingAuth, authorizedUnits: Number(e.target.value) || 1 })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Used Units</label>
+                  <input
+                    type="number"
+                    value={editingAuth.usedUnits}
+                    onChange={(e) => setEditingAuth({ ...editingAuth, usedUnits: Number(e.target.value) || 0 })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">End Date</label>
+                  <input
+                    type="text"
+                    value={editingAuth.endDate}
+                    onChange={(e) => setEditingAuth({ ...editingAuth, endDate: e.target.value })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Status</label>
+                  <select
+                    value={editingAuth.status}
+                    onChange={(e) => setEditingAuth({ ...editingAuth, status: e.target.value as any })}
+                    className="w-full py-1.5 px-3 rounded-lg border border-pearl-300 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 font-semibold"
+                  >
+                    <option value="Approved">Approved</option>
+                    <option value="In Review">In Review</option>
+                    <option value="Archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingAuth(null)}
+                  className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 font-bold text-slate-600 dark:text-slate-400 hover:bg-pearl-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthList(prev => prev.map(a => a.id === editingAuth.id ? editingAuth : a));
+                    setEditingAuth(null);
+                    showToast(`Updated authorization ${editingAuth.authNumber}.`);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold shadow-xs cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submodal: View Authorization */}
+      {viewingAuth && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg p-5 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-pearl-200 dark:border-charcoal-700 pb-3 mb-4">
+              <h4 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Shield size={16} className="text-rose-600" />
+                <span>Authorization Details: {viewingAuth.authNumber}</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setViewingAuth(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2.5 rounded-lg bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
+                  <span className="text-slate-500 block text-[10px] font-bold">Payer</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white">{viewingAuth.payer}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
+                  <span className="text-slate-500 block text-[10px] font-bold">Discipline</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white">{viewingAuth.discipline}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
+                  <span className="text-slate-500 block text-[10px] font-bold">Validity Period</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white">{viewingAuth.startDate} - {viewingAuth.endDate}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700">
+                  <span className="text-slate-500 block text-[10px] font-bold">Status</span>
+                  <span className="font-extrabold text-emerald-600">{viewingAuth.status}</span>
+                </div>
+              </div>
+
+              {/* Progress Meter */}
+              <div className="p-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/50">
+                <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                  <span className="text-slate-600 dark:text-slate-400">Unit Utilization:</span>
+                  <span className="font-black text-slate-900 dark:text-white">
+                    {viewingAuth.usedUnits} of {viewingAuth.authorizedUnits} {viewingAuth.unit} ({Math.round((viewingAuth.usedUnits / viewingAuth.authorizedUnits) * 100)}%)
+                  </span>
+                </div>
+                <div className="w-full h-3 rounded-full bg-pearl-200 dark:bg-charcoal-700 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-rose-600 to-rose-700 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.round((viewingAuth.usedUnits / viewingAuth.authorizedUnits) * 100))}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] font-semibold text-slate-500 mt-1">
+                  <span>Used: {viewingAuth.usedUnits}</span>
+                  <span>Remaining: {Math.max(0, viewingAuth.authorizedUnits - viewingAuth.usedUnits)}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setViewingAuth(null)}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Modal: 30-Day Calendar */}
       {is30DayCalendarModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-charcoal-900 rounded-2xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
             {/* Header */}
-            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-rose-700 to-rose-800 text-white px-5 py-3.5 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Calendar size={16} className="text-rose-200" />
-                <span className="font-extrabold text-sm tracking-tight">30-Day Calendar | ABUISSA, HEATHER</span>
+                <CalendarDays size={16} className="text-rose-200" />
+                <span className="font-extrabold text-sm tracking-tight">
+                  30-Day Calendar | {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
+                </span>
               </div>
               <button
                 type="button"
-                onClick={() => setIs30DayCalendarModalOpen(false)}
+                onClick={() => {
+                  setIs30DayCalendarModalOpen(false);
+                  onCloseSubTab?.();
+                }}
                 className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
                 <X size={18} />
@@ -2167,7 +3086,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             {/* Top Stats Banner */}
             <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-2">
               <div className="font-black text-sm text-slate-900 dark:text-white">
-                ABUISSA, HEATHER (MRN: 1061)
+                {currentPatientName} (MRN: {patientDetail?.mrn || '1061'})
               </div>
               <div className="flex items-center space-x-6 text-xs font-extrabold">
                 <div className="flex items-center space-x-1.5">
@@ -2178,11 +3097,13 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-500">LUPA Threshold: </span>
-                  <span className="text-slate-900 dark:text-white font-black">3 visits</span>
+                  <span className="text-slate-900 dark:text-white font-black">
+                    {billingPeriod30Day === 'first' ? '3 visits' : '4 visits'}
+                  </span>
                 </div>
               </div>
               <div className="font-extrabold text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-lg border border-rose-200">
-                First 30-Day Payment Period
+                {billingPeriod30Day === 'first' ? 'First 30-Day Payment Period' : 'Second 30-Day Payment Period'}
               </div>
             </div>
 
@@ -2191,22 +3112,39 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-1.5">
                   <span className="font-bold text-slate-500">Episode:</span>
-                  <select className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900">
-                    <option>10/26/2026 - 12/24/2026</option>
+                  <select
+                    value={episode30Day}
+                    onChange={(e) => setEpisode30Day(e.target.value)}
+                    className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900"
+                  >
+                    <option value="current">10/26/2026 - 12/24/2026</option>
+                    <option value="prev">08/08/2025 - 10/06/2025</option>
                   </select>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <span className="font-bold text-slate-500">Billing Period:</span>
-                  <select className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900">
-                    <option>First 30 Days</option>
-                    <option>Second 30 Days</option>
+                  <select
+                    value={billingPeriod30Day}
+                    onChange={(e) => {
+                      const val = e.target.value as 'first' | 'second';
+                      setBillingPeriod30Day(val);
+                      showToast(val === 'first' ? 'Loaded First 30 Days (10/26 - 11/24)' : 'Loaded Second 30 Days (11/25 - 12/24)');
+                    }}
+                    className="border border-pearl-300 dark:border-charcoal-700 py-1 px-2.5 rounded-lg font-semibold bg-white dark:bg-charcoal-900"
+                  >
+                    <option value="first">First 30 Days (10/26 - 11/24)</option>
+                    <option value="second">Second 30 Days (11/25 - 12/24)</option>
                   </select>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setIsEpisodeFrequenciesModalOpen(true)}
+                onClick={() => {
+                  setIs30DayCalendarModalOpen(false);
+                  setIsEpisodeManagerModalOpen(true);
+                  setEpisodeManagerTab('frequencies');
+                }}
                 className="px-3.5 py-1.5 rounded-lg border border-rose-600 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold transition cursor-pointer"
               >
                 View Frequency & Duration
@@ -2221,11 +3159,11 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </span>
               <span className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
-                <span>In Progress</span>
+                <span>Scheduled</span>
               </span>
               <span className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
-                <span>Not Yet Started</span>
+                <span>Multiple</span>
               </span>
               <span className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -2252,105 +3190,237 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pearl-200 dark:divide-charcoal-700 font-medium">
-                  {/* Row 1 */}
-                  <tr>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 bg-pearl-50/40"></td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/26</div>
-                      <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>OASIS-E2 Start of Care</div>
-                        <div className="text-[9px] opacity-90">Exported · Mary Kyalikunda</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/27</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/28</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/29</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/30</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">10/31</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                  </tr>
+                  {billingPeriod30Day === 'first' ? (
+                    <>
+                      {/* Row 1: Oct 26 - Oct 31 */}
+                      <tr>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 bg-pearl-50/40"></td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/26</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedVisitForModal({
+                                id: 'cal30-1',
+                                patientId: selectedPatientId,
+                                assignedTo: 'Mary Kyalikunda RN',
+                                task: 'OASIS-E2 Start of Care',
+                                scheduledDate: '10/26/2026',
+                                rawDate: '2026-10-26',
+                                timeSlot: '09:00 AM - 11:00 AM',
+                                status: 'Completed',
+                                discipline: 'Nursing'
+                              });
+                              setIsVisitDetailsModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left w-full cursor-pointer hover:bg-emerald-700 transition"
+                          >
+                            <div>OASIS-E2 Start of Care</div>
+                            <div className="text-[9px] opacity-90">Exported · Mary Kyalikunda</div>
+                          </button>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/27</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedVisitForModal({
+                                id: 'cal30-2',
+                                patientId: selectedPatientId,
+                                assignedTo: 'Mario Fortune LPN',
+                                task: 'LVN/LPN Visit',
+                                scheduledDate: '10/27/2026',
+                                rawDate: '2026-10-27',
+                                timeSlot: '10:00 AM - 11:00 AM',
+                                status: 'Completed',
+                                discipline: 'Nursing'
+                              });
+                              setIsVisitDetailsModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left w-full cursor-pointer hover:bg-emerald-700 transition"
+                          >
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Completed · Mario Fortune</div>
+                          </button>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/28</div>
+                          <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Completed · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/29</div>
+                          <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Completed · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/30</div>
+                          <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Completed · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">10/31</div>
+                          <div className="p-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Completed · Mario Fortune</div>
+                          </div>
+                        </td>
+                      </tr>
 
-                  {/* Row 2 */}
-                  <tr>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/01</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/02</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/03</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/04</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/05</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/06</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                    <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
-                      <div className="font-bold text-slate-400 text-[10px]">11/07</div>
-                      <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs">
-                        <div>LVN/LPN Visit</div>
-                        <div className="text-[9px] opacity-90">Submitted With Signature · Mario Fortune</div>
-                      </div>
-                    </td>
-                  </tr>
+                      {/* Row 2: Nov 1 - Nov 7 */}
+                      <tr>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/01</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/02</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/03</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/04</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/05</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/06</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/07</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <>
+                      {/* Second 30 Days: Nov 25 - Dec 24 */}
+                      <tr>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/25</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/26</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/27</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/28</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/29</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">11/30</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/01</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/20</div>
+                          <div className="p-1.5 rounded-lg bg-purple-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>OASIS Recertification</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mary Kyalikunda</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/21</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/22</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/23</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>LVN/LPN Visit</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mario Fortune</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 align-top">
+                          <div className="font-bold text-slate-400 text-[10px]">12/24</div>
+                          <div className="p-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold mt-1 shadow-xs text-left">
+                            <div>Episode End Summary</div>
+                            <div className="text-[9px] opacity-90">Scheduled · Mary Kyalikunda</div>
+                          </div>
+                        </td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 bg-pearl-50/40"></td>
+                        <td className="p-2 border border-pearl-200 dark:border-charcoal-700 h-20 bg-pearl-50/40"></td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2358,7 +3428,10 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
             <div className="p-3.5 bg-pearl-50 dark:bg-charcoal-850 border-t border-pearl-200 dark:border-charcoal-700 text-right">
               <button
                 type="button"
-                onClick={() => setIs30DayCalendarModalOpen(false)}
+                onClick={() => {
+                  setIs30DayCalendarModalOpen(false);
+                  onCloseSubTab?.();
+                }}
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
                 Close
@@ -2516,7 +3589,35 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
               </p>
             </div>
 
-            <div className="mt-6 text-right">
+            <div className="mt-6 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {selectedVisitForModal.status !== 'Completed' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisits(prev => prev.map(item => item.id === selectedVisitForModal.id ? { ...item, status: 'Completed' } : item));
+                      setSelectedVisitForModal({ ...selectedVisitForModal, status: 'Completed' });
+                      showToast(`Marked ${selectedVisitForModal.task} as Completed.`);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <Check size={14} />
+                    <span>Mark as Completed</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReassignFromUser(selectedVisitForModal.assignedTo);
+                    setIsVisitDetailsModalOpen(false);
+                    setIsReassignTasksModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-100 transition cursor-pointer"
+                >
+                  Reassign Task
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setIsVisitDetailsModalOpen(false)}

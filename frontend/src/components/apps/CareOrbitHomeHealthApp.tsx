@@ -881,6 +881,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
           {['schedule-center', 'episode-manager', 'schedule-manager', 'authorizations', 'thirty-day-calendar'].includes(currentTab) && (
             <ScheduleCenterView
               initialTab={currentTab}
+              onCloseSubTab={() => setCurrentTab('schedule-center')}
               onBack={() => setCurrentTab('dashboard')}
               onNavigateToChart={(patientId) => {
                 setSelectedEditPatientId(patientId);
@@ -1218,6 +1219,10 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             'my-schedule-tasks',
             'schedule-unassigned-visits',
             'schedule-center',
+            'episode-manager',
+            'schedule-manager',
+            'authorizations',
+            'thirty-day-calendar',
             'reassign-schedule',
             'unscheduled-visits-report',
             'my-monthly-calendar',

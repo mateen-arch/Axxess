@@ -207,6 +207,46 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
     return visitsList.filter(v => v.discipline?.toLowerCase().includes(selectedDiscipline.toLowerCase()));
   }, [visitsList, selectedDiscipline]);
 
+  // Dynamic Discipline Bars for Chart
+  const currentDisciplineBars = useMemo(() => {
+    if (selectedDiscipline === 'All Disciplines') {
+      return [
+        {
+          code: 'SN-Extra',
+          label: 'Nursing Extra',
+          freq: disciplineStats.Nursing?.ordered || 0,
+          scheduled: disciplineStats.Nursing?.scheduled || 60,
+          discipline: 'Nursing'
+        },
+        {
+          code: 'PT-Extra',
+          label: 'PT Extra',
+          freq: disciplineStats.PT?.ordered || 0,
+          scheduled: disciplineStats.PT?.scheduled || 1,
+          discipline: 'PT'
+        }
+      ];
+    }
+    const stat = disciplineStats[selectedDiscipline as keyof typeof disciplineStats] || { ordered: 0, scheduled: 0 };
+    const codeMap: Record<string, string> = {
+      Nursing: 'SN-Extra',
+      PT: 'PT-Extra',
+      OT: 'OT-Extra',
+      ST: 'ST-Extra',
+      HHA: 'HHA-Extra',
+      MSW: 'MSW-Extra'
+    };
+    return [
+      {
+        code: codeMap[selectedDiscipline] || `${selectedDiscipline}-Extra`,
+        label: `${selectedDiscipline} Extra`,
+        freq: stat.ordered,
+        scheduled: stat.scheduled,
+        discipline: selectedDiscipline
+      }
+    ];
+  }, [selectedDiscipline, disciplineStats]);
+
   // Quick Scheduler Months: Oct 2026, Nov 2026, Dec 2026 (matching 10/26/2026 - 12/24/2026)
   const episodeMonths = useMemo(() => {
     return [
@@ -583,59 +623,91 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                 </span>
               </div>
 
-              {/* Chart SVG Visualization */}
-              <div className="relative w-full h-52 sm:h-56 bg-white dark:bg-charcoal-900 rounded-xl border border-pearl-200 dark:border-charcoal-750 p-3 flex flex-col justify-between">
-                {/* Y-Axis lines and numbers */}
-                <div className="absolute inset-x-12 inset-y-6 flex flex-col justify-between pointer-events-none">
-                  <div className="border-b border-dashed border-pearl-200 dark:border-charcoal-700 w-full flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="-ml-10">75</span>
-                  </div>
-                  <div className="border-b border-dashed border-pearl-200 dark:border-charcoal-700 w-full flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="-ml-10">50</span>
-                  </div>
-                  <div className="border-b border-dashed border-pearl-200 dark:border-charcoal-700 w-full flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="-ml-10">25</span>
-                  </div>
-                  <div className="border-b border-slate-300 dark:border-charcoal-600 w-full flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="-ml-10">0</span>
-                  </div>
-                </div>
-
-                {/* Y-Axis Title rotated */}
-                <div className="absolute -left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-bold text-slate-400">
-                  Visit Count
-                </div>
-
-                {/* Bars Area */}
-                <div className="relative h-full ml-12 mr-6 flex items-end justify-center gap-16 pb-6">
-                  {/* Category Group 1: SN-Extra (Matching Screenshot) */}
-                  <div className="flex flex-col items-center">
-                    {/* Bar columns */}
-                    <div className="flex items-end gap-3 h-36">
-                      {/* Freq bar: 0 */}
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] font-black text-rose-700 dark:text-rose-400">Freq. 0</span>
-                        <div className="w-8 h-1 bg-slate-300 dark:bg-charcoal-600 rounded-t" />
-                      </div>
-
-                      {/* Scheduled Visits bar: 60 */}
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 animate-pulse">Visits 60</span>
-                        <div
-                          className="w-12 rounded-t-lg transition-all shadow-sm"
-                          style={{
-                            height: '115px',
-                            background: 'linear-gradient(180deg, #f43f5e 0%, #e11d48 100%)'
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* X-Axis Category Label */}
-                    <span className="mt-2 text-[11px] font-black text-slate-700 dark:text-slate-300">
-                      SN-Extra
+              {/* Chart Visualization (Y & X Headings Outside the Box, Freq 0 anchored to baseline) */}
+              <div className="flex flex-col">
+                <div className="flex items-stretch gap-2 sm:gap-3">
+                  {/* Left: Y-Axis Title (OUTSIDE THE BOX) */}
+                  <div className="flex items-center justify-center shrink-0 w-6">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 -rotate-90 whitespace-nowrap select-none">
+                      Visit Count
                     </span>
                   </div>
+
+                  {/* Y-Axis Tick Values (OUTSIDE THE BOX) */}
+                  <div className="flex flex-col justify-between py-2 text-right pr-1 w-6 shrink-0 text-[11px] font-bold text-slate-400 dark:text-slate-500 select-none">
+                    <span>75</span>
+                    <span>50</span>
+                    <span>25</span>
+                    <span>0</span>
+                  </div>
+
+                  {/* The Chart Box (Inner Plot Area) */}
+                  <div className="relative flex-1 h-56 bg-white dark:bg-charcoal-900 rounded-xl border border-pearl-200 dark:border-charcoal-750 overflow-hidden shadow-2xs">
+                    {/* Horizontal Gridlines */}
+                    <div className="absolute inset-0 flex flex-col justify-between py-2 pointer-events-none">
+                      <div className="w-full border-b border-dashed border-pearl-200 dark:border-charcoal-750" />
+                      <div className="w-full border-b border-dashed border-pearl-200 dark:border-charcoal-750" />
+                      <div className="w-full border-b border-dashed border-pearl-200 dark:border-charcoal-750" />
+                      <div className="w-full border-b-2 border-slate-300 dark:border-charcoal-600" />
+                    </div>
+
+                    {/* Bars Plotting Area (Directly aligned to the baseline at py-2 bottom) */}
+                    <div className="absolute inset-x-0 bottom-2 top-2 flex items-end justify-center gap-12 sm:gap-20">
+                      {currentDisciplineBars.map((bar) => {
+                        const maxVal = 75;
+                        const scheduledPct = Math.min(100, Math.max(0, (bar.scheduled / maxVal) * 100));
+                        const freqPct = Math.min(100, Math.max(0, (bar.freq / maxVal) * 100));
+
+                        return (
+                          <div key={bar.code} className="flex items-end gap-3 sm:gap-4 h-full">
+                            {/* Bar 1: Freq */}
+                            <div className="flex flex-col items-center justify-end h-full">
+                              <span className="mb-1 text-[11px] font-extrabold text-rose-700 dark:text-rose-400 select-none">
+                                Freq. {bar.freq}
+                              </span>
+                              <div
+                                className="w-10 sm:w-12 rounded-t-xs transition-all duration-300"
+                                style={{
+                                  height: bar.freq > 0 ? `${freqPct}%` : '2px',
+                                  backgroundColor: bar.freq > 0 ? '#e11d48' : '#fda4af'
+                                }}
+                                title={`${bar.label} Ordered Frequency: ${bar.freq} visits`}
+                              />
+                            </div>
+
+                            {/* Bar 2: Scheduled Visits */}
+                            <div className="flex flex-col items-center justify-end h-full">
+                              <span className="mb-1 text-[11px] font-black text-rose-600 dark:text-rose-400 select-none">
+                                Visits {bar.scheduled}
+                              </span>
+                              <div
+                                className="w-12 sm:w-16 rounded-t-lg shadow-sm transition-all duration-300"
+                                style={{
+                                  height: bar.scheduled > 0 ? `${scheduledPct}%` : '2px',
+                                  background: bar.scheduled > 0
+                                    ? 'linear-gradient(180deg, #f43f5e 0%, #be123c 100%)'
+                                    : '#e2e8f0'
+                                }}
+                                title={`${bar.label} Scheduled Visits: ${bar.scheduled}`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* X-Axis Category Labels (OUTSIDE THE BOX) */}
+                <div className="flex items-center justify-center gap-12 sm:gap-20 pt-2.5 pl-14 sm:pl-16">
+                  {currentDisciplineBars.map((bar) => (
+                    <span
+                      key={bar.code}
+                      className="text-xs font-black text-slate-800 dark:text-slate-200 bg-pearl-100/80 dark:bg-charcoal-800 px-3.5 py-1 rounded-lg border border-pearl-200 dark:border-charcoal-700 shadow-2xs"
+                    >
+                      {bar.code}
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -679,76 +751,73 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                 </thead>
 
                 <tbody className="divide-y divide-pearl-200 dark:divide-charcoal-700">
-                  {/* Group 1: All Extra Visits */}
+                  {/* Duration Group Header */}
                   <tr className="bg-pearl-50/70 dark:bg-charcoal-850/60 font-bold">
                     <td colSpan={7} className="py-2 px-3 text-[11px] text-slate-600 dark:text-slate-400 font-extrabold">
-                      Duration: <span className="text-slate-900 dark:text-white">All Extra Visits</span>
+                      Duration: <span className="text-slate-900 dark:text-white">{selectedDiscipline === 'All Disciplines' ? 'All Extra Visits' : `${selectedDiscipline} Extra Visits`}</span> (10/26/2026 - 12/24/2026)
                     </td>
                   </tr>
 
-                  {/* Row: All Disciplines */}
-                  <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleRowAccordion('all-extra')}
-                        className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                      >
-                        {expandedRows.has('all-extra') ? '-' : '+'}
-                      </button>
-                    </td>
-                    <td className="py-2 px-1 text-center">
-                      <span title="Discrepancy: Extra visits scheduled without physician frequency order" className="inline-flex items-center justify-center">
-                        <AlertTriangle size={14} className="text-amber-500" />
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                    <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                    <td className="py-2 px-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300">
-                        All
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                    <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">61</td>
-                  </tr>
+                  {/* Row: All Disciplines (shown when All Disciplines selected) */}
+                  {selectedDiscipline === 'All Disciplines' && (
+                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleRowAccordion('all-extra')}
+                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
+                        >
+                          {expandedRows.has('all-extra') ? '-' : '+'}
+                        </button>
+                      </td>
+                      <td className="py-2 px-1 text-center">
+                        <span title="Discrepancy: Extra visits scheduled without physician frequency order" className="inline-flex items-center justify-center">
+                          <AlertTriangle size={14} className="text-amber-500" />
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
+                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300">
+                          All
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
+                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">61</td>
+                    </tr>
+                  )}
 
-                  {/* Sub-group: Extra Visits (10/26/2026 - 12/24/2026) */}
-                  <tr className="bg-pearl-50/70 dark:bg-charcoal-850/60 font-bold">
-                    <td colSpan={7} className="py-2 px-3 text-[11px] text-slate-600 dark:text-slate-400 font-extrabold">
-                      Duration: Extra Visits (<span className="text-slate-900 dark:text-white">10/26/2026 - 12/24/2026</span>)
-                    </td>
-                  </tr>
-
-                  {/* Row: Nursing */}
-                  <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleRowAccordion('nursing-extra')}
-                        className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                      >
-                        {expandedRows.has('nursing-extra') ? '-' : '+'}
-                      </button>
-                    </td>
-                    <td className="py-2 px-1 text-center">
-                      <span title="Extra visits scheduled" className="inline-flex items-center justify-center">
-                        <AlertTriangle size={14} className="text-amber-500" />
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                    <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                    <td className="py-2 px-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400">
-                        Nursing
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                    <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">60</td>
-                  </tr>
+                  {/* Row: Nursing (shown when All Disciplines or Nursing selected) */}
+                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'Nursing') && (
+                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleRowAccordion('nursing-extra')}
+                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
+                        >
+                          {expandedRows.has('nursing-extra') ? '-' : '+'}
+                        </button>
+                      </td>
+                      <td className="py-2 px-1 text-center">
+                        <span title="Extra visits scheduled" className="inline-flex items-center justify-center">
+                          <AlertTriangle size={14} className="text-amber-500" />
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
+                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400">
+                          Nursing
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
+                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">60</td>
+                    </tr>
+                  )}
 
                   {/* Expanded Nursing Visits Table */}
-                  {expandedRows.has('nursing-extra') && (
+                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'Nursing') && expandedRows.has('nursing-extra') && (
                     <tr>
                       <td colSpan={7} className="p-3 bg-pearl-50/50 dark:bg-charcoal-850/80 border-y border-pearl-200 dark:border-charcoal-700">
                         <div className="rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 p-2 overflow-x-auto">
@@ -800,32 +869,53 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                     </tr>
                   )}
 
-                  {/* Row: PT */}
-                  <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleRowAccordion('pt-extra')}
-                        className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                      >
-                        {expandedRows.has('pt-extra') ? '-' : '+'}
-                      </button>
-                    </td>
-                    <td className="py-2 px-1 text-center">
-                      <span title="Extra PT visit scheduled" className="inline-flex items-center justify-center">
-                        <AlertTriangle size={14} className="text-amber-500" />
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                    <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                    <td className="py-2 px-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50">
-                        PT
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                    <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">1</td>
-                  </tr>
+                  {/* Row: PT (shown when All Disciplines or PT selected) */}
+                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'PT') && (
+                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleRowAccordion('pt-extra')}
+                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
+                        >
+                          {expandedRows.has('pt-extra') ? '-' : '+'}
+                        </button>
+                      </td>
+                      <td className="py-2 px-1 text-center">
+                        <span title="Extra PT visit scheduled" className="inline-flex items-center justify-center">
+                          <AlertTriangle size={14} className="text-amber-500" />
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
+                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50">
+                          PT
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
+                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">1</td>
+                    </tr>
+                  )}
+
+                  {/* Other disciplines (OT, ST, HHA, MSW) with 0 visits */}
+                  {selectedDiscipline !== 'All Disciplines' && selectedDiscipline !== 'Nursing' && selectedDiscipline !== 'PT' && (
+                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
+                      <td className="py-2 px-3 text-center text-slate-300">—</td>
+                      <td className="py-2 px-1 text-center">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="In compliance" />
+                      </td>
+                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
+                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pearl-100 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300">
+                          {selectedDiscipline}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-400">0</td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-400">0</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
