@@ -5741,6 +5741,7 @@ async function initCoreTables() {
     ALTER TABLE patients ADD COLUMN IF NOT EXISTS full_code BOOLEAN DEFAULT true;
 
     -- clinicians: add missing columns the schedule-clinicians API expects
+    ALTER TABLE clinicians ALTER COLUMN user_id DROP NOT NULL;
     ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS name VARCHAR(255);
     ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS title VARCHAR(100) DEFAULT 'Registered Nurse';
     ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS credentials VARCHAR(50) DEFAULT 'RN';
@@ -6046,26 +6047,29 @@ async function initCoreTables() {
   // Step 13: Seed authentic clinicians, patients, and Schedule Center visits
   await runStep('Ensure authentic Schedule Center clinicians, patients, and visits', `
     ALTER TABLE visits ADD COLUMN IF NOT EXISTS is_axxess_care BOOLEAN DEFAULT false;
+    ALTER TABLE clinicians ALTER COLUMN user_id DROP NOT NULL;
 
     DO $$
     DECLARE
       v_org_id UUID;
+      v_fallback_user_id UUID;
       v_mario_id UUID;
       v_mary_id UUID;
       v_pat_id UUID;
       v_cur_date DATE;
     BEGIN
       SELECT id INTO v_org_id FROM organizations LIMIT 1;
+      SELECT id INTO v_fallback_user_id FROM users LIMIT 1;
 
       -- 1. Ensure Mario Fortune LPN and Mary Kyalikunda RN exist
       IF NOT EXISTS (SELECT 1 FROM clinicians WHERE name ILIKE '%Mario Fortune%') THEN
-        INSERT INTO clinicians (organization_id, name, title, credentials, discipline, branch, status)
-        VALUES (v_org_id, 'Mario Fortune LPN', 'Licensed Practical Nurse', 'LPN', 'Nursing', 'Standards Home Care', 'active');
+        INSERT INTO clinicians (organization_id, user_id, name, title, credentials, discipline, branch, status)
+        VALUES (v_org_id, v_fallback_user_id, 'Mario Fortune LPN', 'Licensed Practical Nurse', 'LPN', 'Nursing', 'Standards Home Care', 'active');
       END IF;
 
       IF NOT EXISTS (SELECT 1 FROM clinicians WHERE name ILIKE '%Mary Kyalikunda%') THEN
-        INSERT INTO clinicians (organization_id, name, title, credentials, discipline, branch, status)
-        VALUES (v_org_id, 'Mary Kyalikunda RN', 'Registered Nurse / Case Manager', 'RN', 'Nursing', 'Standards Home Care', 'active');
+        INSERT INTO clinicians (organization_id, user_id, name, title, credentials, discipline, branch, status)
+        VALUES (v_org_id, v_fallback_user_id, 'Mary Kyalikunda RN', 'Registered Nurse / Case Manager', 'RN', 'Nursing', 'Standards Home Care', 'active');
       END IF;
 
       SELECT id INTO v_mario_id FROM clinicians WHERE name ILIKE '%Mario Fortune%' LIMIT 1;
