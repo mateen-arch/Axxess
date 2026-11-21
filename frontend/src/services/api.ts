@@ -624,6 +624,46 @@ export const api = {
     return res.json();
   },
 
+  async getUnassignedPatientDetail(patientId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/unassigned-patient-detail/${patientId}`);
+    if (!res.ok) throw new Error('Failed to fetch unassigned patient detail');
+    return res.json();
+  },
+
+  async batchScheduleVisits(data: {
+    patientId: string;
+    employeeId?: string;
+    visitType: string;
+    dates: string[];
+    timeSlot?: string;
+    postToAxxessCare?: boolean;
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/quick-schedule-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to batch schedule visits');
+    return json;
+  },
+
+  async completeVisitAssignment(patientId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/complete-assignment/${patientId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to complete visit assignment');
+    return json;
+  },
+
+  async getEpisodeFrequencies(patientId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/episode-frequencies/${patientId}`);
+    if (!res.ok) throw new Error('Failed to fetch episode frequencies');
+    return res.json();
+  },
+
   // Face-to-Face Encounters
 
   async getHuvSfvRecords() {

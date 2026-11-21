@@ -46,6 +46,7 @@ import { ResetSignatureModal } from '../homehealth/ResetSignatureModal';
 import { SwitchToHomecareModal } from '../homehealth/SwitchToHomecareModal';
 import { MyMessagesView } from '../homehealth/MyMessagesView';
 import { MyScheduleTasksView } from '../homehealth/MyScheduleTasksView';
+import { ScheduleUnassignedVisitsView } from '../homehealth/ScheduleUnassignedVisitsView';
 import { MyMonthlyCalendarView } from '../homehealth/MyMonthlyCalendarView';
 import { QualityAssuranceCenterView } from '../homehealth/QualityAssuranceCenterView';
 import { PatientListView } from '../homehealth/PatientListView';
@@ -860,6 +861,12 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             />
           )}
 
+          {currentTab === 'schedule-unassigned-visits' && (
+            <ScheduleUnassignedVisitsView
+              onBack={() => setCurrentTab('dashboard')}
+            />
+          )}
+
           {currentTab === 'my-monthly-calendar' && (
             <MyMonthlyCalendarView
               onBack={() => setCurrentTab('dashboard')}
@@ -1171,6 +1178,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             'switch-to-homecare',
             'my-messages',
             'my-schedule-tasks',
+            'schedule-unassigned-visits',
             'my-monthly-calendar',
             'qa-center',
             'list-patients',
