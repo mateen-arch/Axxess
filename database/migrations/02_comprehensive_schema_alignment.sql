@@ -497,3 +497,340 @@ SET scheduled_date = v.scheduled_start::date,
     day_of_week = EXTRACT(DOW FROM v.scheduled_start)::int,
     time_slot = TO_CHAR(v.scheduled_start, 'HH12:MI AM')
 WHERE v.scheduled_start IS NOT NULL AND (v.scheduled_date IS NULL OR v.day_of_week IS NULL OR v.time_slot IS NULL);
+
+-- =====================================================================
+-- 4. SEED CONNECT MODULE & ROUTE PLANNER DATA (IDEMPOTENT)
+-- =====================================================================
+
+-- 4.1 Conversations
+INSERT INTO conversations (id, type, title, subtitle, patient_name, service_line, is_pinned, is_urgent, created_at, updated_at)
+VALUES 
+  ('conv-care-abuissa', 'care_team', 'Heather Abuissa (1061) Care Team', 'Sarah Jenkins RN, Alexandria Nelson RN, Dr. Leslie Rigali', 'Heather Abuissa', 'home_health', true, false, '2026-11-06 08:30:00+00', '2026-11-06 10:24:00+00'),
+  ('conv-alexandria', 'direct', 'Alexandria Nelson, RN', 'Field Clinician • Skilled Nursing', NULL, 'home_health', true, false, '2026-11-05 14:00:00+00', '2026-11-06 09:50:00+00'),
+  ('conv-carolyn', 'direct', 'Carolyn Akukwe, RN', 'Case Manager • Rehabilitation & Care Coordination', NULL, 'home_health', false, true, '2026-11-04 11:00:00+00', '2026-11-06 08:45:00+00'),
+  ('conv-care-anis', 'care_team', 'Marie V. Anis (1036) Care Team', 'Susanna Welch BSN, Andre Bellevue PT, Dr. Leslie Rigali', 'Marie V. Anis', 'home_health', false, false, '2026-11-04 10:00:00+00', '2026-11-05 15:20:00+00'),
+  ('conv-andre', 'direct', 'Andre Bellevue, PT', 'Physical Therapist Lead • Mobility Assessment', NULL, 'home_health', false, false, '2026-11-03 12:00:00+00', '2026-11-05 17:10:00+00'),
+  ('conv-triage-channel', 'channel', 'Standards Home Care - Clinical Triage', 'Agency-wide on-call broadcast & critical intake', NULL, 'home_health', false, false, '2026-11-01 08:00:00+00', '2026-11-06 07:30:00+00')
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  subtitle = EXCLUDED.subtitle,
+  updated_at = EXCLUDED.updated_at;
+
+-- Link patient_id on conv-care-abuissa and conv-care-anis if patient exists
+UPDATE conversations c
+SET patient_id = p.id
+FROM patients p
+WHERE c.id = 'conv-care-abuissa' AND (p.mrn = '1061' OR p.first_name ILIKE '%Heather%') AND c.patient_id IS NULL;
+
+UPDATE conversations c
+SET patient_id = p.id
+FROM patients p
+WHERE c.id = 'conv-care-anis' AND (p.mrn = '1036' OR p.first_name ILIKE '%Marie%') AND c.patient_id IS NULL;
+
+-- 4.2 Conversation Participants
+INSERT INTO conversation_participants (id, conversation_id, name, role, status)
+VALUES 
+  ('11111111-1111-4111-a111-111111111101', 'conv-care-abuissa', 'Sarah Jenkins, RN', 'Primary Case Manager', 'online'),
+  ('11111111-1111-4111-a111-111111111102', 'conv-care-abuissa', 'Alexandria Nelson, RN', 'Field Clinician (RN)', 'online'),
+  ('11111111-1111-4111-a111-111111111103', 'conv-care-abuissa', 'Dr. Leslie Rigali', 'Attending Physician', 'busy'),
+  ('11111111-1111-4111-a111-111111111104', 'conv-alexandria', 'Alexandria Nelson, RN', 'Skilled Field Nurse', 'online'),
+  ('11111111-1111-4111-a111-111111111105', 'conv-carolyn', 'Carolyn Akukwe, RN', 'Case Manager (RN)', 'online'),
+  ('11111111-1111-4111-a111-111111111106', 'conv-care-anis', 'Susanna Welch, BSN', 'Lead Staff Nurse', 'online'),
+  ('11111111-1111-4111-a111-111111111107', 'conv-care-anis', 'Andre Bellevue, PT', 'Physical Therapist', 'busy'),
+  ('11111111-1111-4111-a111-111111111108', 'conv-andre', 'Andre Bellevue, PT', 'Physical Therapist Lead', 'busy'),
+  ('11111111-1111-4111-a111-111111111109', 'conv-triage-channel', 'All Triage Staff', 'Care Team', 'online')
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  role = EXCLUDED.role,
+  status = EXCLUDED.status;
+
+-- 4.3 Chat Messages
+INSERT INTO chat_messages (id, conversation_id, sender_id, sender_name, sender_role, content, is_read, created_at, attachment_name, attachment_type, attachment_size, attachment_url)
+VALUES 
+  (
+    'msg-ab-1', 'conv-care-abuissa', 'sarah-jenkins', 'Sarah Jenkins, RN', 'Primary Case Manager',
+    'Patient Heather Abuissa reported mild discomfort at right heel margin during morning dressing change. Granulation tissue looks healthy and pink.',
+    true, '2026-11-06 09:15:00+00', NULL, NULL, NULL, NULL
+  ),
+  (
+    'msg-ab-2', 'conv-care-abuissa', 'alexandria-nelson', 'Alexandria Nelson, RN', 'Field Clinician (RN)',
+    'Confirmed. Ulcer measurement recorded at 2.1cm x 1.4cm with 0 depth. Applied collagen matrix dressing and secured offloading boot.',
+    true, '2026-11-06 09:42:00+00', 'DFU_Debridement_Note_Nov2026.pdf', 'pdf', '480 KB', '/api/connect/attachments/DFU_Debridement_Note_Nov2026.pdf'
+  ),
+  (
+    'msg-ab-3', 'conv-care-abuissa', 'sarah-jenkins', 'Sarah Jenkins, RN', 'Primary Case Manager',
+    'Wound measurement updated: 2.1cm x 1.4cm with healthy granulation tissue. Order renewal requested from Dr. Rigali.',
+    false, '2026-11-06 10:24:00+00', NULL, NULL, NULL, NULL
+  ),
+  (
+    'msg-an-1', 'conv-alexandria', 'alexandria-nelson', 'Alexandria Nelson, RN', 'Skilled Field Nurse',
+    'Good morning! I finished Eleanor Pemberton encounter early. Proceeding to Heather Abuissa recertification visit.',
+    true, '2026-11-06 09:10:00+00', NULL, NULL, NULL, NULL
+  ),
+  (
+    'msg-an-2', 'conv-alexandria', 'alexandria-nelson', 'Alexandria Nelson, RN', 'Skilled Field Nurse',
+    'Attaching Eleanor OASIS Comprehensive Recertification Protocol for review before supervisor lock.',
+    false, '2026-11-06 09:50:00+00', 'OASIS_Recertification_Protocol.pdf', 'pdf', '640 KB', '/api/connect/attachments/OASIS_Recertification_Protocol.pdf'
+  ),
+  (
+    'msg-ca-1', 'conv-carolyn', 'carolyn-akukwe', 'Carolyn Akukwe, RN', 'Case Manager (RN)',
+    'David Kowalski PT assessment is complete. Gait evaluation showed improved stability with four-point cane.',
+    true, '2026-11-05 16:30:00+00', NULL, NULL, NULL, NULL
+  ),
+  (
+    'msg-ca-2', 'conv-carolyn', 'carolyn-akukwe', 'Carolyn Akukwe, RN', 'Case Manager (RN)',
+    'Discharge planning summary ready for Arthur Pendelton. Family conference scheduled for 3:30 PM today.',
+    false, '2026-11-06 08:45:00+00', 'Discharge_Planning_Summary.pdf', 'pdf', '320 KB', '/api/connect/attachments/Discharge_Planning_Summary.pdf'
+  ),
+  (
+    'msg-an-anis-1', 'conv-care-anis', 'susanna-welch', 'Susanna Welch, BSN', 'Lead Staff Nurse',
+    'Pre-filled insulin regimen reviewed with family. Blood glucose maintained at 118 mg/dL fasting.',
+    true, '2026-11-05 15:20:00+00', 'Insulin_Administration_Log.pdf', 'pdf', '290 KB', '/api/connect/attachments/Insulin_Administration_Log.pdf'
+  ),
+  (
+    'msg-ab-pt-1', 'conv-andre', 'andre-bellevue', 'Andre Bellevue, PT', 'Physical Therapist Lead',
+    'Beatrice Holloway ambulated 150 ft with rolling walker with good tolerance. Upgraded exercise program.',
+    true, '2026-11-05 17:10:00+00', 'Functional_Mobility_Assessment.pdf', 'pdf', '510 KB', '/api/connect/attachments/Functional_Mobility_Assessment.pdf'
+  ),
+  (
+    'msg-triage-1', 'conv-triage-channel', 'alexandria-nelson', 'Alexandria Nelson, RN', 'Field Clinician (RN)',
+    'Weekend on-call coverage roster published. Dallas territory field nurses please confirm EVV verification before 5:00 PM.',
+    true, '2026-11-06 07:30:00+00', NULL, NULL, NULL, NULL
+  )
+ON CONFLICT (id) DO UPDATE SET
+  content = EXCLUDED.content,
+  is_read = EXCLUDED.is_read;
+
+-- 4.4 Call Logs
+INSERT INTO call_logs (id, contact_name, contact_role, direction, call_type, duration, created_at)
+VALUES 
+  ('call-1', 'Alexandria Nelson, RN', 'Field Clinician (RN)', 'incoming', 'audio', '4m 12s', '2026-11-06 10:15:00+00'),
+  ('call-2', 'Carolyn Akukwe, RN', 'Case Manager (RN)', 'outgoing', 'audio', '2m 45s', '2026-11-06 09:30:00+00'),
+  ('call-3', 'Andre Bellevue, PT', 'Physical Therapist', 'missed', 'audio', '0s', '2026-11-05 16:40:00+00'),
+  ('call-4', 'Susanna Welch, BSN', 'Lead Staff Nurse', 'incoming', 'audio', '6m 18s', '2026-11-05 11:20:00+00')
+ON CONFLICT (id) DO UPDATE SET
+  contact_name = EXCLUDED.contact_name,
+  duration = EXCLUDED.duration;
+
+-- 4.5 Route Planner Visits for Friday, Nov 6, 2026
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_clin_id UUID;
+  v_pat1_id UUID;
+  v_pat2_id UUID;
+  v_pat3_id UUID;
+BEGIN
+  SELECT id INTO v_org_id FROM organizations LIMIT 1;
+  SELECT id INTO v_clin_id FROM clinicians WHERE name ILIKE '%Alexandria%' LIMIT 1;
+  IF v_clin_id IS NULL THEN
+    SELECT id INTO v_clin_id FROM clinicians LIMIT 1;
+  END IF;
+
+  SELECT id INTO v_pat1_id FROM patients WHERE first_name ILIKE '%Eleanor%' LIMIT 1;
+  IF v_pat1_id IS NULL THEN SELECT id INTO v_pat1_id FROM patients LIMIT 1; END IF;
+
+  SELECT id INTO v_pat2_id FROM patients WHERE id != v_pat1_id LIMIT 1;
+  SELECT id INTO v_pat3_id FROM patients WHERE id NOT IN (v_pat1_id, COALESCE(v_pat2_id, v_pat1_id)) LIMIT 1;
+
+  IF v_org_id IS NOT NULL AND v_pat1_id IS NOT NULL THEN
+    -- Stop 1
+    INSERT INTO visits (
+      id, organization_id, clinician_id, patient_id, service_line, status,
+      scheduled_start, scheduled_end, time_slot, scheduled_date, day_of_week,
+      patient_name, employee_name, address, latitude, longitude,
+      visit_type, task, evv_status
+    ) VALUES (
+      '22222222-2222-4222-a222-222222222201',
+      v_org_id, v_clin_id, v_pat1_id, 'home_health', 'completed',
+      '2026-11-06 09:00:00+00', '2026-11-06 10:00:00+00', '09:00 AM', '2026-11-06', 5,
+      'Eleanor Pemberton', 'Alexandria Nelson, RN', '1420 Harvard St, Dallas TX', 32.7767, -96.7970,
+      'Skilled Nursing Assessment', 'Wound dressing change & vitals check', 'verified'
+    ) ON CONFLICT (id) DO NOTHING;
+
+    -- Stop 2
+    IF v_pat2_id IS NOT NULL THEN
+      INSERT INTO visits (
+        id, organization_id, clinician_id, patient_id, service_line, status,
+        scheduled_start, scheduled_end, time_slot, scheduled_date, day_of_week,
+        patient_name, employee_name, address, latitude, longitude,
+        visit_type, task, evv_status
+      ) VALUES (
+        '22222222-2222-4222-a222-222222222202',
+        v_org_id, v_clin_id, v_pat2_id, 'home_health', 'scheduled',
+        '2026-11-06 11:00:00+00', '2026-11-06 12:30:00+00', '11:00 AM', '2026-11-06', 5,
+        'Heather Abuissa', 'Alexandria Nelson, RN', '77 Sohier Rd, Beverly / Dallas TX', 32.8023, -96.8122,
+        'OASIS Recertification', 'OASIS-E Comprehensive Recertification Protocol', 'pending'
+      ) ON CONFLICT (id) DO NOTHING;
+    END IF;
+
+    -- Stop 3
+    IF v_pat3_id IS NOT NULL THEN
+      INSERT INTO visits (
+        id, organization_id, clinician_id, patient_id, service_line, status,
+        scheduled_start, scheduled_end, time_slot, scheduled_date, day_of_week,
+        patient_name, employee_name, address, latitude, longitude,
+        visit_type, task, evv_status
+      ) VALUES (
+        '22222222-2222-4222-a222-222222222203',
+        v_org_id, v_clin_id, v_pat3_id, 'home_health', 'scheduled',
+        '2026-11-06 14:00:00+00', '2026-11-06 15:00:00+00', '02:00 PM', '2026-11-06', 5,
+        'Marcus Vance', 'Alexandria Nelson, RN', '88 Tremont St, Plano / Dallas TX', 32.8140, -96.9489,
+        'Physical Therapy Evaluation', 'Gait assessment and cane stability evaluation', 'pending'
+      ) ON CONFLICT (id) DO NOTHING;
+    END IF;
+  END IF;
+END $$;
+
+-- 4.6 Past Due Items for Route Planner side panel
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_pat_id UUID;
+BEGIN
+  SELECT id INTO v_org_id FROM organizations LIMIT 1;
+  SELECT id INTO v_pat_id FROM patients LIMIT 1;
+  IF v_org_id IS NOT NULL AND v_pat_id IS NOT NULL THEN
+    INSERT INTO patient_tasks (
+      id, organization_id, patient_id, task_name, discipline, status,
+      schedule_start, schedule_end, assigned_to, comments
+    ) VALUES 
+      ('33333333-3333-4333-a333-333333333301', v_org_id, v_pat_id, 'OASIS-E Recertification Assessment', 'Nursing', 'Pending Review', '2026-11-03', '2026-11-03', 'Alexandria Nelson, RN', 'Requires 30-day compliance review lock'),
+      ('33333333-3333-4333-a333-333333333302', v_org_id, v_pat_id, 'Physician Face-to-Face Follow-up', 'Physician Liaison', 'Overdue', '2026-11-04', '2026-11-04', 'Selina Mwakipunda', 'Attending physician counter-signature pending')
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+
+-- =====================================================================
+
+-- =====================================================================
+-- 5. COMPREHENSIVE CLINICAL & ADMINISTRATIVE DATA SEED (IDEMPOTENT)
+-- =====================================================================
+
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_clin_user_id UUID;
+  v_clin1_id UUID;
+  r_patient RECORD;
+BEGIN
+  SELECT id INTO v_org_id FROM organizations LIMIT 1;
+  IF v_org_id IS NULL THEN
+    INSERT INTO organizations (id, name, code, phone)
+    VALUES ('e2a44bb4-3e9a-4c91-9e23-7fa38b456211', 'Standards Home Care', 'SHC-001', '+1 (800) 555-0199')
+    ON CONFLICT (id) DO NOTHING;
+    v_org_id := 'e2a44bb4-3e9a-4c91-9e23-7fa38b456211';
+  END IF;
+
+  SELECT user_id, id INTO v_clin_user_id, v_clin1_id FROM clinicians WHERE name ILIKE '%Alexandria%' LIMIT 1;
+  IF v_clin1_id IS NULL THEN
+    SELECT user_id, id INTO v_clin_user_id, v_clin1_id FROM clinicians LIMIT 1;
+  END IF;
+
+  -- 5.1 FACILITIES
+  INSERT INTO facilities (id, organization_id, name, facility_type, address_line1, address_line2, city, state, zip, phone, fax, contact_person, email, comments, status)
+  VALUES 
+    ('41111111-1111-4111-a111-111111111101', v_org_id, 'Baylor Scott & White Medical Center', 'Hospital', '3500 Gaston Ave', 'Suite 400', 'Dallas', 'TX', '75246', '(214) 820-0111', '(214) 820-0112', 'Dr. Marcus Vance, MD', 'intake@bswhealth.org', 'Primary tertiary referral hospital for cardiology & orthopedics.', 'Active'),
+    ('41111111-1111-4111-a111-111111111102', v_org_id, 'Texas Health Presbyterian Hospital Plano', 'Hospital', '6300 W Parker Rd', '', 'Plano', 'TX', '75093', '(972) 981-8000', '(972) 981-8001', 'Karen Whitmore, RN', 'transfers@texashealth.org', 'Direct inpatient discharge partner for post-acute care.', 'Active'),
+    ('41111111-1111-4111-a111-111111111103', v_org_id, 'Dallas Regional Medical Center', 'Hospital', '1011 N Galloway Ave', '', 'Mesquite', 'TX', '75149', '(214) 320-7000', '(214) 320-7005', 'Robert Garcia, MSW', 'liaison@dallasregional.com', 'Wound management and surgical recovery liaison.', 'Active'),
+    ('41111111-1111-4111-a111-111111111104', v_org_id, 'Parkland Health & Hospital System', 'Hospital', '5200 Harry Hines Blvd', '', 'Dallas', 'TX', '75235', '(214) 590-8000', '(214) 590-8005', 'Maria Gomez', 'transitions@parklandhealth.org', 'Community health outreach and post-discharge clinic.', 'Active')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 5.2 PHYSICIANS
+  INSERT INTO physicians (id, organization_id, first_name, last_name, credentials, npi, taxonomy_code, medicaid_provider_id, pecos_status, address_line1, address_line2, city, state, zip, phone, fax, email, order_delivery_method, comments, status)
+  VALUES 
+    ('42222222-2222-4222-a222-222222222201', v_org_id, 'Leslie', 'Rigali', 'MD', '1497821034', '207Q00000X', 'TX-MED-8812', 'Verified', '3801 Gaston Ave', 'Suite 210', 'Dallas', 'TX', '75246', '(214) 555-0181', '(214) 555-0182', 'dr.rigali@dallashealth.org', 'Electronic Portal', 'Attending Physician for Home Health Recertifications.', 'Active'),
+    ('42222222-2222-4222-a222-222222222202', v_org_id, 'Edward', 'Kowaloff', 'MD', '1821049283', '207R00000X', 'TX-MED-9943', 'Verified', '6020 W Parker Rd', 'Suite 105', 'Plano', 'TX', '75093', '(972) 555-0193', '(972) 555-0194', 'dr.kowaloff@planomedical.com', 'Fax Transmission', 'Cardiopulmonary specialist & POC certifying physician.', 'Active'),
+    ('42222222-2222-4222-a222-222222222203', v_org_id, 'Maulshree', 'Gupta', 'MD', '1639201948', '208D00000X', 'TX-MED-4410', 'Verified', '12200 Park Central Dr', '', 'Dallas', 'TX', '75251', '(214) 555-0210', '(214) 555-0211', 'dr.gupta@northtexasmed.com', 'Electronic Portal', 'Geriatric medicine & physical therapy rehabilitation partner.', 'Active')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 5.3 INSURANCE PAYERS
+  INSERT INTO insurance_payers (id, organization_id, payer_name, payer_type, source_of_payment, clearinghouse, billing_provider_id, address_line1, city, state, zip, phone, fax, email, contact_person, requires_authorization, notes, status)
+  VALUES 
+    ('43333333-3333-4333-a333-333333333301', v_org_id, 'Medicare Traditional Part A', 'Medicare', 'Title 18', 'Availity', 'MED-PART-A-01', '7500 Security Blvd', 'Baltimore', 'MD', '21244', '(800) 633-4227', '(877) 555-0101', 'claims@cms.hhs.gov', 'Provider Services', false, 'Standard 60-day home health OASIS episode reimbursement.', 'Active'),
+    ('43333333-3333-4333-a333-333333333302', v_org_id, 'Blue Cross Blue Shield of Texas', 'Commercial / Private insurance', 'Private', 'Availity', 'BCBSTX-9941', '1001 E Lookout Dr', 'Richardson', 'TX', '75082', '(800) 521-2227', '(972) 766-0120', 'authorizations@bcbstx.com', 'Case Management Dept', true, 'Prior authorization required for skilled nursing & physical therapy.', 'Active'),
+    ('43333333-3333-4333-a333-333333333303', v_org_id, 'UnitedHealthcare Medicare Advantage', 'Medicare HMO/PPO', 'Title 18 HMO', 'Change Healthcare', 'UHC-MEDADV-44', '9900 Bren Rd E', 'Minnetonka', 'MN', '55343', '(866) 842-3278', '(888) 555-0145', 'inhomecare@uhc.com', 'Optum Clinical Liaison', true, 'Pre-certification required within 48 hours of admission.', 'Active')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 5.4 PHARMACIES
+  INSERT INTO pharmacies (id, organization_id, name, address_line1, address_line2, city, state, zip, phone, fax, contact_person, email, comments, status)
+  VALUES 
+    ('44444444-4444-4444-a444-444444444401', v_org_id, 'CVS Pharmacy #4120', '3133 Lee St', '', 'Dallas', 'TX', '75206', '(214) 823-9995', '(214) 823-9998', 'David Chen, PharmD', 'rx4120@cvshealth.com', '24-hour retail and emergency delivery pharmacy.', 'Active'),
+    ('44444444-4444-4444-a444-444444444402', v_org_id, 'Walgreens Infusion & Specialty', '5001 Alpha Rd', 'Suite 100', 'Dallas', 'TX', '75244', '(972) 386-0111', '(972) 386-0115', 'Sarah Jenkins, RPh', 'infusion.dallas@walgreens.com', 'Compounding and intravenous antibiotics supply partner.', 'Active'),
+    ('44444444-4444-4444-a444-444444444403', v_org_id, 'CarePlus Compounding Pharmacy', '1201 Elm St', '', 'Dallas', 'TX', '75270', '(214) 741-2200', '(214) 741-2205', 'Rachel Adams', 'orders@carepluspharmacy.com', 'Specialized topical wound gels and custom dosages.', 'Active')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 5.5 NON-VISIT ACTIVITIES
+  INSERT INTO non_visit_activities (id, user_id, clinician_name, activity_type, activity_date, start_time, end_time, duration_minutes, mileage, comments)
+  VALUES 
+    ('58888888-8888-4888-a888-888888888801', v_clin_user_id, 'Alexandria Nelson, RN', 'Morning Clinical Triage & Case Conference', CURRENT_DATE, '08:00 AM', '08:45 AM', 45, 0, 'Reviewed daily route stops, acute patient status updates, and lab collection requirements.'),
+    ('58888888-8888-4888-a888-888888888802', v_clin_user_id, 'Alexandria Nelson, RN', 'Lab Specimen Drop-Off & Supply Restock', CURRENT_DATE - INTERVAL '1 day', '03:30 PM', '04:15 PM', 45, 8.4, 'Delivered blood cultures to Quest Diagnostics laboratory and restocked wound care dressings.')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 5.6 CLINICAL DATA PER PATIENT (Loop through patients with zero records)
+  FOR r_patient IN SELECT id, first_name || ' ' || last_name AS full_name, mrn FROM patients LOOP
+
+    -- A. Patient Tasks (if patient currently has no tasks)
+    IF NOT EXISTS (SELECT 1 FROM patient_tasks WHERE patient_id = r_patient.id) THEN
+      INSERT INTO patient_tasks (organization_id, patient_id, task_name, discipline, status, schedule_start, schedule_end, assigned_to, comments)
+      VALUES 
+        (v_org_id, r_patient.id, 'Communication Note', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '3 days', CURRENT_DATE - INTERVAL '3 days', 'Sarah Jenkins, RN', 'Initial intake documentation and vital signs baseline recorded.'),
+        (v_org_id, r_patient.id, 'Coordination of Care', 'Nursing', 'Completed', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day', 'Alexandria Nelson, RN', 'Interdisciplinary team conference held regarding medication compliance.'),
+        (v_org_id, r_patient.id, 'Face-to-Face Encounter', 'Physician Liaison', 'Returned w/ Physician Signature', CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE - INTERVAL '5 days', 'Selina Mwakipunda', 'Dr. Leslie Rigali counter-signed POC form.'),
+        (v_org_id, r_patient.id, 'LPN - Oral Med. Management', 'Nursing', 'Not Yet Due', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE + INTERVAL '2 days', 'Marrio Fortune', 'Pre-fill 7-day pill organizer and monitor for diuretic side effects.'),
+        (v_org_id, r_patient.id, 'Physical Therapy Evaluation', 'Physical Therapy', 'Completed', CURRENT_DATE - INTERVAL '4 days', CURRENT_DATE - INTERVAL '4 days', 'Andre Bellevue, PT', 'Gait and stability evaluation with rolling walker.');
+    END IF;
+
+    -- B. Episodes (if patient currently has no episodes)
+    IF NOT EXISTS (SELECT 1 FROM episodes WHERE patient_id = r_patient.id) THEN
+      INSERT INTO episodes (organization_id, patient_id, start_of_care_date, episode_start_date, episode_end_date, case_manager, primary_physician, primary_insurance, secondary_insurance, comments, status)
+      VALUES 
+        (v_org_id, r_patient.id, CURRENT_DATE - INTERVAL '20 days', CURRENT_DATE - INTERVAL '20 days', CURRENT_DATE + INTERVAL '40 days', 'Alexandria Nelson, RN', 'Dr. Leslie Rigali, MD', 'Medicare Traditional Part A', 'Not Available', 'Current 60-day home health certification episode. Plan of care active.', 'active');
+    END IF;
+
+    -- C. Communication Notes (if patient currently has no notes)
+    IF NOT EXISTS (SELECT 1 FROM communication_notes WHERE patient_id = r_patient.id) THEN
+      INSERT INTO communication_notes (organization_id, patient_id, patient_name, mrn, patient_status, episode_associated, physician, note_date, communication_text, send_as_message, staff_signature, signature_date, signature_time, status)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, 'Active', 'Current 60-Day Episode', 'Dr. Leslie Rigali, MD', CURRENT_DATE - INTERVAL '2 days', 'Coordinated DME oxygen delivery and verified medication compliance with family caregiver.', true, 'Alexandria Nelson, RN', CURRENT_DATE - INTERVAL '2 days', '11:45 AM', 'Approved');
+    END IF;
+
+    -- D. Orders (if patient currently has no orders)
+    IF NOT EXISTS (SELECT 1 FROM orders WHERE patient_id = r_patient.id) THEN
+      INSERT INTO orders (organization_id, patient_id, patient_name, mrn, episode_associated, attending_physician, send_to, copy_to, order_date, order_time, effective_date, order_is_for_next_episode, summary_title, order_type, order_content, order_read_back_and_verified, clinician_signature, signature_date, signature_time, status)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, 'Current 60-Day Episode', 'Dr. Leslie Rigali, MD', 'CVS Pharmacy #4120', 'Family Caregiver', CURRENT_DATE - INTERVAL '4 days', '10:00 AM', CURRENT_DATE - INTERVAL '4 days', false, 'Furosemide (Lasix) 40mg PO Daily', 'Medication Orders', 'Furosemide 40 mg tablet: Take 1 tablet by mouth daily in morning with full glass of water. Monitor electrolyte panel.', true, 'Alexandria Nelson, RN', CURRENT_DATE - INTERVAL '4 days', '10:15 AM', 'Approved');
+    END IF;
+
+    -- E. Face-to-Face Encounters (if patient currently has no encounters)
+    IF NOT EXISTS (SELECT 1 FROM face_to_face_encounters WHERE patient_id = r_patient.id) THEN
+      INSERT INTO face_to_face_encounters (organization_id, patient_id, patient_name, mrn, patient_status, episode_associated, physician, request_date, certifying_type, status)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, 'Active', 'Current 60-Day Episode', 'Dr. Leslie Rigali, MD', CURRENT_DATE - INTERVAL '10 days', 'POC Certifying Physician', 'Completed');
+    END IF;
+
+    -- F. QA Tasks (if patient currently has no QA tasks)
+    IF NOT EXISTS (SELECT 1 FROM qa_tasks WHERE patient_id = r_patient.id) THEN
+      INSERT INTO qa_tasks (organization_id, patient_id, patient_name, mrn, event_date, task, task_category, status, assigned_to, branch, payer, patient_status, tags, notes, has_oasis_analysis, has_case_mix, has_margin_calc, is_care_visit)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, CURRENT_DATE - INTERVAL '1 day', 'OASIS-E Recertification Assessment', 'OASIS Assessment', 'Pending Review', 'Alexandria Nelson, RN', 'Standards Home Care', 'Medicare Traditional', 'Active', ARRAY['OASIS-E', 'Priority']::TEXT[], 'Recertification protocol complete. M1021 primary diagnosis verified.', true, true, false, false);
+    END IF;
+
+    -- G. Infection Logs (sample on one patient)
+    IF NOT EXISTS (SELECT 1 FROM infection_logs) THEN
+      INSERT INTO infection_logs (organization_id, patient_id, patient_name, mrn, date_of_infection, episode_period, infection_site, infection_type, pathogen, treatment, precautions, physician_notified, physician_name, resolved, resolution_date, surveillance_notes, created_by)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, CURRENT_DATE - INTERVAL '7 days', 'Current Episode', 'Urinary Tract', 'Catheter-Associated UTI', 'Escherichia coli', 'Oral Nitrofurantoin 100mg PO BID x 7 days prescribed.', 'Standard Precautions', true, 'Dr. Leslie Rigali, MD', true, CURRENT_DATE - INTERVAL '1 day', 'Follow-up urinalysis clean. Patient afebrile with zero dysuria.', 'Alexandria Nelson, RN');
+    END IF;
+
+    -- H. Incident Logs (sample on one patient)
+    IF NOT EXISTS (SELECT 1 FROM incident_logs) THEN
+      INSERT INTO incident_logs (organization_id, patient_id, patient_name, mrn, incident_date, incident_time, incident_type, location, injury_sustained, injury_description, narrative, action_taken, physician_notified, supervisor_notified, reporter_name, reporter_role, status)
+      VALUES 
+        (v_org_id, r_patient.id, r_patient.full_name, r_patient.mrn, CURRENT_DATE - INTERVAL '5 days', '08:45 AM', 'Fall - Zero Injury', 'Living Room', false, '', 'Patient experienced loss of balance while transferring from sofa. Assisted gently to rug by family member. Zero abrasions, contusions, or head impact.', 'Vital signs assessed within normal limits. Fall risk reassessment completed and walker positioned within direct reach.', true, true, 'Alexandria Nelson, RN', 'Clinical Supervisor', 'Reviewed');
+    END IF;
+
+  END LOOP;
+
+END $$;

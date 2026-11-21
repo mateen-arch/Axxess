@@ -4672,9 +4672,9 @@ app.get('/api/planner/itinerary', async (req: Request, res: Response) => {
         COALESCE(v.visit_type::text, v.task::text, 'Skilled Nursing Assessment') as "visitType",
         v.service_line as "serviceLine",
         v.status,
-        c.name as "clinicianName"
+        COALESCE(c.name, v.employee_name, 'Staff Clinician') as "clinicianName"
       FROM visits v
-      JOIN clinicians c ON v.clinician_id = c.id
+      LEFT JOIN clinicians c ON v.clinician_id = c.id
       JOIN patients p ON v.patient_id = p.id
       WHERE v.scheduled_date = $1
       ORDER BY v.scheduled_start ASC, v.time_slot ASC;
@@ -5247,7 +5247,7 @@ app.patch('/api/patients/:id/status', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, nonAdmitReason, nonAdmitDate } = req.body;
-    
+
     // Check if patient exists by id or mrn
     const updateRes = await pool.query(`
       UPDATE patients
