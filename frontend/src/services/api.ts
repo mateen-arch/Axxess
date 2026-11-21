@@ -957,4 +957,39 @@ export const api = {
     if (!res.ok) throw new Error('Failed to generate report');
     return res.json();
   },
+
+  // Schedule Center Real-Time APIs
+  async getScheduleCenterData(patientId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/center/data/${patientId || 'default'}`);
+    if (!res.ok) throw new Error('Failed to fetch schedule center data');
+    return res.json();
+  },
+
+  async reassignScheduleCenterVisit(data: { visitId: string; clinicianId?: string; clinicianName: string }) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/center/reassign-visit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to reassign visit');
+    return json;
+  },
+
+  async postVisitsToAxxessCare(visitIds: string[]) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/center/post-axxess-care`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitIds }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to post visits to Axxess Care');
+    return json;
+  },
+
+  async getScheduleCenterAuthorizations(patientId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/schedule/center/authorizations/${patientId || 'default'}`);
+    if (!res.ok) throw new Error('Failed to fetch schedule authorizations');
+    return res.json();
+  },
 };
