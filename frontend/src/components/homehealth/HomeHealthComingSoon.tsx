@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Calendar,
   Layers,
-  HelpCircle,
   FileText,
   Activity,
   CheckCircle2,
@@ -83,13 +82,6 @@ const pageContent: Record<
       'Printable and digital blank clinical forms, consent documents, and emergency care kits.',
     icon: Layers,
     features: ['Admission form packets', 'Emergency disaster plans', 'Patient consent forms'],
-  },
-  'help-center': {
-    title: 'Help Center & Documentation',
-    description:
-      'Knowledge base, regulatory guides, video tutorials, and CareOrbit compliance handbooks.',
-    icon: HelpCircle,
-    features: ['Step-by-step guides', 'Video walkthroughs', 'CMS regulation updates'],
   },
 };
 

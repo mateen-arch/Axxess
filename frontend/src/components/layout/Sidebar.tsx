@@ -17,7 +17,6 @@ import {
   Buildings,
   PlusCircle,
   MagnifyingGlass,
-  Question,
   CaretDown,
   CaretRight,
   X as CloseIcon,
@@ -336,7 +335,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     schedule: CalendarDots,
     view: MagnifyingGlass,
     reports: ChartLineUp,
-    help: Question,
   };
 
   const toggleSection = (sectionId: string) => {

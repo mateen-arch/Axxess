@@ -209,12 +209,6 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     'switch-to-homecare': 'Switch to Homecare',
     'my-messages': 'My Messages',
     'my-monthly-calendar': 'My Monthly Calendar',
-    'user-community': 'User Community',
-    'help-center': 'Help Center',
-    'on-demand-training': 'On-Demand Training',
-    'recent-software-updates': 'Recent Software Updates',
-    'covid-19-resource-center': 'COVID-19 Resource Center',
-    'follow-careorbit': 'Follow CareOrbit',
   };
 
   const currentPageTitle =

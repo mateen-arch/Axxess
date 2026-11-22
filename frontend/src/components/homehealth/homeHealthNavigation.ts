@@ -140,18 +140,6 @@ export const HOME_HEALTH_NAV_SECTIONS: HomeHealthNavNode[] = [
       { id: 'completed-reports', label: 'Completed Reports' },
     ],
   },
-  {
-    id: 'help',
-    label: 'Help',
-    children: [
-      { id: 'user-community', label: 'User Community', badge: 'New!' },
-      { id: 'help-center', label: 'Help Center' },
-      { id: 'on-demand-training', label: 'On-Demand Training' },
-      { id: 'recent-software-updates', label: 'Recent Software Updates' },
-      { id: 'covid-19-resource-center', label: 'COVID-19 Resource Center' },
-      { id: 'follow-careorbit', label: 'Follow CareOrbit' },
-    ],
-  },
 ];
 
 const collectRouteTitles = (nodes: HomeHealthNavNode[]): Record<string, string> =>
