@@ -1125,6 +1125,27 @@ export const api = {
     if (!res.ok) throw new Error('Failed to export schedule deviation report to Excel');
     return await res.blob();
   },
+
+  async getReportCenterCategories() {
+    const res = await fetch(`${API_BASE_URL}/api/reports/center/categories`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch report categories');
+    return json;
+  },
+
+  async getReportCenterReports(params?: { categorySlug?: string; search?: string }) {
+    const query = new URLSearchParams();
+    if (params?.categorySlug && params.categorySlug !== 'all') {
+      query.set('categorySlug', params.categorySlug);
+    }
+    if (params?.search) {
+      query.set('search', params.search);
+    }
+    const res = await fetch(`${API_BASE_URL}/api/reports/center/reports?${query.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch report center reports');
+    return json;
+  },
 };
 
 export const scheduleApi = api;

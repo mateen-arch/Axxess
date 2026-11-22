@@ -56,6 +56,7 @@ import { ReassignScheduleView } from '../homehealth/ReassignScheduleView';
 import { UnscheduledVisitsReportView } from '../homehealth/UnscheduledVisitsReportView';
 import { ScheduleReportView } from '../homehealth/ScheduleReportView';
 import { ScheduleDeviationReportView } from '../homehealth/ScheduleDeviationReportView';
+import { ReportCenterView } from '../reports/ReportCenterView';
 import { MyMonthlyCalendarView } from '../homehealth/MyMonthlyCalendarView';
 import { QualityAssuranceCenterView } from '../homehealth/QualityAssuranceCenterView';
 import { PatientListView } from '../homehealth/PatientListView';
@@ -411,6 +412,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     'unscheduled-visits-report',
     'schedule-report',
     'schedule-deviation-report',
+    'report-center',
     'my-monthly-calendar',
     'qa-center',
     'list-patients',
@@ -967,6 +969,14 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             />
           )}
 
+          {currentTab === 'report-center' && (
+            <ReportCenterView
+              onBack={() => setCurrentTab('dashboard')}
+              onNavigate={(tabId) => setCurrentTab(tabId)}
+              brandTitle="CareOrbit Home Health"
+            />
+          )}
+
           {currentTab === 'my-monthly-calendar' && (
             <MyMonthlyCalendarView
               onBack={() => setCurrentTab('dashboard')}
@@ -1288,6 +1298,7 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             'unscheduled-visits-report',
             'schedule-report',
             'schedule-deviation-report',
+            'report-center',
             'my-monthly-calendar',
             'qa-center',
             'list-patients',

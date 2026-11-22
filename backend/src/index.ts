@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import * as XLSX from 'xlsx';
 import { pool } from './db';
+import { initReportCenterDatabase } from './seedReportCenter';
 
 dotenv.config();
 
@@ -5014,6 +5015,96 @@ app.post('/api/reports/schedule-deviation/export', async (req: Request, res: Res
   }
 });
 
+// ==========================================
+// REPORT CENTER ENDPOINTS
+// ==========================================
+
+// GET /api/reports/center/categories
+app.get('/api/reports/center/categories', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        c.id,
+        c.name,
+        c.slug,
+        c.description,
+        c.display_order as "displayOrder",
+        c.icon,
+        c.is_active as "isActive",
+        COUNT(r.id)::int as "reportCount"
+      FROM report_categories c
+      LEFT JOIN reports r ON c.id = r.category_id AND r.is_active = true
+      WHERE c.is_active = true
+      GROUP BY c.id
+      ORDER BY c.display_order ASC;
+    `);
+
+    res.json({
+      success: true,
+      categories: result.rows
+    });
+  } catch (err: any) {
+    console.error('Error fetching report categories:', err);
+    res.status(500).json({ error: 'Failed to fetch report categories' });
+  }
+});
+
+// GET /api/reports/center/reports
+app.get('/api/reports/center/reports', async (req: Request, res: Response) => {
+  try {
+    const { categorySlug, search } = req.query;
+
+    let query = `
+      SELECT 
+        r.id,
+        r.category_id as "categoryId",
+        c.name as "categoryName",
+        c.slug as "categorySlug",
+        c.icon as "categoryIcon",
+        r.name,
+        r.slug,
+        r.description,
+        r.route,
+        r.display_order as "displayOrder",
+        r.is_active as "isActive",
+        CASE WHEN r.route IS NOT NULL AND r.route <> '' THEN true ELSE false END as "isImplemented"
+      FROM reports r
+      JOIN report_categories c ON r.category_id = c.id
+      WHERE r.is_active = true AND c.is_active = true
+    `;
+
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (categorySlug && categorySlug !== 'all') {
+      query += ` AND c.slug = $${paramIdx}`;
+      params.push(categorySlug);
+      paramIdx++;
+    }
+
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      query += ` AND (r.name ILIKE $${paramIdx} OR r.description ILIKE $${paramIdx} OR c.name ILIKE $${paramIdx})`;
+      params.push(`%${search.trim()}%`);
+      paramIdx++;
+    }
+
+    query += ` ORDER BY c.display_order ASC, r.display_order ASC;`;
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      reports: result.rows,
+      totalCount: result.rows.length
+    });
+  } catch (err: any) {
+    console.error('Error fetching report center reports:', err);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// ==========================================
+// SCHEDULE REPORT ENDPOINTS
 app.get('/api/schedule/my-schedule-tasks', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(`
@@ -6766,6 +6857,12 @@ async function initCoreTables() {
       END IF;
     END $$;
   `);
+
+  try {
+    await initReportCenterDatabase();
+  } catch (err) {
+    console.error('Failed to init report center db:', err);
+  }
 
   console.log('[initCoreTables] Core table initialization completed.');
 }
