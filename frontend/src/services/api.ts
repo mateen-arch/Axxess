@@ -1081,6 +1081,50 @@ export const api = {
     if (!res.ok) throw new Error(json.error || 'Failed to reassign schedule visits');
     return json;
   },
+
+  async getScheduleDeviationMetadata() {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-deviation/metadata`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch schedule deviation metadata');
+    return json;
+  },
+
+  async getScheduleDeviationReport(params: {
+    branch?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const query = new URLSearchParams();
+    if (params.branch) query.set('branch', params.branch);
+    if (params.dateFrom) query.set('dateFrom', params.dateFrom);
+    if (params.dateTo) query.set('dateTo', params.dateTo);
+    if (params.search) query.set('search', params.search);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-deviation?${query.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch schedule deviation report');
+    return json;
+  },
+
+  async exportScheduleDeviationExcel(filters: {
+    branch?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-deviation/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    if (!res.ok) throw new Error('Failed to export schedule deviation report to Excel');
+    return await res.blob();
+  },
 };
 
 export const scheduleApi = api;
