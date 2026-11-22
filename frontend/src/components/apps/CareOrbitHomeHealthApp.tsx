@@ -48,6 +48,10 @@ import { MyMessagesView } from '../homehealth/MyMessagesView';
 import { MyScheduleTasksView } from '../homehealth/MyScheduleTasksView';
 import { ScheduleUnassignedVisitsView } from '../homehealth/ScheduleUnassignedVisitsView';
 import { ScheduleCenterView } from '../homehealth/ScheduleCenterView';
+import { EpisodeManagerView } from '../homehealth/EpisodeManagerView';
+import { ScheduleManagerView } from '../homehealth/ScheduleManagerView';
+import { AuthorizationsView } from '../homehealth/AuthorizationsView';
+import { ThirtyDayCalendarView } from '../homehealth/ThirtyDayCalendarView';
 import { ReassignScheduleView } from '../homehealth/ReassignScheduleView';
 import { UnscheduledVisitsReportView } from '../homehealth/UnscheduledVisitsReportView';
 import { MyMonthlyCalendarView } from '../homehealth/MyMonthlyCalendarView';
@@ -877,15 +881,55 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             />
           )}
 
-          {['schedule-center', 'episode-manager', 'schedule-manager', 'authorizations', 'thirty-day-calendar'].includes(currentTab) && (
+          {currentTab === 'schedule-center' && (
             <ScheduleCenterView
-              initialTab={currentTab}
-              onCloseSubTab={() => setCurrentTab('schedule-center')}
               onBack={() => setCurrentTab('dashboard')}
+              setHomeHealthTab={setCurrentTab}
               onNavigateToChart={(patientId) => {
                 setSelectedEditPatientId(patientId);
                 setCurrentTab('patient-charts');
               }}
+            />
+          )}
+
+          {currentTab === 'episode-manager' && (
+            <EpisodeManagerView
+              onBack={() => setCurrentTab('schedule-center')}
+              onNavigateToChart={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('patient-charts');
+              }}
+            />
+          )}
+
+          {currentTab === 'schedule-manager' && (
+            <ScheduleManagerView
+              onBack={() => setCurrentTab('schedule-center')}
+              onNavigateToChart={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('patient-charts');
+              }}
+            />
+          )}
+
+          {currentTab === 'authorizations' && (
+            <AuthorizationsView
+              onBack={() => setCurrentTab('schedule-center')}
+              onNavigateToChart={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('patient-charts');
+              }}
+            />
+          )}
+
+          {currentTab === 'thirty-day-calendar' && (
+            <ThirtyDayCalendarView
+              onBack={() => setCurrentTab('schedule-center')}
+              onNavigateToChart={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('patient-charts');
+              }}
+              onNavigateToEpisodeManager={() => setCurrentTab('episode-manager')}
             />
           )}
 
