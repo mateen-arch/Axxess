@@ -21,7 +21,8 @@ import {
   SlidersHorizontal,
   Bookmark,
   ShieldCheck,
-  Stethoscope
+  Stethoscope,
+  Download
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -68,6 +69,7 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Selected report for detail/preview dialog (when no live route yet)
@@ -238,6 +240,18 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
             <RefreshCw size={13} className={isLoading ? 'animate-spin text-rose-600' : ''} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
+
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('completed-reports')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+              title="View Completed Reports Archive"
+            >
+              <Download size={13} className="text-rose-600 dark:text-rose-400" />
+              <span className="hidden md:inline">Completed Reports</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -481,24 +495,57 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-end gap-2">
+            <div className="pt-3 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedReportForModal(null)}
-                className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-pearl-100 transition cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  showToast(`Template registered for ${selectedReportForModal.name}`);
-                  setSelectedReportForModal(null);
+                disabled={isGenerating}
+                onClick={async () => {
+                  if (!selectedReportForModal) return;
+                  setIsGenerating(true);
+                  try {
+                    await api.requestGenerateReport({
+                      reportId: selectedReportForModal.id,
+                      reportName: selectedReportForModal.name,
+                      categoryName: selectedReportForModal.categoryName,
+                      format: 'XLSX',
+                      filters: { trigger: 'Manual Dispatch from Report Center' }
+                    });
+                    showToast(`Report "${selectedReportForModal.name}" generated & archived!`);
+                    setSelectedReportForModal(null);
+                    if (onNavigate) {
+                      onNavigate('completed-reports');
+                    }
+                  } catch (err: any) {
+                    showToast(err.message || 'Failed to dispatch generation');
+                  } finally {
+                    setIsGenerating(false);
+                  }
                 }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-xs font-black shadow-xs cursor-pointer transition disabled:opacity-50"
               >
-                Acknowledge
+                <Download size={13} />
+                <span>{isGenerating ? 'Generating...' : 'Generate & Archive'}</span>
               </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReportForModal(null)}
+                  className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-pearl-100 transition cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(`Template registered for ${selectedReportForModal.name}`);
+                    setSelectedReportForModal(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Acknowledge
+                </button>
+              </div>
             </div>
           </div>
         </div>

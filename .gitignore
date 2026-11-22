@@ -36,3 +36,7 @@ Thumbs.db
 # Temp scratch files
 temp_last_dashboard.txt
 
+# Generated reports storage
+backend/storage/reports/*
+!backend/storage/reports/.gitkeep
+

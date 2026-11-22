@@ -1146,6 +1146,87 @@ export const api = {
     if (!res.ok) throw new Error(json.error || 'Failed to fetch report center reports');
     return json;
   },
+
+  // Completed Reports
+  async getCompletedReports(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    format?: string;
+  }) {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.search) query.set('search', params.search);
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.format && params.format !== 'all') query.set('format', params.format);
+
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed?${query.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch completed reports');
+    return json;
+  },
+
+  async getCompletedReportDetails(id: string) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed/${id}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch report details');
+    return json;
+  },
+
+  async downloadCompletedReport(id: string, defaultFileName?: string) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed/${id}/download`);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(errJson?.error || 'Failed to download report');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultFileName || `report-${id}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  async retryCompletedReport(id: string) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed/${id}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to retry report');
+    return json;
+  },
+
+  async deleteCompletedReport(id: string) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed/${id}`, {
+      method: 'DELETE',
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to delete report');
+    return json;
+  },
+
+  async requestGenerateReport(data: {
+    reportId?: string;
+    reportName: string;
+    categoryName?: string;
+    filters?: any;
+    format?: string;
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/completed/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to request report generation');
+    return json;
+  },
 };
 
 export const scheduleApi = api;
