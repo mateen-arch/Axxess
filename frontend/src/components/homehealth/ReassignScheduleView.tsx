@@ -599,7 +599,7 @@ export const ReassignScheduleView: React.FC<ReassignScheduleViewProps> = ({ onBa
                       <th className="py-2.5 px-3 whitespace-nowrap">Scheduled Date</th>
                       <th className="py-2.5 px-3 whitespace-nowrap">Current Clinician</th>
                       <th className="py-2.5 px-3 whitespace-nowrap">Discipline</th>
-                      <th className="py-2.5 px-3 text-right whitespace-nowrap min-w-[120px]">Status</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap min-w-[130px]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
@@ -643,10 +643,10 @@ export const ReassignScheduleView: React.FC<ReassignScheduleViewProps> = ({ onBa
                           <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
                             {task.discipline}
                           </td>
-                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 shadow-2xs">
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap min-w-[130px]">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap leading-none select-none bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 shadow-2xs shrink-0">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                              <span>{task.status}</span>
+                              <span className="whitespace-nowrap">{task.status}</span>
                             </span>
                           </td>
                         </tr>

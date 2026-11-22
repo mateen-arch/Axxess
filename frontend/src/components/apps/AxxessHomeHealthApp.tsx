@@ -46,6 +46,10 @@ import { ResetSignatureModal } from '../homehealth/ResetSignatureModal';
 import { SwitchToHomecareModal } from '../homehealth/SwitchToHomecareModal';
 import { MyMessagesView } from '../homehealth/MyMessagesView';
 import { MyScheduleTasksView } from '../homehealth/MyScheduleTasksView';
+import { ScheduleUnassignedVisitsView } from '../homehealth/ScheduleUnassignedVisitsView';
+import { ScheduleCenterView } from '../homehealth/ScheduleCenterView';
+import { ReassignScheduleView } from '../homehealth/ReassignScheduleView';
+import { UnscheduledVisitsReportView } from '../homehealth/UnscheduledVisitsReportView';
 import { MyMonthlyCalendarView } from '../homehealth/MyMonthlyCalendarView';
 import { QualityAssuranceCenterView } from '../homehealth/QualityAssuranceCenterView';
 import { PatientListView } from '../homehealth/PatientListView';
@@ -200,7 +204,6 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     'recent-software-updates': 'Recent Software Updates',
     'covid-19-resource-center': 'COVID-19 Resource Center',
     'follow-careorbit': 'Follow CareOrbit',
-    'ask-careorbit': 'Ask CareOrbit',
   };
 
   const currentPageTitle =
@@ -858,6 +861,40 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
             <MyScheduleTasksView
               onBack={() => setCurrentTab('dashboard')}
               onOpenPlanner={() => setCurrentTab('my-monthly-calendar')}
+            />
+          )}
+
+          {currentTab === 'schedule-unassigned-visits' && (
+            <ScheduleUnassignedVisitsView
+              onBack={() => setCurrentTab('dashboard')}
+            />
+          )}
+
+          {['schedule-center', 'episode-manager', 'schedule-manager', 'authorizations', 'thirty-day-calendar'].includes(currentTab) && (
+            <ScheduleCenterView
+              initialTab={currentTab}
+              onCloseSubTab={() => setCurrentTab('schedule-center')}
+              onBack={() => setCurrentTab('dashboard')}
+              onNavigateToChart={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('patient-charts');
+              }}
+            />
+          )}
+
+          {currentTab === 'reassign-schedule' && (
+            <ReassignScheduleView
+              onBack={() => setCurrentTab('dashboard')}
+            />
+          )}
+
+          {currentTab === 'unscheduled-visits-report' && (
+            <UnscheduledVisitsReportView
+              onBack={() => setCurrentTab('dashboard')}
+              onNavigateToSchedule={(patientId) => {
+                setSelectedEditPatientId(patientId);
+                setCurrentTab('schedule-unassigned-visits');
+              }}
             />
           )}
 

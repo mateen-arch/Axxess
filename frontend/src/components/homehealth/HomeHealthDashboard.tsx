@@ -48,11 +48,11 @@ const DASHBOARD_NEWS_ARTICLES: NewsArticle[] = [
   },
   {
     id: 'news-2',
-    title: 'How CareOrbit Intelligence Reduces Administrative Burden in Care at Home',
-    url: 'https://www.careorbit.com/blog/hospice/how-careorbit-intelligence-reduces-administrative-burden-in-care-at-home/',
-    category: 'Hospice & Home Health • AI Efficiency',
+    title: 'How CareOrbit Reduces Administrative Burden in Care at Home',
+    url: 'https://www.careorbit.com/blog/hospice/how-careorbit-reduces-administrative-burden-in-care-at-home/',
+    category: 'Hospice & Home Health • Clinical Efficiency',
     readTime: '5 min read',
-    summary: 'Administrative responsibilities continue to grow across care at home. Discover how CareOrbit Intelligence automates clinical documentation workflows, streamlines QA checks, and reduces administrative burden in care at home.',
+    summary: 'Administrative responsibilities continue to grow across care at home. Discover how CareOrbit streamlines clinical documentation workflows, expedites QA checks, and reduces administrative burden in care at home.',
     date: 'CareOrbit Blog'
   }
 ];
@@ -524,7 +524,7 @@ export const HomeHealthDashboard: React.FC<HomeHealthDashboardProps> = ({
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="text-rose-600 shrink-0" />
               <h2 className="text-xs font-extrabold text-slate-900 dark:text-white">
-                News & Updates (CareOrbit Intelligence®)
+                News & Clinical Updates
               </h2>
             </div>
             <div className="flex items-center self-start sm:self-auto pl-6 sm:pl-0">

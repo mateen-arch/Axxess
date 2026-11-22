@@ -190,44 +190,53 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
     if (patientDetail?.disciplineStats) {
       return patientDetail.disciplineStats;
     }
-    // Authentic screenshot baseline for Heather Abuissa (Visits 60 Nursing, 1 PT)
     return {
-      Nursing: { ordered: 0, scheduled: 60, underOver: 60 },
-      OT: { ordered: 0, scheduled: 0, underOver: 0 },
-      PT: { ordered: 0, scheduled: 1, underOver: 1 },
-      ST: { ordered: 0, scheduled: 0, underOver: 0 },
-      HHA: { ordered: 0, scheduled: 0, underOver: 0 },
-      MSW: { ordered: 0, scheduled: 0, underOver: 0 }
+      Nursing: { ordered: 60, scheduled: 60, underOver: 0, code: 'SN-Extra' },
+      OT: { ordered: 8, scheduled: 8, underOver: 0, code: 'OT-Extra' },
+      PT: { ordered: 12, scheduled: 14, underOver: 2, code: 'PT-Extra' },
+      ST: { ordered: 4, scheduled: 4, underOver: 0, code: 'ST-Extra' },
+      HHA: { ordered: 18, scheduled: 16, underOver: -2, code: 'HHA-Extra' },
+      MSW: { ordered: 2, scheduled: 2, underOver: 0, code: 'MSW-Extra' }
     };
   }, [patientDetail]);
+
+  // Discipline specific visits dictionary for authentic drilldowns
+  const disciplineSampleVisits: Record<string, any[]> = useMemo(() => ({
+    Nursing: [
+      { id: 'v-sn-1', scheduledDate: '2026-11-06', timeSlot: '09:00 AM', visitType: 'Wound Care & OASIS Recertification', employeeName: 'Alexandria Nelson, RN', status: 'Scheduled' },
+      { id: 'v-sn-2', scheduledDate: '2026-11-10', timeSlot: '11:00 AM', visitType: 'LPN - Oral Med. Management', employeeName: 'Mario Fortune, LPN', status: 'Scheduled' },
+      { id: 'v-sn-3', scheduledDate: '2026-11-13', timeSlot: '02:00 PM', visitType: 'Skilled Nursing Assessment', employeeName: 'Sarah Jenkins, RN', status: 'Scheduled' }
+    ],
+    PT: [
+      { id: 'v-pt-1', scheduledDate: '2026-11-04', timeSlot: '10:00 AM', visitType: 'PT Evaluation & Functional Mobility', employeeName: 'Andre Bellevue, PT', status: 'Scheduled' },
+      { id: 'v-pt-2', scheduledDate: '2026-11-11', timeSlot: '10:30 AM', visitType: 'Gait Training & Strengthening', employeeName: 'Andre Bellevue, PT', status: 'Scheduled' }
+    ],
+    OT: [
+      { id: 'v-ot-1', scheduledDate: '2026-11-05', timeSlot: '01:00 PM', visitType: 'OT Home Safety & ADL Assessment', employeeName: 'Olivia Chen, OTR/L', status: 'Scheduled' },
+      { id: 'v-ot-2', scheduledDate: '2026-11-12', timeSlot: '01:30 PM', visitType: 'Adaptive Equipment Training', employeeName: 'Olivia Chen, OTR/L', status: 'Scheduled' }
+    ],
+    ST: [
+      { id: 'v-st-1', scheduledDate: '2026-11-09', timeSlot: '11:30 AM', visitType: 'Swallow Study & Cognitive Rehab', employeeName: 'Marcus Vance, SLP', status: 'Scheduled' }
+    ],
+    HHA: [
+      { id: 'v-hha-1', scheduledDate: '2026-11-03', timeSlot: '08:30 AM', visitType: 'Personal Care & Hygiene Assistance', employeeName: 'Clara Oswald, HHA', status: 'Scheduled' },
+      { id: 'v-hha-2', scheduledDate: '2026-11-07', timeSlot: '08:30 AM', visitType: 'Vital Signs & Skin Check Support', employeeName: 'Clara Oswald, HHA', status: 'Scheduled' }
+    ],
+    MSW: [
+      { id: 'v-msw-1', scheduledDate: '2026-11-16', timeSlot: '02:30 PM', visitType: 'Community Resources & Long-Term Care Plan', employeeName: 'David Kowalski, MSW', status: 'Scheduled' }
+    ]
+  }), []);
 
   // Filtered Visits based on Selected Discipline Tab
   const activeDisciplineVisits = useMemo(() => {
     if (selectedDiscipline === 'All Disciplines') return visitsList;
-    return visitsList.filter(v => v.discipline?.toLowerCase().includes(selectedDiscipline.toLowerCase()));
-  }, [visitsList, selectedDiscipline]);
+    const directMatches = visitsList.filter(v => v.discipline?.toLowerCase().includes(selectedDiscipline.toLowerCase()));
+    if (directMatches.length > 0) return directMatches;
+    return disciplineSampleVisits[selectedDiscipline] || [];
+  }, [visitsList, selectedDiscipline, disciplineSampleVisits]);
 
   // Dynamic Discipline Bars for Chart
   const currentDisciplineBars = useMemo(() => {
-    if (selectedDiscipline === 'All Disciplines') {
-      return [
-        {
-          code: 'SN-Extra',
-          label: 'Nursing Extra',
-          freq: disciplineStats.Nursing?.ordered || 0,
-          scheduled: disciplineStats.Nursing?.scheduled || 60,
-          discipline: 'Nursing'
-        },
-        {
-          code: 'PT-Extra',
-          label: 'PT Extra',
-          freq: disciplineStats.PT?.ordered || 0,
-          scheduled: disciplineStats.PT?.scheduled || 1,
-          discipline: 'PT'
-        }
-      ];
-    }
-    const stat = disciplineStats[selectedDiscipline as keyof typeof disciplineStats] || { ordered: 0, scheduled: 0 };
     const codeMap: Record<string, string> = {
       Nursing: 'SN-Extra',
       PT: 'PT-Extra',
@@ -236,12 +245,24 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
       HHA: 'HHA-Extra',
       MSW: 'MSW-Extra'
     };
+
+    if (selectedDiscipline === 'All Disciplines') {
+      return Object.entries(disciplineStats).map(([disc, stat]: [string, any]) => ({
+        code: codeMap[disc] || `${disc}-Extra`,
+        label: `${disc} Extra`,
+        freq: stat.ordered || 0,
+        scheduled: stat.scheduled || 0,
+        discipline: disc
+      }));
+    }
+
+    const stat = (disciplineStats as any)[selectedDiscipline] || { ordered: 0, scheduled: 0 };
     return [
       {
         code: codeMap[selectedDiscipline] || `${selectedDiscipline}-Extra`,
         label: `${selectedDiscipline} Extra`,
-        freq: stat.ordered,
-        scheduled: stat.scheduled,
+        freq: stat.ordered || 0,
+        scheduled: stat.scheduled || 0,
         discipline: selectedDiscipline
       }
     ];
@@ -652,24 +673,28 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                     </div>
 
                     {/* Bars Plotting Area (Directly aligned to the baseline at py-2 bottom) */}
-                    <div className="absolute inset-x-0 bottom-2 top-2 flex items-end justify-center gap-12 sm:gap-20">
+                    <div className={`absolute inset-x-0 bottom-2 top-2 flex items-end justify-center ${
+                      currentDisciplineBars.length > 2 ? 'gap-3 sm:gap-6' : 'gap-10 sm:gap-16'
+                    }`}>
                       {currentDisciplineBars.map((bar) => {
                         const maxVal = 75;
                         const scheduledPct = Math.min(100, Math.max(0, (bar.scheduled / maxVal) * 100));
                         const freqPct = Math.min(100, Math.max(0, (bar.freq / maxVal) * 100));
+                        const isCompact = currentDisciplineBars.length > 2;
 
                         return (
-                          <div key={bar.code} className="flex items-end gap-3 sm:gap-4 h-full">
+                          <div key={bar.code} className={`flex items-end ${isCompact ? 'gap-1 sm:gap-2' : 'gap-3 sm:gap-4'} h-full`}>
                             {/* Bar 1: Freq */}
                             <div className="flex flex-col items-center justify-end h-full">
-                              <span className="mb-1 text-[11px] font-extrabold text-rose-700 dark:text-rose-400 select-none">
+                              <span className="mb-0.5 text-[10px] sm:text-[11px] font-extrabold text-rose-700 dark:text-rose-400 select-none whitespace-nowrap">
                                 Freq. {bar.freq}
                               </span>
                               <div
-                                className="w-10 sm:w-12 rounded-t-xs transition-all duration-300"
+                                className={`${isCompact ? 'w-6 sm:w-8' : 'w-10 sm:w-12'} rounded-t-xs transition-all duration-300`}
                                 style={{
-                                  height: bar.freq > 0 ? `${freqPct}%` : '2px',
-                                  backgroundColor: bar.freq > 0 ? '#e11d48' : '#fda4af'
+                                  height: bar.freq > 0 ? `${freqPct}%` : '0px',
+                                  backgroundColor: bar.freq > 0 ? '#e11d48' : 'transparent',
+                                  borderBottom: bar.freq === 0 ? '2px solid #fda4af' : 'none'
                                 }}
                                 title={`${bar.label} Ordered Frequency: ${bar.freq} visits`}
                               />
@@ -677,16 +702,17 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
 
                             {/* Bar 2: Scheduled Visits */}
                             <div className="flex flex-col items-center justify-end h-full">
-                              <span className="mb-1 text-[11px] font-black text-rose-600 dark:text-rose-400 select-none">
+                              <span className="mb-0.5 text-[10px] sm:text-[11px] font-black text-rose-600 dark:text-rose-400 select-none whitespace-nowrap">
                                 Visits {bar.scheduled}
                               </span>
                               <div
-                                className="w-12 sm:w-16 rounded-t-lg shadow-sm transition-all duration-300"
+                                className={`${isCompact ? 'w-8 sm:w-11' : 'w-12 sm:w-16'} rounded-t-lg shadow-sm transition-all duration-300`}
                                 style={{
-                                  height: bar.scheduled > 0 ? `${scheduledPct}%` : '2px',
+                                  height: bar.scheduled > 0 ? `${scheduledPct}%` : '0px',
                                   background: bar.scheduled > 0
                                     ? 'linear-gradient(180deg, #f43f5e 0%, #be123c 100%)'
-                                    : '#e2e8f0'
+                                    : 'transparent',
+                                  borderBottom: bar.scheduled === 0 ? '2px solid #cbd5e1' : 'none'
                                 }}
                                 title={`${bar.label} Scheduled Visits: ${bar.scheduled}`}
                               />
@@ -699,11 +725,13 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                 </div>
 
                 {/* X-Axis Category Labels (OUTSIDE THE BOX) */}
-                <div className="flex items-center justify-center gap-12 sm:gap-20 pt-2.5 pl-14 sm:pl-16">
+                <div className={`flex items-center justify-center pt-2.5 pl-14 sm:pl-16 ${
+                  currentDisciplineBars.length > 2 ? 'gap-3 sm:gap-6' : 'gap-10 sm:gap-16'
+                }`}>
                   {currentDisciplineBars.map((bar) => (
                     <span
                       key={bar.code}
-                      className="text-xs font-black text-slate-800 dark:text-slate-200 bg-pearl-100/80 dark:bg-charcoal-800 px-3.5 py-1 rounded-lg border border-pearl-200 dark:border-charcoal-700 shadow-2xs"
+                      className="text-[10px] sm:text-xs font-black text-slate-800 dark:text-slate-200 bg-pearl-100/80 dark:bg-charcoal-800 px-2 sm:px-3.5 py-1 rounded-lg border border-pearl-200 dark:border-charcoal-700 shadow-2xs whitespace-nowrap"
                     >
                       {bar.code}
                     </span>
@@ -758,164 +786,99 @@ export const ScheduleUnassignedVisitsView: React.FC<ScheduleUnassignedVisitsView
                     </td>
                   </tr>
 
-                  {/* Row: All Disciplines (shown when All Disciplines selected) */}
-                  {selectedDiscipline === 'All Disciplines' && (
-                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleRowAccordion('all-extra')}
-                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                        >
-                          {expandedRows.has('all-extra') ? '-' : '+'}
-                        </button>
-                      </td>
-                      <td className="py-2 px-1 text-center">
-                        <span title="Discrepancy: Extra visits scheduled without physician frequency order" className="inline-flex items-center justify-center">
-                          <AlertTriangle size={14} className="text-amber-500" />
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300">
-                          All
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">61</td>
-                    </tr>
-                  )}
+                  {/* Dynamic Rows for Each Discipline */}
+                  {(selectedDiscipline === 'All Disciplines'
+                    ? Object.keys(disciplineStats)
+                    : [selectedDiscipline]
+                  ).map((disc) => {
+                    const stat = (disciplineStats as any)[disc] || { ordered: 0, scheduled: 0, underOver: 0 };
+                    const isExpanded = expandedRows.has(`${disc.toLowerCase()}-extra`);
+                    const visitsForDisc = activeDisciplineVisits.length > 0 && selectedDiscipline === disc
+                      ? activeDisciplineVisits
+                      : disciplineSampleVisits[disc] || [];
 
-                  {/* Row: Nursing (shown when All Disciplines or Nursing selected) */}
-                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'Nursing') && (
-                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleRowAccordion('nursing-extra')}
-                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                        >
-                          {expandedRows.has('nursing-extra') ? '-' : '+'}
-                        </button>
-                      </td>
-                      <td className="py-2 px-1 text-center">
-                        <span title="Extra visits scheduled" className="inline-flex items-center justify-center">
-                          <AlertTriangle size={14} className="text-amber-500" />
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400">
-                          Nursing
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">60</td>
-                    </tr>
-                  )}
+                    return (
+                      <React.Fragment key={disc}>
+                        <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleRowAccordion(`${disc.toLowerCase()}-extra`)}
+                              className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
+                            >
+                              {isExpanded ? '-' : '+'}
+                            </button>
+                          </td>
+                          <td className="py-2 px-1 text-center">
+                            {stat.underOver !== 0 ? (
+                              <span title={`Discrepancy: ${stat.underOver > 0 ? '+' : ''}${stat.underOver} visits`} className="inline-flex items-center justify-center">
+                                <AlertTriangle size={14} className="text-amber-500" />
+                              </span>
+                            ) : (
+                              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="In compliance" />
+                            )}
+                          </td>
+                          <td className="py-2 px-3 font-semibold">10/26/2026</td>
+                          <td className="py-2 px-3 font-semibold">12/24/2026</td>
+                          <td className="py-2 px-3">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50">
+                              {disc}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{stat.ordered}</td>
+                          <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">{stat.scheduled}</td>
+                        </tr>
 
-                  {/* Expanded Nursing Visits Table */}
-                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'Nursing') && expandedRows.has('nursing-extra') && (
-                    <tr>
-                      <td colSpan={7} className="p-3 bg-pearl-50/50 dark:bg-charcoal-850/80 border-y border-pearl-200 dark:border-charcoal-700">
-                        <div className="rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 p-2 overflow-x-auto">
-                          <div className="text-[11px] font-black text-slate-700 dark:text-slate-300 mb-2 px-2 flex items-center justify-between">
-                            <span>Detailed Scheduled & Unassigned Nursing Visits ({activeDisciplineVisits.length > 0 ? activeDisciplineVisits.length : 3})</span>
-                            <span className="text-[10px] text-slate-400 font-semibold">Episode: 10/26/2026 - 12/24/2026</span>
-                          </div>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={7} className="p-3 bg-pearl-50/50 dark:bg-charcoal-850/80 border-y border-pearl-200 dark:border-charcoal-700">
+                              <div className="rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-900 p-2 overflow-x-auto">
+                                <div className="text-[11px] font-black text-slate-700 dark:text-slate-300 mb-2 px-2 flex items-center justify-between">
+                                  <span>Detailed Scheduled & Unassigned {disc} Visits ({visitsForDisc.length})</span>
+                                  <span className="text-[10px] text-slate-400 font-semibold">Episode: 10/26/2026 - 12/24/2026</span>
+                                </div>
 
-                          <table className="w-full text-xs">
-                            <thead className="bg-pearl-100 dark:bg-charcoal-800 text-[10px] font-black text-slate-500 uppercase">
-                              <tr>
-                                <th className="p-2 text-left">Date</th>
-                                <th className="p-2 text-left">Time Slot</th>
-                                <th className="p-2 text-left">Task / Visit Type</th>
-                                <th className="p-2 text-left">Assigned Clinician</th>
-                                <th className="p-2 text-center">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750">
-                              {(activeDisciplineVisits.length > 0 ? activeDisciplineVisits : [
-                                { id: 'v-demo-1', patientId: 'pat-1061', employeeName: 'Alexandria Nelson, RN', visitType: 'Wound Care & OASIS Recertification', discipline: 'Nursing', scheduledDate: '2026-11-06', timeSlot: '09:00 AM', status: 'Scheduled' },
-                                { id: 'v-demo-2', patientId: 'pat-1061', employeeName: 'Unassigned Clinician', visitType: '10 Day Summary / Case Conference', discipline: 'Nursing', scheduledDate: '2026-11-10', timeSlot: '11:00 AM', status: 'Unassigned' },
-                                { id: 'v-demo-3', patientId: 'pat-1061', employeeName: 'Sarah Jenkins, RN', visitType: 'Skilled Nursing Assessment', discipline: 'Nursing', scheduledDate: '2026-11-13', timeSlot: '02:00 PM', status: 'Scheduled' }
-                              ]).map((v, i) => (
-                                <tr key={v.id || i} className="hover:bg-pearl-50 dark:hover:bg-charcoal-800">
-                                  <td className="p-2 font-bold">{v.scheduledDate}</td>
-                                  <td className="p-2 text-slate-500">{v.timeSlot}</td>
-                                  <td className="p-2 font-semibold text-slate-800 dark:text-slate-200">{v.visitType}</td>
-                                  <td className="p-2 font-medium">
-                                    <span className={v.employeeName.includes('Unassigned') ? 'text-amber-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                                      {v.employeeName}
-                                    </span>
-                                  </td>
-                                  <td className="p-2 text-center">
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                      v.status === 'Scheduled'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                                    }`}>
-                                      {v.status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-
-                  {/* Row: PT (shown when All Disciplines or PT selected) */}
-                  {(selectedDiscipline === 'All Disciplines' || selectedDiscipline === 'PT') && (
-                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleRowAccordion('pt-extra')}
-                          className="w-5 h-5 rounded flex items-center justify-center bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white transition cursor-pointer font-bold"
-                        >
-                          {expandedRows.has('pt-extra') ? '-' : '+'}
-                        </button>
-                      </td>
-                      <td className="py-2 px-1 text-center">
-                        <span title="Extra PT visit scheduled" className="inline-flex items-center justify-center">
-                          <AlertTriangle size={14} className="text-amber-500" />
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50">
-                          PT
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-bold text-slate-500">0</td>
-                      <td className="py-2 px-3 text-center font-black text-rose-600 dark:text-rose-400">1</td>
-                    </tr>
-                  )}
-
-                  {/* Other disciplines (OT, ST, HHA, MSW) with 0 visits */}
-                  {selectedDiscipline !== 'All Disciplines' && selectedDiscipline !== 'Nursing' && selectedDiscipline !== 'PT' && (
-                    <tr className="hover:bg-pearl-50/80 dark:hover:bg-charcoal-800 transition">
-                      <td className="py-2 px-3 text-center text-slate-300">—</td>
-                      <td className="py-2 px-1 text-center">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="In compliance" />
-                      </td>
-                      <td className="py-2 px-3 font-semibold">10/26/2026</td>
-                      <td className="py-2 px-3 font-semibold">12/24/2026</td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pearl-100 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300">
-                          {selectedDiscipline}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-bold text-slate-400">0</td>
-                      <td className="py-2 px-3 text-center font-bold text-slate-400">0</td>
-                    </tr>
-                  )}
+                                <table className="w-full text-xs">
+                                  <thead className="bg-pearl-100 dark:bg-charcoal-800 text-[10px] font-black text-slate-500 uppercase">
+                                    <tr>
+                                      <th className="p-2 text-left">Date</th>
+                                      <th className="p-2 text-left">Time Slot</th>
+                                      <th className="p-2 text-left">Task / Visit Type</th>
+                                      <th className="p-2 text-left">Assigned Clinician</th>
+                                      <th className="p-2 text-center whitespace-nowrap min-w-[110px]">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750">
+                                    {visitsForDisc.map((v: any, i: number) => (
+                                      <tr key={v.id || i} className="hover:bg-pearl-50 dark:hover:bg-charcoal-800">
+                                        <td className="p-2 font-bold">{v.scheduledDate}</td>
+                                        <td className="p-2 text-slate-500">{v.timeSlot}</td>
+                                        <td className="p-2 font-semibold text-slate-800 dark:text-slate-200">{v.visitType}</td>
+                                        <td className="p-2 font-medium">
+                                          <span className={v.employeeName.includes('Unassigned') ? 'text-amber-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>
+                                            {v.employeeName}
+                                          </span>
+                                        </td>
+                                        <td className="p-2 text-center whitespace-nowrap min-w-[110px]">
+                                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap leading-none select-none shrink-0 ${
+                                            v.status === 'Scheduled'
+                                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                          }`}>
+                                            {v.status}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

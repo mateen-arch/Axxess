@@ -12,7 +12,6 @@ import { useHealthcare } from '../../context/HealthcareContext';
 import { ConnectSidebar } from '../connect/ConnectSidebar';
 import { CareOrbitConnectView } from '../connect/CareOrbitConnectView';
 import { CareOrbitPlannerView } from '../planner/CareOrbitPlannerView';
-import { ActiveCallDialog } from '../connect/ActiveCallDialog';
 import { AppSwitcherModal } from '../portal/AppSwitcherModal';
 
 export const CareOrbitConnectApp: React.FC = () => {
@@ -142,8 +141,7 @@ export const CareOrbitConnectApp: React.FC = () => {
         </main>
       </div>
 
-      {/* Global Modals */}
-      <ActiveCallDialog />
+
       <AppSwitcherModal
         isOpen={isAppSwitcherOpen}
         onClose={() => setIsAppSwitcherOpen(false)}

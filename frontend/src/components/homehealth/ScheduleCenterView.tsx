@@ -1372,7 +1372,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                     <th className="py-3 px-4">Task</th>
                     <th className="py-3 px-4">Scheduled Date ▾</th>
                     <th className="py-3 px-4">Assigned To</th>
-                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 min-w-[125px] whitespace-nowrap">Status</th>
                     <th className="py-3 px-2 text-center w-10"></th>
                     <th className="py-3 px-4 text-right">Action</th>
                   </tr>
@@ -1418,9 +1418,9 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                       </td>
 
                       {/* Visit Status */}
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-3 px-4 whitespace-nowrap min-w-[125px]">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap shadow-2xs ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap leading-none select-none shadow-2xs shrink-0 ${
                             v.status === 'Completed'
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
                               : v.status === 'Missed'
@@ -1437,7 +1437,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                                 : 'bg-amber-500'
                             }`}
                           />
-                          <span>{v.status}</span>
+                          <span className="whitespace-nowrap">{v.status}</span>
                         </span>
                       </td>
 

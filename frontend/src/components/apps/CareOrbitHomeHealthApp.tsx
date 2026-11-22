@@ -207,7 +207,6 @@ export const CareOrbitHomeHealthApp: React.FC = () => {
     'recent-software-updates': 'Recent Software Updates',
     'covid-19-resource-center': 'COVID-19 Resource Center',
     'follow-careorbit': 'Follow CareOrbit',
-    'ask-careorbit': 'Ask CareOrbit',
   };
 
   const currentPageTitle =

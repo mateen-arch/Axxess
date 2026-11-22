@@ -1,17 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   MessageSquare,
-  Phone,
-  Video,
   Search,
   Filter,
   Plus,
   MoreVertical,
   Paperclip,
   Send,
-  PhoneIncoming,
-  PhoneOutgoing,
-  PhoneMissed,
   CheckCheck,
   FileText,
   ExternalLink,
@@ -209,15 +204,6 @@ export const CareOrbitConnectView: React.FC = () => {
     }
   };
 
-  const handleStartCall = (contactName: string, callType: 'audio' | 'video') => {
-    setActiveCallModal({
-      isOpen: true,
-      contactName,
-      callType
-    });
-  };
-
-  // Real Download handler for message attachments
   const handleDownloadAttachment = (attachment: { name: string; url?: string }) => {
     const downloadUrl = attachment.url || `http://localhost:5000/api/connect/attachments/${encodeURIComponent(attachment.name)}`;
     const link = document.createElement('a');
@@ -295,20 +281,9 @@ export const CareOrbitConnectView: React.FC = () => {
       <div className="w-full lg:w-20 bg-pearl-50/90 dark:bg-charcoal-900 border-b lg:border-b-0 lg:border-r border-pearl-200 dark:border-charcoal-700 p-2 lg:p-2.5 flex lg:flex-col items-center justify-between lg:justify-start gap-3 shrink-0">
         <div className="flex lg:flex-col items-center gap-2 w-full">
           {/* Chat Rail Tab */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveRailTab('chat');
-              setMobileShowChat(false);
-            }}
-            className={`w-full py-2 lg:py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
-              activeRailTab === 'chat'
-                ? 'bg-white dark:bg-charcoal-800 text-rose-600 dark:text-rose-400 shadow-xs border border-pearl-200/80 dark:border-charcoal-650'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-pearl-100 dark:hover:bg-charcoal-800'
-            }`}
-          >
+          <div className="w-full py-2 lg:py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 bg-white dark:bg-charcoal-800 text-rose-600 dark:text-rose-400 shadow-xs border border-pearl-200/80 dark:border-charcoal-650 relative select-none">
             <div className="relative">
-              <MessageSquare size={20} className={activeRailTab === 'chat' ? 'text-rose-600' : 'text-slate-500'} />
+              <MessageSquare size={20} className="text-rose-600" />
               {totalUnreadCount > 0 && (
                 <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black flex items-center justify-center ring-2 ring-white dark:ring-charcoal-900">
                   {totalUnreadCount}
@@ -316,27 +291,8 @@ export const CareOrbitConnectView: React.FC = () => {
               )}
             </div>
             <span className="text-[10px] font-extrabold tracking-tight">Chat</span>
-            {activeRailTab === 'chat' && (
-              <span className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-rose-600 rounded-r-full" />
-            )}
-          </button>
-
-          {/* Calls Rail Tab */}
-          <button
-            type="button"
-            onClick={() => setActiveRailTab('calls')}
-            className={`w-full py-2 lg:py-3 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative cursor-pointer ${
-              activeRailTab === 'calls'
-                ? 'bg-white dark:bg-charcoal-800 text-rose-600 dark:text-rose-400 shadow-xs border border-pearl-200/80 dark:border-charcoal-650'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-pearl-100 dark:hover:bg-charcoal-800'
-            }`}
-          >
-            <Phone size={20} className={activeRailTab === 'calls' ? 'text-rose-600' : 'text-slate-500'} />
-            <span className="text-[10px] font-extrabold tracking-tight">Calls</span>
-            {activeRailTab === 'calls' && (
-              <span className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-rose-600 rounded-r-full" />
-            )}
-          </button>
+            <span className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-rose-600 rounded-r-full" />
+          </div>
         </div>
 
         {/* Security Badge at bottom of rail */}
@@ -349,8 +305,7 @@ export const CareOrbitConnectView: React.FC = () => {
       {/* ================================================================= */}
       {/* 2. CHAT TAB VIEW                                                  */}
       {/* ================================================================= */}
-      {activeRailTab === 'chat' ? (
-        <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row min-w-0 h-full overflow-hidden">
           {/* Conversation Roster List (Left pane) */}
           <div className={`w-full md:w-80 lg:w-96 border-r border-pearl-200 dark:border-charcoal-700 flex flex-col shrink-0 bg-pearl-50/40 dark:bg-charcoal-850/60 h-full ${
             mobileShowChat ? 'hidden md:flex' : 'flex'
@@ -622,26 +577,6 @@ export const CareOrbitConnectView: React.FC = () => {
                         <span className="hidden sm:inline">Patient Chart</span>
                       </button>
                     )}
-
-                    {/* Audio Call */}
-                    <button
-                      type="button"
-                      onClick={() => handleStartCall(activeConversation.title, 'audio')}
-                      className="p-2 rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 transition-colors cursor-pointer shadow-2xs"
-                      title="Start 1-to-1 Audio Call"
-                    >
-                      <Phone size={15} />
-                    </button>
-
-                    {/* Video Call */}
-                    <button
-                      type="button"
-                      onClick={() => handleStartCall(activeConversation.title, 'video')}
-                      className="p-2 rounded-xl border border-pearl-300 dark:border-charcoal-600 bg-white dark:bg-charcoal-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 transition-colors cursor-pointer shadow-2xs"
-                      title="Start Video Telehealth Call"
-                    >
-                      <Video size={15} />
-                    </button>
                   </div>
                 </div>
 
@@ -845,76 +780,6 @@ export const CareOrbitConnectView: React.FC = () => {
             )}
           </div>
         </div>
-      ) : (
-        /* ================================================================= */
-        /* 3. CALLS LOGS TAB VIEW                                            */
-        /* ================================================================= */
-        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-          <div className="flex items-center justify-between pb-4 border-b border-pearl-200 dark:border-charcoal-700 mb-4">
-            <div>
-              <h3 className="font-black text-lg text-slate-900 dark:text-white">Call History & Telehealth Log</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Encrypted 1-to-1 voice and video teleconsultation records</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleStartCall('Alexandria Nelson, RN', 'audio')}
-              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <Phone size={14} />
-              <span>Start Quick Call</span>
-            </button>
-          </div>
-
-          <div className="divide-y divide-pearl-100 dark:divide-charcoal-750">
-            {callLogs.map(log => (
-              <div
-                key={log.id}
-                className="py-3.5 flex items-center justify-between hover:bg-pearl-50/50 dark:hover:bg-charcoal-800/40 px-3 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                      log.direction === 'inbound'
-                        ? 'bg-emerald-100 text-emerald-600'
-                        : log.direction === 'outbound'
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-rose-100 text-rose-600'
-                    }`}
-                  >
-                    {log.direction === 'inbound' ? (
-                      <PhoneIncoming size={15} />
-                    ) : log.direction === 'outbound' ? (
-                      <PhoneOutgoing size={15} />
-                    ) : (
-                      <PhoneMissed size={15} />
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-slate-900 dark:text-white">
-                      {log.contactName}
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {log.contactRole || 'Field Clinician'} • {log.callType === 'video' ? 'Video' : 'Voice'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs font-mono">
-                  <span className="text-slate-400">{log.duration}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleStartCall(log.contactName, log.callType || 'audio')}
-                    className="p-2 rounded-lg hover:bg-pearl-100 dark:hover:bg-charcoal-700 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                    title="Call Back"
-                  >
-                    <Phone size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* New Conversation / Group Modal */}
       <NewChatModal

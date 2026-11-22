@@ -91,13 +91,6 @@ const pageContent: Record<
     icon: HelpCircle,
     features: ['Step-by-step guides', 'Video walkthroughs', 'CMS regulation updates'],
   },
-  'ask-careorbit': {
-    title: 'Ask CareOrbit (AI Assistant)',
-    description:
-      'Clinical generative AI assistant designed to summarize complex chart histories, OASIS responses, and Medicare guidelines.',
-    icon: Sparkles,
-    features: ['Clinical summarization', 'OASIS guidance', 'Policy & protocol lookup'],
-  },
 };
 
 function humanize(str: string): string {

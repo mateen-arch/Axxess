@@ -152,11 +152,6 @@ export const HOME_HEALTH_NAV_SECTIONS: HomeHealthNavNode[] = [
       { id: 'follow-careorbit', label: 'Follow CareOrbit' },
     ],
   },
-  {
-    id: 'careorbit-intelligence',
-    label: 'CareOrbit Intelligence',
-    children: [{ id: 'ask-careorbit', label: 'Ask CareOrbit' }],
-  },
 ];
 
 const collectRouteTitles = (nodes: HomeHealthNavNode[]): Record<string, string> =>

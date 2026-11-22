@@ -11,7 +11,6 @@ import {
 import { useHealthcare } from '../../context/HealthcareContext';
 import { CareOrbitConnectView } from './CareOrbitConnectView';
 import { CareOrbitPlannerView } from '../planner/CareOrbitPlannerView';
-import { ActiveCallDialog } from './ActiveCallDialog';
 
 export const ConnectAndPlannerSuite: React.FC = () => {
   const {
@@ -224,8 +223,7 @@ export const ConnectAndPlannerSuite: React.FC = () => {
         )
       )}
 
-      {/* Global Active Call Dialog */}
-      <ActiveCallDialog />
+
     </div>
   );
 };

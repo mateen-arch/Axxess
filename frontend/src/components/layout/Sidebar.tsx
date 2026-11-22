@@ -337,7 +337,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view: MagnifyingGlass,
     reports: ChartLineUp,
     help: Question,
-    'careorbit-intelligence': Sparkle,
   };
 
   const toggleSection = (sectionId: string) => {

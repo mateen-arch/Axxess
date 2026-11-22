@@ -29,7 +29,7 @@ export const AppSwitcherModal: React.FC<AppSwitcherModalProps> = ({ isOpen, onCl
       icon: MessageSquare,
       color: 'from-purple-600 to-pink-600',
       badge: 'Active System',
-      description: 'HIPAA care team messaging, telehealth calling, and daily territory route planner with Leaflet GIS map.'
+      description: 'HIPAA care team messaging and daily territory route planner with Leaflet GIS map.'
     },
     {
       id: 'home_health' as const,
