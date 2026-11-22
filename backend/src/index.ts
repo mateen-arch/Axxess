@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import * as XLSX from 'xlsx';
 import { pool } from './db';
 
 dotenv.config();
@@ -4524,6 +4525,321 @@ app.post('/api/reports/unscheduled-visits', async (req: Request, res: Response) 
   }
 });
 
+// ==========================================
+// SCHEDULE REPORT ENDPOINTS
+// ==========================================
+
+const SCHEDULE_REPORT_STATUSES = [
+  'Awaiting Clinician Signature',
+  'Completed',
+  'Completed from Mobile Device',
+  'Created',
+  'Exported',
+  'Missed Visit',
+  'Missed Visit (Complete)',
+  'Missed Visit (Pending GA Review)',
+  'Missed Visit (Returned for Review)',
+  'Not Yet Due',
+  'Not Yet Started',
+  'Pending Follow-up',
+  'Reopened',
+  'Returned for Clinician Signature',
+  'Returned for Review',
+  'Returned for Review by Physician',
+  'Returned w/ Physician Signature',
+  'Saved',
+  'Saved by Physician',
+  'Saved from Mobile Device',
+  'Sent to Physician (Electronically)',
+  'Sent to Physician (Fax, Mail, etc.)',
+  'Submitted from Mobile Device',
+  'Submitted (Pending Co-signature)',
+  'Submitted with Signature',
+  'To Be Sent to Physician'
+];
+
+const SCHEDULE_REPORT_DISCIPLINES = [
+  'Nursing',
+  'Physical Therapy',
+  'Occupational Therapy',
+  'Speech Therapy',
+  'MSW',
+  'HHA',
+  'Dietician',
+  'Orders',
+  'Reports and Notes'
+];
+
+// GET /api/reports/schedule-report/metadata
+app.get('/api/reports/schedule-report/metadata', async (_req: Request, res: Response) => {
+  try {
+    const branchesResult = await pool.query(`
+      SELECT DISTINCT branch FROM patients WHERE branch IS NOT NULL AND branch <> ''
+      UNION
+      SELECT DISTINCT branch FROM clinicians WHERE branch IS NOT NULL AND branch <> ''
+    `);
+    const dbBranches = branchesResult.rows.map(r => r.branch).filter(Boolean);
+    const branches = Array.from(new Set(['All', 'Standards Home Care', ...dbBranches]));
+
+    const patientsResult = await pool.query(`
+      SELECT 
+        id,
+        COALESCE(mrn, '1001') as mrn,
+        COALESCE(UPPER(last_name || ', ' || first_name), 'Unknown Patient') as name,
+        COALESCE(branch, 'Standards Home Care') as branch
+      FROM patients
+      ORDER BY last_name, first_name
+    `);
+
+    const cliniciansResult = await pool.query(`
+      SELECT 
+        c.id,
+        COALESCE(c.name, u.full_name, 'Clinician') as name,
+        COALESCE(c.title, 'Registered Nurse') as title,
+        COALESCE(c.credentials, 'RN') as credentials,
+        COALESCE(c.discipline, 'Nursing') as discipline,
+        COALESCE(c.branch, 'Standards Home Care') as branch
+      FROM clinicians c
+      LEFT JOIN users u ON c.user_id = u.id
+      ORDER BY COALESCE(c.name, u.full_name)
+    `);
+
+    const tasksResult = await pool.query(`
+      SELECT DISTINCT COALESCE(task, visit_type) as task
+      FROM visits
+      WHERE COALESCE(task, visit_type) IS NOT NULL AND COALESCE(task, visit_type) <> ''
+      ORDER BY task
+    `);
+    const tasks = tasksResult.rows.map(r => r.task).filter(Boolean);
+
+    res.json({
+      success: true,
+      branches,
+      patients: patientsResult.rows,
+      clinicians: cliniciansResult.rows,
+      tasks,
+      statuses: SCHEDULE_REPORT_STATUSES,
+      disciplines: SCHEDULE_REPORT_DISCIPLINES,
+      groupByOptions: ['None', 'Patient', 'Date', 'Task', 'Clinician']
+    });
+  } catch (err: any) {
+    console.error('Error fetching schedule report metadata:', err);
+    res.status(500).json({ error: 'Failed to fetch schedule report metadata' });
+  }
+});
+
+async function queryScheduleReport(filters: any) {
+  const {
+    branch,
+    patientId,
+    clinicianId,
+    status,
+    selectionType,
+    task,
+    discipline,
+    dateFrom,
+    dateTo,
+    search
+  } = filters || {};
+
+  let query = `
+    SELECT 
+      v.id,
+      COALESCE(UPPER(p.last_name || ', ' || p.first_name), UPPER(v.patient_name), 'ABUISSA, HEATHER') as patient,
+      COALESCE(p.mrn, '1061') as mrn,
+      p.id as "patientId",
+      TO_CHAR(COALESCE(v.scheduled_date, v.scheduled_start, CURRENT_DATE), 'MM/DD/YYYY') as "scheduleDate",
+      COALESCE(v.visit_time_in, TO_CHAR(v.scheduled_start, 'HH12:MI AM'), '09:00 AM') as "visitTimeIn",
+      COALESCE(v.visit_time_out, TO_CHAR(v.scheduled_end, 'HH12:MI AM'), '10:00 AM') as "visitTimeOut",
+      COALESCE(v.task, v.visit_type, 'Skilled Nursing Visit') as task,
+      COALESCE(v.status, 'Completed') as status,
+      COALESCE(v.payable, true) as payable,
+      COALESCE(v.billable, true) as billable,
+      COALESCE(v.employee_name, c.name, 'Mario Fortune LPN') as clinician,
+      COALESCE(c.id, v.clinician_id) as "clinicianId",
+      COALESCE(c.discipline, 'Nursing') as discipline,
+      COALESCE(v.tags, ARRAY['Routine']::TEXT[]) as tags,
+      COALESCE(p.branch, c.branch, 'Standards Home Care') as branch
+    FROM visits v
+    LEFT JOIN patients p ON v.patient_id = p.id
+    LEFT JOIN clinicians c ON v.clinician_id = c.id
+    WHERE 1=1
+  `;
+
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (branch && branch !== 'All') {
+    query += ` AND (p.branch ILIKE $${paramIdx} OR c.branch ILIKE $${paramIdx} OR 'Standards Home Care' ILIKE $${paramIdx})`;
+    params.push(`%${branch}%`);
+    paramIdx++;
+  }
+
+  if (patientId && patientId !== 'All') {
+    query += ` AND (p.id::text = $${paramIdx} OR v.patient_id::text = $${paramIdx} OR p.mrn = $${paramIdx})`;
+    params.push(patientId);
+    paramIdx++;
+  }
+
+  if (clinicianId && clinicianId !== 'All') {
+    query += ` AND (c.id::text = $${paramIdx} OR v.clinician_id::text = $${paramIdx} OR v.employee_name ILIKE $${paramIdx})`;
+    params.push(clinicianId);
+    paramIdx++;
+  }
+
+  if (status && status !== 'All') {
+    query += ` AND (v.status ILIKE $${paramIdx} OR v.task_status ILIKE $${paramIdx})`;
+    params.push(status);
+    paramIdx++;
+  }
+
+  if (selectionType === 'discipline' && discipline && discipline !== 'All') {
+    query += ` AND (c.discipline ILIKE $${paramIdx} OR v.task ILIKE $${paramIdx} OR v.visit_type ILIKE $${paramIdx})`;
+    params.push(`%${discipline}%`);
+    paramIdx++;
+  } else if (selectionType === 'task' && task && task !== 'All') {
+    query += ` AND (v.task ILIKE $${paramIdx} OR v.visit_type ILIKE $${paramIdx})`;
+    params.push(`%${task}%`);
+    paramIdx++;
+  }
+
+  if (dateFrom) {
+    query += ` AND COALESCE(v.scheduled_date, v.scheduled_start::date) >= $${paramIdx}::date`;
+    params.push(dateFrom);
+    paramIdx++;
+  }
+
+  if (dateTo) {
+    query += ` AND COALESCE(v.scheduled_date, v.scheduled_start::date) <= $${paramIdx}::date`;
+    params.push(dateTo);
+    paramIdx++;
+  }
+
+  if (search && search.trim() !== '') {
+    query += ` AND (
+      p.first_name ILIKE $${paramIdx} OR
+      p.last_name ILIKE $${paramIdx} OR
+      p.mrn ILIKE $${paramIdx} OR
+      v.patient_name ILIKE $${paramIdx} OR
+      v.employee_name ILIKE $${paramIdx} OR
+      c.name ILIKE $${paramIdx} OR
+      v.task ILIKE $${paramIdx} OR
+      v.status ILIKE $${paramIdx}
+    )`;
+    params.push(`%${search.trim()}%`);
+    paramIdx++;
+  }
+
+  query += ` ORDER BY COALESCE(v.scheduled_date, v.scheduled_start, CURRENT_DATE) DESC, v.id DESC LIMIT 500;`;
+
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+// POST /api/reports/schedule-report/generate
+app.post('/api/reports/schedule-report/generate', async (req: Request, res: Response) => {
+  try {
+    const rows = await queryScheduleReport(req.body);
+    res.json({
+      success: true,
+      records: rows,
+      totalCount: rows.length
+    });
+  } catch (err: any) {
+    console.error('Error generating schedule report:', err);
+    res.status(500).json({ error: 'Failed to generate schedule report' });
+  }
+});
+
+// POST /api/reports/schedule-report/export
+app.post('/api/reports/schedule-report/export', async (req: Request, res: Response) => {
+  try {
+    const rows = await queryScheduleReport(req.body);
+
+    const exportRows = rows.map((r: any) => ({
+      'Patient': r.patient,
+      'MRN': r.mrn,
+      'Schedule Date': r.scheduleDate,
+      'Visit Time In': r.visitTimeIn,
+      'Visit Time Out': r.visitTimeOut,
+      'Task': r.task,
+      'Status': r.status,
+      'Payable': r.payable ? 'Yes' : 'No',
+      'Billable': r.billable ? 'Yes' : 'No',
+      'Clinician': r.clinician,
+      'Tags': Array.isArray(r.tags) ? r.tags.join(', ') : (r.tags || 'Routine')
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    
+    worksheet['!cols'] = [
+      { wch: 25 }, // Patient
+      { wch: 10 }, // MRN
+      { wch: 14 }, // Schedule Date
+      { wch: 14 }, // Visit Time In
+      { wch: 14 }, // Visit Time Out
+      { wch: 28 }, // Task
+      { wch: 18 }, // Status
+      { wch: 10 }, // Payable
+      { wch: 10 }, // Billable
+      { wch: 25 }, // Clinician
+      { wch: 18 }, // Tags
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Schedule Report');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Schedule_Report_${new Date().toISOString().split('T')[0]}.xlsx"`);
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('Error exporting schedule report:', err);
+    res.status(500).json({ error: 'Failed to export schedule report to Excel' });
+  }
+});
+
+// POST /api/reports/schedule-report/reassign
+app.post('/api/reports/schedule-report/reassign', async (req: Request, res: Response) => {
+  try {
+    const { visitIds, replacementClinicianId, replacementClinicianName } = req.body;
+    if (!visitIds || !Array.isArray(visitIds) || visitIds.length === 0) {
+      return res.status(400).json({ error: 'visitIds array is required' });
+    }
+    if (!replacementClinicianName) {
+      return res.status(400).json({ error: 'replacementClinicianName is required' });
+    }
+
+    const clinicianUuid = replacementClinicianId && replacementClinicianId.length === 36 ? replacementClinicianId : null;
+
+    let updateQuery = `
+      UPDATE visits
+      SET employee_name = $1
+    `;
+    const params: any[] = [replacementClinicianName];
+
+    if (clinicianUuid) {
+      updateQuery += `, clinician_id = $2 WHERE id::text = ANY($3::text[])`;
+      params.push(clinicianUuid, visitIds);
+    } else {
+      updateQuery += ` WHERE id::text = ANY($2::text[])`;
+      params.push(visitIds);
+    }
+
+    const result = await pool.query(updateQuery, params);
+
+    res.json({
+      success: true,
+      updatedCount: result.rowCount,
+      message: `Successfully reassigned ${result.rowCount} visits to ${replacementClinicianName}.`
+    });
+  } catch (err: any) {
+    console.error('Error reassigning schedule visits:', err);
+    res.status(500).json({ error: 'Failed to reassign schedule visits' });
+  }
+});
+
 app.get('/api/schedule/my-schedule-tasks', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(`
@@ -5808,6 +6124,19 @@ async function initCoreTables() {
     ALTER TABLE visits ADD COLUMN IF NOT EXISTS task VARCHAR(255);
     ALTER TABLE visits ADD COLUMN IF NOT EXISTS huv_sfv_type VARCHAR(50);
     ALTER TABLE visits ADD COLUMN IF NOT EXISTS notes TEXT;
+    ALTER TABLE visits ADD COLUMN IF NOT EXISTS payable BOOLEAN DEFAULT true;
+    ALTER TABLE visits ADD COLUMN IF NOT EXISTS billable BOOLEAN DEFAULT true;
+    ALTER TABLE visits ADD COLUMN IF NOT EXISTS visit_time_in VARCHAR(50);
+    ALTER TABLE visits ADD COLUMN IF NOT EXISTS visit_time_out VARCHAR(50);
+    ALTER TABLE visits ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT ARRAY['Routine']::TEXT[];
+
+    UPDATE visits
+    SET visit_time_in = COALESCE(visit_time_in, TO_CHAR(scheduled_start, 'HH12:MI AM'), SPLIT_PART(time_slot, ' - ', 1), '09:00 AM'),
+        visit_time_out = COALESCE(visit_time_out, TO_CHAR(scheduled_end, 'HH12:MI AM'), SPLIT_PART(time_slot, ' - ', 2), '10:00 AM'),
+        payable = COALESCE(payable, true),
+        billable = COALESCE(billable, true),
+        tags = COALESCE(tags, ARRAY['Routine']::TEXT[])
+    WHERE visit_time_in IS NULL OR visit_time_out IS NULL;
 
     -- patient_tasks table (for Patient Charts clinical tasks)
     CREATE TABLE IF NOT EXISTS patient_tasks (

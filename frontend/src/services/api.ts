@@ -1038,4 +1038,49 @@ export const api = {
     if (!res.ok) throw new Error(json.error || 'Failed to generate unscheduled visits report');
     return json;
   },
+
+  async getScheduleReportMetadata() {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-report/metadata`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to fetch schedule report metadata');
+    return json;
+  },
+
+  async generateScheduleReport(filters: any) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-report/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to generate schedule report');
+    return json;
+  },
+
+  async exportScheduleReportExcel(filters: any) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-report/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    });
+    if (!res.ok) throw new Error('Failed to export schedule report to Excel');
+    return await res.blob();
+  },
+
+  async reassignScheduleReportVisits(payload: {
+    visitIds: string[];
+    replacementClinicianId?: string;
+    replacementClinicianName: string;
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/reports/schedule-report/reassign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to reassign schedule visits');
+    return json;
+  },
 };
+
+export const scheduleApi = api;

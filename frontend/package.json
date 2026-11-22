@@ -16,7 +16,8 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
