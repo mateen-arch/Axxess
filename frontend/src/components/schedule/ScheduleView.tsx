@@ -38,7 +38,7 @@ export const ScheduleView: React.FC = () => {
   return (
     <div className="space-y-5 animate-fadeIn">
       {/* Top Header & Navigation Segment */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
           <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
             <CalendarDays className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
@@ -50,7 +50,7 @@ export const ScheduleView: React.FC = () => {
         </div>
 
         {/* View Switchers: Calendar vs Map (Right-Aligned) + Subtab Switcher */}
-        <div className="flex flex-col sm:items-end gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {/* Submodule Segmented Tabs */}
           <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold overflow-x-auto no-scrollbar max-w-full flex-nowrap">
             <button
@@ -106,13 +106,13 @@ export const ScheduleView: React.FC = () => {
 
           {/* Calendar vs Map Toggle Pill (Right-Aligned on Calendar Pages) */}
           {(scheduleSubTab === 'employee' || scheduleSubTab === 'patient') && (
-            <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold self-end shadow-2xs">
+            <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold shadow-2xs">
               <button
                 type="button"
                 onClick={() => setScheduleMode('calendar')}
-                className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   scheduleMode === 'calendar'
-                    ? 'bg-rose-600 text-white shadow-2xs font-extrabold'
+                    ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
@@ -122,9 +122,9 @@ export const ScheduleView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setScheduleMode('map')}
-                className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   scheduleMode === 'map'
-                    ? 'bg-rose-600 text-white shadow-2xs font-extrabold'
+                    ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >

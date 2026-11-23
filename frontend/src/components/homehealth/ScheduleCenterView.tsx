@@ -742,59 +742,57 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
     : 'ABUISSA, HEATHER';
 
   return (
-    <div className="flex flex-col h-full w-full bg-pearl-100 dark:bg-charcoal-900 text-slate-900 dark:text-slate-100 font-sans text-xs select-none">
-      {/* 1. Contextual Header Strip */}
-      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-pearl-200/90 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/80 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-pearl-200 bg-pearl-50 text-slate-600 shadow-2xs transition hover:border-rose-300 hover:text-rose-700 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 cursor-pointer"
-            title="Return to Schedule"
-            aria-label="Return to Schedule"
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                CareOrbit Home Health
-              </span>
-              <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Schedule
-              </span>
-              <span className="text-slate-300 dark:text-charcoal-600 font-light">/</span>
-              <span className="truncate text-xs font-black text-slate-950 dark:text-white">
-                Schedule Center
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
-                {currentPatientName} • 10/26/2026 - 12/24/2026
-              </span>
-              <span>•</span>
-              <span className="truncate">{patientDetail?.branch || 'Standards Home Care'}</span>
-            </div>
+    <div className="flex flex-col h-full w-full space-y-4 animate-fadeIn text-slate-900 dark:text-slate-100 font-sans text-xs select-none">
+      {/* 1. Top Header Segment (Consistent with Central Template) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 shrink-0">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-1.5 rounded-xl border border-pearl-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+              title="Return to Schedule"
+              aria-label="Return to Schedule"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          <div>
+            <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+              <CalendarDays className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+              <span>Schedule Center</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{currentPatientName} • 10/26/2026 - 12/24/2026</span> • {patientDetail?.branch || 'Standards Home Care'}
+            </p>
           </div>
         </div>
 
         {/* Search bar & quick actions */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative hidden md:block w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="relative w-64 sm:w-72">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks, clinicians, MRN..."
-              className="w-full rounded-xl border border-pearl-200 bg-white pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-rose-500 focus:outline-hidden dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-200"
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 dark:text-slate-100"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
           <button
             type="button"
             onClick={() => fetchScheduleCenterData(selectedPatientId)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 transition shadow-2xs cursor-pointer"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs whitespace-nowrap"
             title="Refresh Real-Time Schedule Data"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin text-rose-600' : 'text-slate-500'} />
@@ -804,7 +802,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       </div>
 
       {/* 2. Main Split View: Left Patient Roster & Right Interactive Schedule */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden min-h-[700px]">
         {/* Left Sidebar: Filter Ribbon & Patients Table */}
         <div className="w-64 sm:w-72 md:w-80 border-r border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 flex flex-col shrink-0">
           {/* Top Button: Add New Patient */}

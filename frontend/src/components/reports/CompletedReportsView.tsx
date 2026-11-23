@@ -289,7 +289,7 @@ export const CompletedReportsView: React.FC<CompletedReportsViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-pearl-100 dark:bg-charcoal-900 font-sans text-slate-800 dark:text-slate-100">
+    <div className="space-y-5 animate-fadeIn">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900/95 text-white text-xs font-semibold shadow-2xl border border-slate-700 backdrop-blur-md animate-in fade-in slide-in-from-top-2">
@@ -298,14 +298,14 @@ export const CompletedReportsView: React.FC<CompletedReportsViewProps> = ({
         </div>
       )}
 
-      {/* 1. Header Segment (Consistent with CareOrbit Design System) */}
-      <div className="bg-white/90 dark:bg-charcoal-850/90 border-b border-pearl-200 dark:border-charcoal-700 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs backdrop-blur-md sticky top-0 z-20">
+      {/* 1. Header Segment (Consistent with Central Template) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-xl border border-pearl-200 bg-pearl-50 text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer"
+              className="p-1.5 rounded-xl border border-pearl-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
               title="Return"
               aria-label="Return"
             >
@@ -314,36 +314,33 @@ export const CompletedReportsView: React.FC<CompletedReportsViewProps> = ({
           )}
 
           <div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">
-              <span>CAREORBIT HOME HEALTH</span>
-              <span className="text-pearl-400 dark:text-charcoal-600">/</span>
-              <span>REPORTS</span>
-              <span className="text-pearl-400 dark:text-charcoal-600">/</span>
-              <span className="text-slate-900 dark:text-white font-extrabold">Completed Reports</span>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+            <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+              <Download className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+              <span>Completed Reports</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Standards Home Care • Centralized Report Archive & Download Center
-            </div>
+            </p>
           </div>
         </div>
 
         {/* Header Right: Navigation to Report Center */}
         {onNavigate && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => onNavigate('report-center')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 h-8 px-3.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs whitespace-nowrap"
             >
               <FileSpreadsheet size={13} className="text-rose-600 dark:text-rose-400" />
-              <span>Go to Report Center</span>
+              <span>Report Center</span>
             </button>
           </div>
         )}
       </div>
 
       {/* 2. Controls Ribbon: Search, Status Filter, Format Filter, Refresh */}
-      <div className="p-4 sm:px-6 max-w-7xl w-full mx-auto">
+      <div className="space-y-4">
         <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Left: Search Bar with Clear Option */}
           <div className="relative flex-1 max-w-md">

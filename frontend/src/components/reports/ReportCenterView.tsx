@@ -171,7 +171,7 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-pearl-100 dark:bg-charcoal-900 font-sans text-slate-800 dark:text-slate-100">
+    <div className="space-y-5 animate-fadeIn">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900/95 text-white text-xs font-semibold shadow-2xl border border-slate-700 backdrop-blur-md animate-in fade-in slide-in-from-top-2">
@@ -180,44 +180,42 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
         </div>
       )}
 
-      {/* 1. Header Segment (Consistent with CareOrbit & Axxess Home Health) */}
-      <div className="bg-white/90 dark:bg-charcoal-850/90 border-b border-pearl-200 dark:border-charcoal-700 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs backdrop-blur-md sticky top-0 z-20">
+      {/* 1. Header Segment (Consistent across Central) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-xl border border-pearl-200 bg-pearl-50 text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer"
-              title="Back"
+              className="p-1.5 rounded-xl border border-pearl-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+              title="Return"
+              aria-label="Return"
             >
               <ArrowLeft size={16} />
             </button>
           )}
 
           <div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">
-              <span>{brandTitle.toUpperCase()}</span>
-              <span className="text-pearl-400 dark:text-charcoal-600">/</span>
-              <span>REPORTS</span>
-              <span className="text-pearl-400 dark:text-charcoal-600">/</span>
-              <span className="text-slate-900 dark:text-white font-extrabold">Report Center</span>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Standards Home Care • Centralized Operational & Clinical Intelligence
-            </div>
+            <h2 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2.5">
+              <FileSpreadsheet className="text-rose-600 dark:text-rose-400 shrink-0" size={24} />
+              <span>Reports & Census</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Centralized agency census analytics, operational intelligence, and clinical compliance audits
+            </p>
           </div>
         </div>
 
-        {/* Search Bar & Refresh */}
-        <div className="flex items-center gap-2">
-          <div className="relative w-72 sm:w-88">
+        {/* Header Right: Search Bar, Completed Reports & Refresh */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <div className="relative w-64 sm:w-72">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search all 61 reports by name or category..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/70 dark:bg-charcoal-800 text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 dark:text-slate-100"
+              placeholder="Search all 61 reports..."
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 dark:text-slate-100"
             />
             {searchQuery && (
               <button
@@ -230,33 +228,30 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
-            title="Refresh Report Catalog from Database"
-          >
-            <RefreshCw size={13} className={isLoading ? 'animate-spin text-rose-600' : ''} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-
           {onNavigate && (
             <button
               type="button"
               onClick={() => onNavigate('completed-reports')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs whitespace-nowrap"
               title="View Completed Reports Archive"
             >
               <Download size={13} className="text-rose-600 dark:text-rose-400" />
               <span className="hidden md:inline">Completed Reports</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs whitespace-nowrap"
+            title="Refresh Report Catalog"
+          >
+            <RefreshCw size={13} className={isLoading ? 'animate-spin text-rose-600' : 'text-slate-500'} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
         </div>
       </div>
-
-      {/* Main Content Area */}
-      <div className="p-4 sm:p-6 space-y-5 max-w-[1600px] w-full mx-auto">
         {/* 2. Four Category Navigation Tabs */}
         <div className="rounded-2xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 p-3 sm:p-4 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
@@ -429,7 +424,6 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
             })}
           </div>
         )}
-      </div>
 
       {/* 5. Report Specification Modal (for reports without dedicated live route yet) */}
       {selectedReportForModal && (

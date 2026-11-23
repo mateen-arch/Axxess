@@ -281,18 +281,18 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f8f9fa] dark:bg-charcoal-900 text-slate-800 dark:text-slate-100 font-sans">
+    <div className="space-y-5 animate-fadeIn">
       {/* Top Header & Navigation Segment (Consistent across all pages) */}
-      <div className="bg-white/80 dark:bg-charcoal-850/80 border-b border-pearl-200 dark:border-charcoal-700 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-charcoal-750 transition-colors"
+              className="p-1.5 rounded-xl border border-pearl-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-300 dark:border-charcoal-700 dark:bg-charcoal-800 dark:text-slate-300 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
               title="Go back"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
             </button>
           )}
           <div>
@@ -305,11 +305,36 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Segmented Pill: Active vs All */}
+          <div className="flex items-center p-1 rounded-xl bg-pearl-100 dark:bg-charcoal-850 border border-pearl-200 dark:border-charcoal-700 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('Active')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedStatus === 'Active'
+                  ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              Active ({patients.filter(p => (p.status || 'Active').toLowerCase() === 'active').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('All')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                selectedStatus === 'All'
+                  ? 'bg-white dark:bg-charcoal-750 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              All ({patients.length})
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => onNewPatient ? onNewPatient() : setIsNewPatientModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            className="flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition cursor-pointer shadow-xs whitespace-nowrap"
           >
             <Plus size={14} />
             <span>Admit Patient</span>
@@ -318,7 +343,7 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
       </div>
 
       {/* Main Container: Split View */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-[700px]">
+      <div className="rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden flex flex-col lg:flex-row min-h-[720px]">
         {/* Left Side: Filter Column & Patient Directory Cards */}
         <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-charcoal-850 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 max-h-64 lg:max-h-none overflow-y-auto">
           {/* Organization Select */}
