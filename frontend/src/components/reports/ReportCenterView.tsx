@@ -276,19 +276,17 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
             <button
               type="button"
               onClick={() => setSelectedCategorySlug('all')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                selectedCategorySlug === 'all'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'bg-pearl-50 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 border border-pearl-200 dark:border-charcoal-700'
-              }`}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${selectedCategorySlug === 'all'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-pearl-50 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 border border-pearl-200 dark:border-charcoal-700'
+                }`}
             >
               <FileText size={14} />
               <span>All Reports</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                selectedCategorySlug === 'all'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300'
-              }`}>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${selectedCategorySlug === 'all'
+                ? 'bg-white/20 text-white'
+                : 'bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300'
+                }`}>
                 {reports.length}
               </span>
             </button>
@@ -301,21 +299,19 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategorySlug(cat.slug)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    isSelected
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-pearl-50 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 border border-pearl-200 dark:border-charcoal-700'
-                  }`}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${isSelected
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-pearl-50 dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 border border-pearl-200 dark:border-charcoal-700'
+                    }`}
                 >
                   <span className={isSelected ? 'text-white' : ''}>
                     {getCategoryIcon(cat.slug)}
                   </span>
                   <span>{cat.name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    isSelected
-                      ? 'bg-white/20 text-white'
-                      : 'bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isSelected
+                    ? 'bg-white/20 text-white'
+                    : 'bg-pearl-200 dark:bg-charcoal-700 text-slate-700 dark:text-slate-300'
+                    }`}>
                     {cat.reportCount}
                   </span>
                 </button>

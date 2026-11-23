@@ -4108,7 +4108,7 @@ app.get('/api/schedule/center/data/:patientId', async (req: Request, res: Respon
       const dayData = calendarDays[dateStr];
       const dateObj = new Date(dateStr + 'T00:00:00');
       const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-      
+
       if (dayData.count > 1) {
         dayData.status = 'multiple';
       } else {
@@ -4775,7 +4775,7 @@ app.post('/api/reports/schedule-report/export', async (req: Request, res: Respon
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
-    
+
     worksheet['!cols'] = [
       { wch: 25 }, // Patient
       { wch: 10 }, // MRN
