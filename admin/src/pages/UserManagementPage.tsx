@@ -18,7 +18,7 @@ import {
 import { adminApi } from '../services/adminApi';
 import { useAdmin } from '../context/AdminContext';
 import { AdminUser, SystemModuleKey } from '../types/admin';
-import { AddUserModal } from '../components/modals/AddUserModal';
+import { AddUserPage } from './AddUserPage';
 import { BlockUserModal } from '../components/modals/BlockUserModal';
 import { EditUserModal } from '../components/modals/EditUserModal';
 
@@ -27,14 +27,16 @@ export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // View Mode: 'list' directory vs 'add' dedicated creation page
+  const [viewMode, setViewMode] = useState<'list' | 'add'>('list');
+
   // Filters
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedModule, setSelectedModule] = useState('all');
 
-  // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // Modals state (Actions on specific users)
   const [userToBlock, setUserToBlock] = useState<AdminUser | null>(null);
   const [userToEdit, setUserToEdit] = useState<AdminUser | null>(null);
 
@@ -99,6 +101,19 @@ export const UserManagementPage: React.FC = () => {
   const pendingCount = users.filter(u => u.status === 'pending_approval').length;
   const blockedCount = users.filter(u => u.status === 'blocked').length;
 
+  // If adding a new user, render the dedicated full AddUserPage
+  if (viewMode === 'add') {
+    return (
+      <AddUserPage
+        onBack={() => setViewMode('list')}
+        onUserCreated={() => {
+          setViewMode('list');
+          loadUsers();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5 animate-fadeIn pb-12">
       {/* 1. Header Segment */}
@@ -120,7 +135,7 @@ export const UserManagementPage: React.FC = () => {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => setViewMode('add')}
             className="flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-xs transition cursor-pointer"
           >
             <UserPlus size={14} />
@@ -428,12 +443,6 @@ export const UserManagementPage: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <AddUserModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onUserAdded={loadUsers}
-      />
-
       <BlockUserModal
         user={userToBlock}
         isOpen={Boolean(userToBlock)}
