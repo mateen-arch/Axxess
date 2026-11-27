@@ -285,6 +285,31 @@ export const adminApi = {
     return request(`/clinicians${query}`);
   },
 
+  async createClinician(payload: {
+    name: string;
+    title?: string;
+    credentials?: string;
+    discipline?: string;
+    branch?: string;
+    phone?: string;
+    email?: string;
+    licenseNumber?: string;
+    licenseState?: string;
+    licenseStatus?: string;
+    workStatus?: string;
+    serviceLines?: string[];
+    currentAddress?: string;
+  }): Promise<{ success: boolean; clinician: AdminClinician }> {
+    return request('/clinicians', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteClinician(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/clinicians/${id}`, { method: 'DELETE' });
+  },
+
   // 9. Scheduling & EVV Visits Governance
   async getVisits(filters?: {
     search?: string;

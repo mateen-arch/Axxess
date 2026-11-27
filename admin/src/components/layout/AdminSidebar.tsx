@@ -37,38 +37,38 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     badge?: number;
     badgeColor?: string;
   }> = [
-    { id: 'overview', label: 'Platform Overview', icon: LayoutDashboard },
-    { id: 'users', label: 'User Directory', icon: Users },
-    {
-      id: 'moderation',
-      label: 'Moderation & Safety',
-      icon: ShieldAlert,
-      badge: pendingReportsCount,
-      badgeColor: 'bg-rose-500 text-white'
-    },
-    {
-      id: 'approvals',
-      label: 'Approvals & Verify',
-      icon: CheckSquare,
-      badge: pendingApprovalsCount,
-      badgeColor: 'bg-amber-500 text-white'
-    },
-    { id: 'modules', label: 'Modules Management', icon: Layers },
-    { id: 'audit', label: 'Audit Trail', icon: FileClock },
-    { id: 'settings', label: 'System Settings', icon: Sliders },
-  ];
+      { id: 'overview', label: 'Platform Overview', icon: LayoutDashboard },
+      { id: 'users', label: 'User Directory', icon: Users },
+      {
+        id: 'moderation',
+        label: 'Moderation & Safety',
+        icon: ShieldAlert,
+        badge: pendingReportsCount,
+        badgeColor: 'bg-rose-500 text-white'
+      },
+      {
+        id: 'approvals',
+        label: 'Approvals & Verify',
+        icon: CheckSquare,
+        badge: pendingApprovalsCount,
+        badgeColor: 'bg-amber-500 text-white'
+      },
+      { id: 'modules', label: 'Modules Management', icon: Layers },
+      { id: 'audit', label: 'Audit Trail', icon: FileClock },
+      { id: 'settings', label: 'System Settings', icon: Sliders },
+    ];
 
   const operationsNavItems: Array<{
     id: AdminTab;
     label: string;
     icon: React.ElementType;
   }> = [
-    { id: 'patients', label: 'Patients Governance', icon: HeartPulse },
-    { id: 'clinicians', label: 'Clinicians & Roster', icon: Stethoscope },
-    { id: 'scheduling', label: 'Scheduling & EVV', icon: CalendarDays },
-    { id: 'clinical_emr', label: 'Clinical EMR Hub', icon: Layers },
-    { id: 'reports_census', label: 'Reports & Census', icon: BarChart3 },
-  ];
+      { id: 'patients', label: 'Patients Governance', icon: HeartPulse },
+      { id: 'clinicians', label: 'Clinicians & Roster', icon: Stethoscope },
+      { id: 'scheduling', label: 'Scheduling & EVV', icon: CalendarDays },
+      { id: 'clinical_emr', label: 'Clinical EMR Hub', icon: Layers },
+      { id: 'reports_census', label: 'Reports & Census', icon: BarChart3 },
+    ];
 
   const modulesList: Array<{ id: SystemModuleKey; label: string; icon: React.ElementType; color: string }> = [
     { id: 'central', label: 'CareOrbit Central', icon: Building2, color: 'text-sky-500' },
@@ -112,11 +112,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isActive
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
                       ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-extrabold shadow-2xs border border-rose-200/60 dark:border-rose-900/40'
                       : 'text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon size={16} className={isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'} />
@@ -147,11 +146,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isActive
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
                       ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-extrabold shadow-2xs border border-rose-200/60 dark:border-rose-900/40'
                       : 'text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon size={16} className={isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'} />
@@ -186,11 +184,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     setActiveTab('modules');
                     setSelectedModule(m.id);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    isSelected
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${isSelected
                       ? 'bg-pearl-200/80 dark:bg-charcoal-750 text-slate-950 dark:text-white font-extrabold border border-pearl-300 dark:border-charcoal-600'
                       : 'text-slate-500 dark:text-slate-400 hover:bg-pearl-100 dark:hover:bg-charcoal-800 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <MIcon size={14} className={m.color} />

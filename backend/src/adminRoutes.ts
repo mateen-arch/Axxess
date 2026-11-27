@@ -1222,6 +1222,132 @@ adminRouter.get('/clinicians', async (req: Request, res: Response) => {
   }
 });
 
+// Create and enroll a new clinician
+adminRouter.post('/clinicians', async (req: Request, res: Response) => {
+  try {
+    const {
+      name,
+      title = 'Registered Nurse',
+      credentials = 'RN',
+      discipline = 'Nursing',
+      branch = 'Standards Home Care',
+      phone,
+      email,
+      licenseNumber,
+      licenseState = 'MA',
+      licenseStatus = 'verified',
+      workStatus = 'Available',
+      serviceLines = ['home_health'],
+      currentAddress
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Clinician name is required' });
+    }
+
+    const orgCheck = await pool.query('SELECT id FROM organizations LIMIT 1');
+    const orgId = orgCheck.rows[0]?.id || null;
+
+    let userId = null;
+
+    // If email is provided, find or create associated user
+    if (email && email.trim()) {
+      const emailNorm = email.trim().toLowerCase();
+      const existingUser = await pool.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [emailNorm]);
+      if (existingUser.rows.length > 0) {
+        userId = existingUser.rows[0].id;
+      } else {
+        const newUserRes = await pool.query(`
+          INSERT INTO users (
+            organization_id, email, password_hash, full_name, role, is_active, is_super_admin, status,
+            department, module_access, title, license_number, license_state, license_status, mobile_phone
+          ) VALUES ($1, $2, $3, $4, 'clinician', true, false, 'active', $5, ARRAY['home_health', 'central']::TEXT[], $6, $7, $8, $9, $10)
+          RETURNING id;
+        `, [
+          orgId,
+          emailNorm,
+          'pbkdf2:defaultgeneratedhash2026',
+          name.trim(),
+          discipline,
+          title,
+          licenseNumber || null,
+          licenseState,
+          licenseStatus,
+          phone || null
+        ]);
+        userId = newUserRes.rows[0].id;
+      }
+    }
+
+    const sLines = Array.isArray(serviceLines) && serviceLines.length > 0 ? serviceLines : ['home_health'];
+
+    const insertRes = await pool.query(`
+      INSERT INTO clinicians (
+        organization_id, user_id, name, title, credentials, discipline,
+        branch, phone, status, work_status, service_lines, current_address
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, $10, $11)
+      RETURNING *;
+    `, [
+      orgId,
+      userId,
+      name.trim(),
+      title.trim(),
+      credentials.trim(),
+      discipline.trim(),
+      branch.trim(),
+      phone || null,
+      workStatus,
+      sLines,
+      currentAddress || null
+    ]);
+
+    const createdClinician = insertRes.rows[0];
+
+    await recordAuditLog(
+      'Super Admin',
+      'admin@careorbit.health',
+      'CLINICIAN_ENROLLED',
+      'home_health',
+      'clinician',
+      createdClinician.id,
+      { name, title, credentials, discipline, branch, email, phone, licenseNumber }
+    );
+
+    res.status(201).json({ success: true, clinician: createdClinician });
+  } catch (err: any) {
+    console.error('Error creating clinician:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to create clinician' });
+  }
+});
+
+// Delete clinician from roster
+adminRouter.delete('/clinicians/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const delRes = await pool.query('DELETE FROM clinicians WHERE id::text = $1 RETURNING id, name, user_id', [id]);
+    if (delRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Clinician not found' });
+    }
+
+    const deleted = delRes.rows[0];
+
+    await recordAuditLog(
+      'Super Admin',
+      'admin@careorbit.health',
+      'CLINICIAN_DELETED',
+      'home_health',
+      'clinician',
+      id,
+      { clinician: deleted }
+    );
+
+    res.json({ success: true, message: `Clinician ${deleted.name} removed from roster` });
+  } catch (err: any) {
+    console.error('Error deleting clinician:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete clinician' });
+  }
+});
+
 // =====================================================================
 // 8. VISITS & EVV SCHEDULING GOVERNANCE
 // =====================================================================

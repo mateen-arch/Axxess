@@ -12,16 +12,21 @@ import {
   Award,
   MapPin,
   Clock,
-  UserCheck
+  UserCheck,
+  UserPlus,
+  Trash2
 } from 'lucide-react';
 import { adminApi } from '../services/adminApi';
 import { useAdmin } from '../context/AdminContext';
 import { AdminClinician } from '../types/admin';
+import { AddClinicianModal } from '../components/modals/AddClinicianModal';
 
 export const CliniciansGovernancePage: React.FC = () => {
   const { refreshTrigger, triggerRefresh, showToast } = useAdmin();
   const [clinicians, setClinicians] = useState<AdminClinician[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -50,6 +55,22 @@ export const CliniciansGovernancePage: React.FC = () => {
     }
   };
 
+  const handleDeleteClinician = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove clinician ${name} from the active roster?`)) return;
+    try {
+      setActionInProgressId(id);
+      const res = await adminApi.deleteClinician(id);
+      if (res.success) {
+        showToast(`Clinician ${name} removed from roster.`, 'info');
+        triggerRefresh();
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Deletion failed', 'error');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
   const totalCount = clinicians.length;
   const inFieldCount = clinicians.filter(c => c.work_status === 'In Field').length;
   const verifiedLicenseCount = clinicians.filter(c => c.license_status === 'verified').length;
@@ -73,19 +94,29 @@ export const CliniciansGovernancePage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Monitor clinical disciplines, state medical licenses, territory coverage, and field assignment statuses.
+              Enroll, credential, and supervise clinicians across all clinical disciplines, territory coverage, and work routes.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={loadClinicians}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-pearl-100 hover:bg-pearl-200 dark:bg-charcoal-750 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all self-start md:self-auto cursor-pointer"
-        >
-          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-xs cursor-pointer"
+          >
+            <UserPlus size={15} />
+            <span>Enroll New Clinician</span>
+          </button>
+
+          <button
+            onClick={loadClinicians}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-pearl-100 hover:bg-pearl-200 dark:bg-charcoal-750 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Stat Cards */}
@@ -176,20 +207,21 @@ export const CliniciansGovernancePage: React.FC = () => {
                 <th className="py-3.5 px-4">Contact</th>
                 <th className="py-3.5 px-4 text-center">Work Status</th>
                 <th className="py-3.5 px-4 text-center">License Verification</th>
-                <th className="py-3.5 px-4 text-right">System Access</th>
+                <th className="py-3.5 px-4">System Access</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                     <RefreshCw className="animate-spin inline-block mr-2" size={16} />
                     Loading clinician roster...
                   </td>
                 </tr>
               ) : clinicians.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                     No clinician records match the specified filters.
                   </td>
                 </tr>
@@ -279,14 +311,26 @@ export const CliniciansGovernancePage: React.FC = () => {
                     </td>
 
                     {/* System Access */}
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4">
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
                         {c.user_status === 'blocked' ? (
                           <span className="text-rose-600 font-extrabold">Blocked</span>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400">Authenticated</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">Active</span>
                         )}
                       </span>
+                    </td>
+
+                    {/* Action */}
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => handleDeleteClinician(c.id, c.name)}
+                        disabled={actionInProgressId === c.id}
+                        className="p-1.5 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                        title="Remove Clinician from Roster"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -295,6 +339,13 @@ export const CliniciansGovernancePage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Add Clinician Modal */}
+      <AddClinicianModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onClinicianAdded={loadClinicians}
+      />
     </div>
   );
 };
