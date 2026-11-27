@@ -7274,6 +7274,8 @@ async function initCoreTables() {
     ALTER TABLE visits ADD COLUMN IF NOT EXISTS is_axxess_care BOOLEAN DEFAULT false;
     ALTER TABLE clinicians ALTER COLUMN user_id DROP NOT NULL;
     ALTER TABLE clinicians DROP CONSTRAINT IF EXISTS clinicians_user_id_key;
+    ALTER TABLE patients ALTER COLUMN dob DROP NOT NULL;
+    ALTER TABLE patients ALTER COLUMN gender DROP NOT NULL;
 
     DO $$
     DECLARE
@@ -7303,35 +7305,35 @@ async function initCoreTables() {
       IF NOT EXISTS (SELECT 1 FROM patients WHERE mrn = '1061') THEN
         INSERT INTO patients (
           organization_id, mrn, first_name, last_name, service_line, status, branch,
-          start_of_care_date, episode_start, episode_end, attending_physician, insurance_name
+          dob, gender, start_of_care_date, episode_start, episode_end, attending_physician, insurance_name
         ) VALUES (
           v_org_id, '1061', 'HEATHER', 'ABUISSA', 'home_health', 'active', 'Standards Home Care',
-          '2026-10-26', '2026-10-26', '2026-12-24', 'Rigali, Leslie DO', 'COMMONWEALTH CARE ALLIANCE'
+          '1972-04-18'::date, 'female', '2026-10-26', '2026-10-26', '2026-12-24', 'Rigali, Leslie DO', 'COMMONWEALTH CARE ALLIANCE'
         );
       END IF;
 
       SELECT id INTO v_pat_id FROM patients WHERE mrn = '1061' LIMIT 1;
 
       -- 3. Ensure roster patients from Screenshot 1 exist
-      INSERT INTO patients (organization_id, mrn, first_name, last_name, service_line, status, branch, episode_start, episode_end)
+      INSERT INTO patients (organization_id, mrn, first_name, last_name, service_line, status, branch, dob, gender, episode_start, episode_end)
       VALUES
-        (v_org_id, '1036', 'Marie V', 'Anis', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1042', 'Louis', 'Antoine', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1045', 'Jeffrey C', 'Antoniotti', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1050', 'Jocelene', 'Auguste', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1053', 'Isatou', 'Bah', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1055', 'James', 'Balian', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1058', 'Helen', 'Beattie', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1062', 'Sixta', 'Cabral', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1065', 'Cedenieze', 'Damitie', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1068', 'Janey', 'David', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1070', 'James', 'Davis', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1072', 'Javens J', 'Deceus', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1074', 'Tyler J', 'Deceus', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1078', 'Denise', 'Deguerre', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1081', 'Kenneth S', 'Demers', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1085', 'Maria', 'Depina', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24'),
-        (v_org_id, '1088', 'Adam', 'Diamond', 'home_health', 'active', 'Standards Home Care', '2026-10-26', '2026-12-24')
+        (v_org_id, '1036', 'Marie V', 'Anis', 'home_health', 'active', 'Standards Home Care', '1960-03-12'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1042', 'Louis', 'Antoine', 'home_health', 'active', 'Standards Home Care', '1958-08-22'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1045', 'Jeffrey C', 'Antoniotti', 'home_health', 'active', 'Standards Home Care', '1965-11-04'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1050', 'Jocelene', 'Auguste', 'home_health', 'active', 'Standards Home Care', '1970-01-19'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1053', 'Isatou', 'Bah', 'home_health', 'active', 'Standards Home Care', '1982-06-15'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1055', 'James', 'Balian', 'home_health', 'active', 'Standards Home Care', '1954-09-30'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1058', 'Helen', 'Beattie', 'home_health', 'active', 'Standards Home Care', '1949-12-05'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1062', 'Sixta', 'Cabral', 'home_health', 'active', 'Standards Home Care', '1963-07-25'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1065', 'Cedenieze', 'Damitie', 'home_health', 'active', 'Standards Home Care', '1975-02-14'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1068', 'Janey', 'David', 'home_health', 'active', 'Standards Home Care', '1968-05-18'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1070', 'James', 'Davis', 'home_health', 'active', 'Standards Home Care', '1951-10-10'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1072', 'Javens J', 'Deceus', 'home_health', 'active', 'Standards Home Care', '1980-04-03'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1074', 'Tyler J', 'Deceus', 'home_health', 'active', 'Standards Home Care', '1995-12-28'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1078', 'Denise', 'Deguerre', 'home_health', 'active', 'Standards Home Care', '1962-08-09'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1081', 'Kenneth S', 'Demers', 'home_health', 'active', 'Standards Home Care', '1956-03-21'::date, 'male', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1085', 'Maria', 'Depina', 'home_health', 'active', 'Standards Home Care', '1971-11-17'::date, 'female', '2026-10-26', '2026-12-24'),
+        (v_org_id, '1088', 'Adam', 'Diamond', 'home_health', 'active', 'Standards Home Care', '1977-09-02'::date, 'male', '2026-10-26', '2026-12-24')
       ON CONFLICT DO NOTHING;
 
       -- 4. Seed authentic schedule visits for Heather Abuissa if fewer than 15 visits exist

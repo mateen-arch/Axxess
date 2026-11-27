@@ -1523,13 +1523,20 @@ adminRouter.get('/reports', async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT 
-        id, report_name, category, format, status,
+        id, 
+        report_name, 
+        category_name as category, 
+        file_format as format, 
+        status,
         COALESCE(approval_status, 'approved') as approval_status,
-        requested_by, file_size_bytes, download_url, TO_CHAR(generated_at, 'YYYY-MM-DD HH12:MI AM') as generated_at
+        requested_by, 
+        file_size_bytes, 
+        ('/api/reports/completed/' || id || '/download') as download_url, 
+        TO_CHAR(COALESCE(completed_at, created_at), 'YYYY-MM-DD HH12:MI AM') as generated_at
       FROM generated_reports
       ORDER BY 
         CASE WHEN approval_status = 'pending_approval' THEN 0 ELSE 1 END,
-        generated_at DESC;
+        COALESCE(completed_at, created_at) DESC;
     `);
     res.json({ success: true, reports: result.rows, total: result.rows.length });
   } catch (err: any) {
