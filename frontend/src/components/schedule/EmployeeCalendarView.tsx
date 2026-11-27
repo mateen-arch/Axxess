@@ -30,7 +30,7 @@ export const EmployeeCalendarView: React.FC = () => {
   // Navigation State
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'weekly' | 'daily'>('weekly');
-  const [activeDayIndex, setActiveDayIndex] = useState<number>(2); // 2 = Tuesday Nov 3 (Today)
+  const [activeDayIndex, setActiveDayIndex] = useState<number>(() => new Date().getDay());
 
   // Filter States matching CareOrbit reference
   const [searchTerm, setSearchTerm] = useState('');
@@ -78,8 +78,14 @@ export const EmployeeCalendarView: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
   const [newVisitClinicianId, setNewVisitClinicianId] = useState<string>('');
-  const [newVisitDay, setNewVisitDay] = useState<number>(2);
-  const [newVisitDate, setNewVisitDate] = useState<string>('2026-11-03');
+  const [newVisitDay, setNewVisitDay] = useState<number>(() => new Date().getDay());
+  const [newVisitDate, setNewVisitDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -87,8 +93,13 @@ export const EmployeeCalendarView: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Base Sunday: Nov 1, 2026
-  const baseSunday = useMemo(() => new Date(2026, 10, 1), []);
+  // Base Sunday dynamically computed from current date (Sunday = day 0)
+  const baseSunday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  }, []);
 
   // Compute dynamic 7 days for the active weekOffset
   const currentWeekDays = useMemo(() => {
@@ -97,6 +108,8 @@ export const EmployeeCalendarView: React.FC = () => {
 
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     return dayNames.map((name, i) => {
       const d = new Date(currentSunday);
@@ -107,7 +120,7 @@ export const EmployeeCalendarView: React.FC = () => {
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const dayNum = String(d.getDate()).padStart(2, '0');
       const fullDate = `${year}-${month}-${dayNum}`;
-      const isToday = weekOffset === 0 && i === 2; // Tue Nov 3
+      const isToday = fullDate === todayStr;
 
       return {
         dayName: name,
@@ -250,7 +263,7 @@ export const EmployeeCalendarView: React.FC = () => {
               type="button"
               onClick={() => {
                 setWeekOffset(0);
-                setActiveDayIndex(2);
+                setActiveDayIndex(new Date().getDay());
               }}
               className={`px-3 py-1.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer border ${
                 weekOffset === 0
@@ -326,8 +339,8 @@ export const EmployeeCalendarView: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                setNewVisitClinicianId(clinicians[0]?.id || 'emp-01');
-                setNewVisitDay(2);
+                setNewVisitClinicianId('');
+                setNewVisitDate('');
                 setIsNewVisitOpen(true);
               }}
               className="h-9 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"

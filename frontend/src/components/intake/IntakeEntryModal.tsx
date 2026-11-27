@@ -81,32 +81,63 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
 
     if (initialData) {
       if (isReferral) {
-        const ref = initialData as Referral;
-        const parts = ref.patientName.split(', ');
-        setLastName(parts[0] || ref.patientName);
-        setFirstName(parts[1] || '');
-        setPhone(ref.patientPhone);
-        setDob(ref.dob);
-        setGender(ref.sex || 'Female');
-        setServiceLine(ref.lineOfService.toLowerCase().includes('health') ? 'home_health' : ref.lineOfService.toLowerCase().includes('hospice') ? 'hospice' : 'home_care');
-        setBranch(ref.branch);
-        setSourceOrService(ref.referralType || 'Hospital Discharge');
-        setTargetDate(ref.requestedSoc);
+        const ref = initialData as any;
+        let fName = ref.firstName || ref.clientFirstName || '';
+        let lName = ref.lastName || ref.clientLastName || '';
+
+        // Robust name parsing if firstName/lastName not directly set
+        if (!fName && !lName && ref.patientName) {
+          if (ref.patientName.includes(',')) {
+            const parts = ref.patientName.split(',').map((s: string) => s.trim());
+            lName = parts[0] || '';
+            fName = parts.slice(1).join(' ') || '';
+          } else {
+            const parts = ref.patientName.trim().split(/\s+/);
+            if (parts.length > 1) {
+              fName = parts[0];
+              lName = parts.slice(1).join(' ');
+            } else {
+              lName = parts[0] || '';
+              fName = '';
+            }
+          }
+        }
+
+        setFirstName(fName);
+        setLastName(lName);
+        setPhone(ref.patientPhone || ref.phone || '');
+        setDob(ref.dob || '1952-04-15');
+        setGender(ref.sex || ref.gender || 'Female');
+        const sLine = ref.lineOfService || ref.serviceLine || 'home_health';
+        setServiceLine(sLine.toLowerCase().includes('care') ? 'home_care' : sLine.toLowerCase().includes('hospice') ? 'hospice' : 'home_health');
+        setBranch(ref.branch || 'Standards Home Care');
+        setSourceOrService(ref.referralType || ref.referralSource || 'Hospital Discharge');
+        setTargetDate(ref.requestedSoc || '');
         setNotes(ref.notes || '');
+
+        // Extract and populate selected disciplines / services
+        const rawServices = `${ref.tags || ''} ${ref.serviceRequested || ''} ${ref.notes || ''}`;
+        const matched = availableServices.filter(svc => rawServices.toLowerCase().includes(svc.toLowerCase()));
+        setSelectedServices(matched.length > 0 ? matched : ['Skilled Nursing']);
       } else {
-        const inq = initialData as Inquiry;
-        setFirstName(inq.clientFirstName);
-        setLastName(inq.clientLastName);
-        setPhone(inq.clientPhone || '');
-        setContactName(`${inq.contactFirstName} ${inq.contactLastName}`);
-        setContactPhone(inq.contactPhone);
+        const inq = initialData as any;
+        setFirstName(inq.clientFirstName || '');
+        setLastName(inq.clientLastName || '');
+        setPhone(inq.clientPhone || inq.phone || '');
+        setContactName(`${inq.contactFirstName || ''} ${inq.contactLastName || ''}`.trim() || 'Family Contact');
+        setContactPhone(inq.contactPhone || inq.phone || '');
         setContactRelation(inq.contactRelationship || 'Family');
-        setServiceLine(inq.serviceLine);
-        setBranch(inq.branch);
-        setSourceOrService(inq.serviceRequested);
-        setTargetDate(inq.followUpDate);
-        setAssignedClinician(inq.assignedTeamMember);
-        setNotes(inq.comments || '');
+        setServiceLine(inq.serviceLine || 'home_health');
+        setBranch(inq.branch || 'Standards Home Care');
+        setSourceOrService(inq.serviceRequested || 'Skilled Nursing');
+        setTargetDate(inq.followUpDate || '');
+        setAssignedClinician(inq.assignedTeamMember || 'Sarah Jenkins, RN');
+        setNotes(inq.comments || inq.notes || '');
+
+        // Extract and populate selected disciplines / services
+        const rawServices = `${inq.serviceRequested || ''} ${inq.tags || ''} ${inq.comments || ''}`;
+        const matched = availableServices.filter(svc => rawServices.toLowerCase().includes(svc.toLowerCase()));
+        setSelectedServices(matched.length > 0 ? matched : ['Skilled Nursing']);
       }
     } else {
       // Defaults for New
@@ -155,28 +186,36 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
       serviceLine === 'home_health' ? 'Home Health' : serviceLine === 'hospice' ? 'Hospice' : 'Home Care';
 
     if (isReferral) {
+      const fullName = `${lastName.trim()}, ${firstName.trim()}`;
+      const servicesTag = selectedServices.join(', ');
+
       if (initialData) {
         // Edit existing referral in PostgreSQL
-        const ref = initialData as Referral;
-        const fullName = `${lastName.trim()}, ${firstName.trim()}`;
+        const ref = initialData as any;
         updateReferral(ref.id, {
           patientName: fullName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           patientPhone: phone,
           lineOfService: readableServiceLine,
           branch: branch,
           referralType: sourceOrService,
           requestedSoc: targetDate,
-          notes: notes,
+          notes: notes || `Disciplines: ${servicesTag}`,
           dob: dob,
           sex: gender,
-        });
+          tags: servicesTag,
+          serviceRequested: servicesTag
+        } as any);
         onSuccess?.(`Updated referral for ${fullName}`);
       } else {
         // Create new referral
-        const newRef: Omit<Referral, 'id'> = {
+        const newRef: any = {
           referralDate: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
           requestedSoc: targetDate,
-          patientName: `${lastName.trim()}, ${firstName.trim()}`,
+          patientName: fullName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           patientPhone: phone || '(555) 000-0000',
           patientMrn: `MRN-${Math.floor(10000 + Math.random() * 90000)}`,
           branch: branch,
@@ -187,18 +226,21 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
           sex: gender,
           createdBy: 'MELISSA SWEENEY',
           liaison: 'Baylor Scott & White',
-          tags: selectedServices.join(', ') || 'Direct Intake',
+          tags: servicesTag || 'Direct Intake',
+          serviceRequested: servicesTag,
           status: 'pending',
-          notes: notes || `Requested services: ${selectedServices.join(', ')}. Equipment: ${selectedDme.join(', ')}.`
+          notes: notes || `Requested services: ${servicesTag}. Equipment: ${selectedDme.join(', ')}.`
         };
         addNewReferral(newRef);
         onSuccess?.(`Created referral for ${newRef.patientName}`);
       }
     } else {
+      const servicesTag = selectedServices.join(', ');
+      const contactParts = contactName.trim().split(' ');
+
       if (initialData) {
         // Edit existing inquiry in PostgreSQL
-        const inq = initialData as Inquiry;
-        const contactParts = contactName.trim().split(' ');
+        const inq = initialData as any;
         updateInquiry(inq.id, {
           clientFirstName: firstName.trim(),
           clientLastName: lastName.trim(),
@@ -209,16 +251,16 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
           contactRelationship: contactRelation,
           serviceLine: (serviceLine as ServiceLine) || 'home_health',
           branch: branch,
-          serviceRequested: sourceOrService,
+          serviceRequested: servicesTag || sourceOrService,
           followUpDate: targetDate,
           assignedTeamMember: assignedClinician,
-          comments: notes,
-        });
+          comments: notes || `Disciplines: ${servicesTag}`,
+          tags: servicesTag
+        } as any);
         onSuccess?.(`Updated inquiry for ${firstName.trim()} ${lastName.trim()}`);
       } else {
         // Create new inquiry
-        const contactParts = contactName.trim().split(' ');
-        const newInq: Omit<Inquiry, 'id'> = {
+        const newInq: any = {
           inquiryDate: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
           clientFirstName: firstName.trim(),
           clientLastName: lastName.trim(),
@@ -231,13 +273,14 @@ export const IntakeEntryModal: React.FC<IntakeEntryModalProps> = ({
           contactRelationship: contactRelation,
           branch: branch,
           organization: 'Standards Home Care',
-          serviceRequested: sourceOrService || 'Skilled Nursing Assessment',
+          serviceRequested: servicesTag || sourceOrService || 'Skilled Nursing Assessment',
           serviceLine: (serviceLine as ServiceLine) || 'home_health',
-          assignedTeamMember: assignedClinician,
+          referralSource: sourceOrService || 'Hospital Discharge',
+          assignedTeamMember: assignedClinician || 'Sarah Jenkins, RN',
           followUpDate: targetDate,
           comments: notes,
-          status: 'new',
-          urgency: 'urgent'
+          tags: servicesTag,
+          status: 'new'
         };
         addNewInquiry(newInq);
         onSuccess?.(`Created inquiry for ${newInq.clientFirstName} ${newInq.clientLastName}`);

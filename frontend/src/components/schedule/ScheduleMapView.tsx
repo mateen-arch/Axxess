@@ -35,6 +35,29 @@ export const ScheduleMapView: React.FC = () => {
   const [selectedVisit, setSelectedVisit] = useState<EmployeeVisit | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  const dayFilterOptions = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - d.getDay());
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const todayDay = new Date().getDay();
+
+    const options = [{ id: 'all', label: 'All Weekly Visits' }];
+    for (let i = 1; i <= 5; i++) {
+      const cur = new Date(sunday);
+      cur.setDate(sunday.getDate() + i);
+      const isToday = i === todayDay;
+      options.push({
+        id: String(i),
+        label: `${dayNames[i]} ${monthNames[cur.getMonth()]} ${cur.getDate()}${isToday ? ' (Today)' : ''}`
+      });
+    }
+    return options;
+  }, []);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
@@ -435,14 +458,7 @@ export const ScheduleMapView: React.FC = () => {
             <Calendar size={13} className="text-rose-600" />
             <span>Schedule Filter:</span>
           </span>
-          {[
-            { id: 'all', label: 'All Weekly Visits' },
-            { id: '1', label: 'Mon Nov 2' },
-            { id: '2', label: 'Tue Nov 3 (Today)' },
-            { id: '3', label: 'Wed Nov 4' },
-            { id: '4', label: 'Thu Nov 5' },
-            { id: '5', label: 'Fri Nov 6' },
-          ].map(day => (
+          {dayFilterOptions.map(day => (
             <button
               key={day.id}
               onClick={() => setSelectedDayFilter(day.id)}

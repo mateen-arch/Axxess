@@ -8,6 +8,7 @@ import { pool } from './db';
 import { initReportCenterDatabase } from './seedReportCenter';
 import { initCompletedReportsDatabase, STORAGE_DIR } from './seedCompletedReports';
 import { initSuperAdminDatabase } from './seedSuperAdmin';
+import { seedScheduleCenterData } from './seedScheduleData';
 import { adminRouter } from './adminRoutes';
 
 dotenv.config();
@@ -2980,6 +2981,8 @@ app.get('/api/intake/referrals', async (_req: Request, res: Response) => {
         TO_CHAR(received_at, 'MM/DD/YYYY') as "referralDate",
         COALESCE(TO_CHAR(requested_soc, 'YYYY-MM-DD'), TO_CHAR(received_at + INTERVAL '2 days', 'YYYY-MM-DD')) as "requestedSoc",
         patient_name as "patientName",
+        client_first_name as "firstName",
+        client_last_name as "lastName",
         COALESCE(phone, '(555) 000-0000') as "patientPhone",
         COALESCE(mrn, 'MRN-' || SUBSTRING(id::text, 1, 5)) as "patientMrn",
         COALESCE(branch, 'Standards Home Care') as branch,
@@ -3187,21 +3190,26 @@ app.post('/api/intake/inquiries/:id/convert', async (req: Request, res: Response
     await pool.query("UPDATE intake_referrals SET status = 'converted' WHERE id = $1", [id]);
 
     // 3. Create a corresponding referral row in stage 'referral'
+    const formattedPatientName = inq.client_first_name && inq.client_last_name
+      ? `${inq.client_last_name}, ${inq.client_first_name}`
+      : (inq.patient_name || `${inq.client_first_name || ''} ${inq.client_last_name || ''}`.trim());
+
     const newRefRes = await pool.query(`
       INSERT INTO intake_referrals (
         organization_id, patient_name, client_first_name, client_last_name,
         phone, branch, service_line, referral_source, stage, status, urgency,
-        requested_soc, dob, gender, mrn, created_by, notes, received_at
+        requested_soc, dob, gender, mrn, created_by, notes, received_at,
+        tags, service_requested
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, 'referral', 'pending', $9,
         CURRENT_DATE + INTERVAL '2 days', COALESCE($10::date, '1952-04-15'::date),
         'Female', 'MRN-' || FLOOR(RANDOM() * 90000 + 10000)::text, 'Central Intake Transition',
         'Converted from Inquiry (' || $11 || '). Ready for Start of Care intake review.',
-        CURRENT_TIMESTAMP
+        CURRENT_TIMESTAMP, $12, $13
       ) RETURNING *;
     `, [
       inq.organization_id,
-      inq.patient_name || `${inq.client_first_name} ${inq.client_last_name}`,
+      formattedPatientName,
       inq.client_first_name,
       inq.client_last_name,
       inq.phone,
@@ -3210,7 +3218,9 @@ app.post('/api/intake/inquiries/:id/convert', async (req: Request, res: Response
       inq.referral_source || inq.service_requested || 'Inquiry Conversion',
       inq.urgency || 'routine',
       inq.dob || null,
-      inq.id
+      inq.id,
+      inq.tags || inq.service_requested || 'Skilled Nursing',
+      inq.service_requested || inq.tags || 'Skilled Nursing'
     ]);
 
     const refRow = newRefRes.rows[0];
@@ -3334,6 +3344,27 @@ app.put('/api/intake/referrals/:id', async (req: Request, res: Response) => {
         ? 'hospice'
         : 'home_health';
 
+    let fName = data.firstName || data.clientFirstName;
+    let lName = data.lastName || data.clientLastName;
+    if (!fName && !lName && data.patientName) {
+      if (data.patientName.includes(',')) {
+        const parts = data.patientName.split(',').map((s: string) => s.trim());
+        lName = parts[0] || '';
+        fName = parts.slice(1).join(' ') || '';
+      } else {
+        const parts = data.patientName.trim().split(/\s+/);
+        if (parts.length > 1) {
+          fName = parts[0];
+          lName = parts.slice(1).join(' ');
+        } else {
+          lName = parts[0] || '';
+        }
+      }
+    }
+
+    const tagsValue = data.tags || data.serviceRequested || null;
+    const serviceReqValue = data.serviceRequested || data.tags || null;
+
     const updateRes = await pool.query(`
       UPDATE intake_referrals SET
         patient_name = COALESCE($2, patient_name),
@@ -3345,7 +3376,11 @@ app.put('/api/intake/referrals/:id', async (req: Request, res: Response) => {
         dob = COALESCE($8::date, dob),
         gender = COALESCE($9, gender),
         notes = COALESCE($10, notes),
-        status = COALESCE($11, status)
+        status = COALESCE($11, status),
+        tags = COALESCE($12, tags),
+        service_requested = COALESCE($13, service_requested),
+        client_first_name = COALESCE($14, client_first_name),
+        client_last_name = COALESCE($15, client_last_name)
       WHERE id = $1
       RETURNING *;
     `, [
@@ -3359,7 +3394,11 @@ app.put('/api/intake/referrals/:id', async (req: Request, res: Response) => {
       data.dob || null,
       data.sex,
       data.notes,
-      data.status
+      data.status,
+      tagsValue,
+      serviceReqValue,
+      fName || null,
+      lName || null
     ]);
 
     if (updateRes.rows.length === 0) {
@@ -3622,10 +3661,17 @@ app.get('/api/schedule/huv-sfv', async (_req: Request, res: Response) => {
 app.post('/api/schedule/visits', async (req: Request, res: Response) => {
   try {
     const data = req.body;
-    const { employeeId, scheduledDate, timeSlot, patientName, serviceLine, visitType, address, notes } = data;
+    const employeeId = data.employeeId || data.clinicianId;
+    const scheduledDate = data.scheduledDate || data.date;
+    const timeSlot = data.timeSlot;
+    const patientName = data.patientName;
+    const serviceLine = data.serviceLine || 'home_health';
+    const visitType = data.visitType || 'Skilled Nurse Visit';
+    const address = data.address || '';
+    const notes = data.notes || '';
 
-    if (!employeeId || !scheduledDate || !timeSlot) {
-      return res.status(400).json({ error: 'Missing required fields: employeeId, scheduledDate, timeSlot' });
+    if (!employeeId || !scheduledDate || !timeSlot || !patientName) {
+      return res.status(400).json({ error: 'Please select all required fields: Clinician, Patient, Date, and Time Slot.' });
     }
 
     // 1. Conflict Check: check if the clinician already has an active visit on the same date and time slot
@@ -7479,6 +7525,12 @@ async function initCoreTables() {
     await initSuperAdminDatabase();
   } catch (err) {
     console.error('Failed to init super admin db:', err);
+  }
+
+  try {
+    await seedScheduleCenterData();
+  } catch (err) {
+    console.error('Failed to seed schedule data:', err);
   }
 
   console.log('[initCoreTables] Core table initialization completed.');

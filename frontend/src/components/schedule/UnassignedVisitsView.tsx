@@ -36,8 +36,24 @@ export const UnassignedVisitsView: React.FC = () => {
   const [selectedServiceTab, setSelectedServiceTab] = useState<'all' | ServiceLine>('all');
 
   // Filter States
-  const [dateFrom, setDateFrom] = useState<string>('2026-11-03');
-  const [dateTo, setDateTo] = useState<string>('2026-11-10');
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 7);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
+  const [dateTo, setDateTo] = useState<string>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 21);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>(['org-hh', 'org-hc']);
   const [selectedBranches, setSelectedBranches] = useState<string[]>(['branch-1', 'branch-2']);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([
@@ -162,8 +178,15 @@ export const UnassignedVisitsView: React.FC = () => {
 
   const resetFilters = () => {
     setSelectedServiceTab('all');
-    setDateFrom('2026-11-03');
-    setDateTo('2026-11-10');
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const sun = new Date(d);
+    sun.setDate(d.getDate() - d.getDay());
+    const sat = new Date(d);
+    sat.setDate(d.getDate() - d.getDay() + 6);
+    const fmt = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    setDateFrom(fmt(sun));
+    setDateTo(fmt(sat));
     setSelectedOrgs(['org-hh', 'org-hc']);
     setSelectedBranches(['branch-1', 'branch-2']);
     setSelectedTasks(taskOptions);
