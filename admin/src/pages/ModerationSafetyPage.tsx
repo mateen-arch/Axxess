@@ -16,6 +16,7 @@ import { adminApi } from '../services/adminApi';
 import { useAdmin } from '../context/AdminContext';
 import { ModerationReport, AdminUser } from '../types/admin';
 import { ReportDetailModal } from '../components/modals/ReportDetailModal';
+import { BlockedReasonModal } from '../components/modals/BlockedReasonModal';
 
 export const ModerationSafetyPage: React.FC = () => {
   const { refreshTrigger, showToast } = useAdmin();
@@ -28,6 +29,7 @@ export const ModerationSafetyPage: React.FC = () => {
   // Blocked users state
   const [blockedUsers, setBlockedUsers] = useState<AdminUser[]>([]);
   const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
+  const [blockedUserToInspect, setBlockedUserToInspect] = useState<AdminUser | null>(null);
 
   // Message audit state
   const [auditMessages, setAuditMessages] = useState<any[]>([]);
@@ -311,9 +313,19 @@ export const ModerationSafetyPage: React.FC = () => {
                         <div className="text-[10px] text-slate-400">{u.department}</div>
                       </td>
                       <td className="py-3 px-4 max-w-xs">
-                        <div className="text-rose-600 dark:text-rose-400 font-semibold leading-relaxed">
-                          {u.blocked_reason || 'Policy violation'}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setBlockedUserToInspect(u)}
+                          className="text-left group cursor-pointer"
+                          title="Click to view complete blocking rationale"
+                        >
+                          <div className="text-rose-600 dark:text-rose-400 font-semibold leading-relaxed group-hover:underline">
+                            {u.blocked_reason || 'Policy violation'}
+                          </div>
+                          <span className="text-[10px] text-rose-500 font-extrabold flex items-center gap-1 mt-0.5">
+                            <span>Inspect Reason Modal →</span>
+                          </span>
+                        </button>
                       </td>
                       <td className="py-3 px-4 text-slate-600 dark:text-slate-300 font-bold">
                         {u.blocked_by || 'Super Admin'}
@@ -437,6 +449,17 @@ export const ModerationSafetyPage: React.FC = () => {
         onResolved={() => {
           loadReports();
           loadBlockedUsers();
+        }}
+      />
+
+      {/* Blocked Reason Modal */}
+      <BlockedReasonModal
+        user={blockedUserToInspect}
+        isOpen={Boolean(blockedUserToInspect)}
+        onClose={() => setBlockedUserToInspect(null)}
+        onUserUnblocked={() => {
+          loadBlockedUsers();
+          loadReports();
         }}
       />
     </div>

@@ -13,7 +13,9 @@ import {
   RefreshCw,
   Building2,
   Stethoscope,
-  MessageSquare
+  MessageSquare,
+  Info,
+  FileText
 } from 'lucide-react';
 import { adminApi } from '../services/adminApi';
 import { useAdmin } from '../context/AdminContext';
@@ -21,6 +23,7 @@ import { AdminUser, SystemModuleKey } from '../types/admin';
 import { AddUserPage } from './AddUserPage';
 import { BlockUserModal } from '../components/modals/BlockUserModal';
 import { EditUserModal } from '../components/modals/EditUserModal';
+import { BlockedReasonModal } from '../components/modals/BlockedReasonModal';
 
 export const UserManagementPage: React.FC = () => {
   const { refreshTrigger, showToast } = useAdmin();
@@ -39,6 +42,7 @@ export const UserManagementPage: React.FC = () => {
   // Modals state (Actions on specific users)
   const [userToBlock, setUserToBlock] = useState<AdminUser | null>(null);
   const [userToEdit, setUserToEdit] = useState<AdminUser | null>(null);
+  const [blockedUserToInspect, setBlockedUserToInspect] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -326,28 +330,45 @@ export const UserManagementPage: React.FC = () => {
 
                       {/* Status */}
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
-                          u.status === 'active' || (!u.status && u.is_active)
-                            ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40'
-                            : u.status === 'pending_approval'
-                            ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40'
-                            : u.status === 'blocked'
-                            ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40'
-                            : 'bg-slate-100 dark:bg-charcoal-750 text-slate-600 dark:text-slate-400'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            u.status === 'active' || (!u.status && u.is_active)
-                              ? 'bg-emerald-500'
-                              : u.status === 'pending_approval'
-                              ? 'bg-amber-500'
-                              : 'bg-rose-500'
-                          }`}></span>
-                          <span>{u.status?.replace('_', ' ') || 'Active'}</span>
-                        </span>
-                        {isBlocked && u.blocked_reason && (
-                          <div className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5 max-w-[200px] truncate" title={u.blocked_reason}>
-                            {u.blocked_reason}
+                        {isBlocked ? (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => setBlockedUserToInspect(u)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition-all cursor-pointer shadow-2xs group"
+                              title="Click to inspect blocking reason & compliance report"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                              <span>Blocked</span>
+                              <Info size={11} className="text-rose-500 group-hover:scale-125 transition-transform" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBlockedUserToInspect(u)}
+                              className="text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 hover:underline mt-1 flex items-center gap-1 text-left cursor-pointer group"
+                              title="View full suspension rationale"
+                            >
+                              <FileText size={10} className="shrink-0 text-rose-500" />
+                              <span className="truncate max-w-[170px]">{u.blocked_reason || 'View Reason'}</span>
+                            </button>
                           </div>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
+                            u.status === 'active' || (!u.status && u.is_active)
+                              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40'
+                              : u.status === 'pending_approval'
+                              ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40'
+                              : 'bg-slate-100 dark:bg-charcoal-750 text-slate-600 dark:text-slate-400'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              u.status === 'active' || (!u.status && u.is_active)
+                                ? 'bg-emerald-500'
+                                : u.status === 'pending_approval'
+                                ? 'bg-amber-500'
+                                : 'bg-slate-400'
+                            }`} />
+                            <span>{u.status?.replace('_', ' ') || 'Active'}</span>
+                          </span>
                         )}
                       </td>
 
@@ -455,6 +476,13 @@ export const UserManagementPage: React.FC = () => {
         isOpen={Boolean(userToEdit)}
         onClose={() => setUserToEdit(null)}
         onUserUpdated={loadUsers}
+      />
+
+      <BlockedReasonModal
+        user={blockedUserToInspect}
+        isOpen={Boolean(blockedUserToInspect)}
+        onClose={() => setBlockedUserToInspect(null)}
+        onUserUnblocked={loadUsers}
       />
     </div>
   );
