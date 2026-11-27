@@ -162,11 +162,13 @@ export const ScheduleNewVisitModal: React.FC<ScheduleNewVisitModalProps> = ({
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      style={{ zIndex: 999999 }}
       onClick={onClose}
     >
       <div 
-        className="relative w-full max-w-lg bg-white dark:bg-charcoal-900 rounded-3xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden my-auto flex flex-col transition-colors animate-scaleIn max-h-[92vh]"
+        className="relative w-full max-w-lg bg-white dark:bg-charcoal-900 rounded-3xl shadow-2xl border border-pearl-200 dark:border-charcoal-700 overflow-hidden my-auto flex flex-col transition-colors animate-scaleIn max-h-[90vh]"
+        style={{ zIndex: 1000000 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
