@@ -6,6 +6,14 @@ export async function initSuperAdminDatabase() {
   try {
     await client.query('BEGIN');
 
+    // 0. Ensure users.role is VARCHAR and organization_id is nullable
+    await client.query(`
+      ALTER TABLE users ALTER COLUMN organization_id DROP NOT NULL;
+      ALTER TABLE users ALTER COLUMN role DROP DEFAULT;
+      ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(100) USING role::VARCHAR;
+      ALTER TABLE users ALTER COLUMN role SET DEFAULT 'administrator';
+    `);
+
     // 1. Extend USERS table with admin & moderation fields
     await client.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
@@ -166,14 +174,18 @@ export async function initSuperAdminDatabase() {
     `);
 
     // 6.2 Ensure Super Admin user exists
+    const orgRes = await client.query('SELECT id FROM organizations LIMIT 1');
+    const defaultOrgId = orgRes.rows[0]?.id || null;
+
     const superAdminCheck = await client.query(`SELECT id FROM users WHERE email = 'admin@careorbit.health' LIMIT 1`);
     if (superAdminCheck.rows.length === 0) {
       await client.query(`
         INSERT INTO users (
-          id, email, password_hash, full_name, role, is_active, is_super_admin, status,
+          id, organization_id, email, password_hash, full_name, role, is_active, is_super_admin, status,
           department, module_access, title, license_number, license_status
         ) VALUES (
           gen_random_uuid(),
+          $1,
           'admin@careorbit.health',
           'pbkdf2:superadminsecurehash2026',
           'Sarah Sterling, MD',
@@ -187,7 +199,7 @@ export async function initSuperAdminDatabase() {
           'TX-MD-992104',
           'verified'
         ) ON CONFLICT DO NOTHING;
-      `);
+      `, [defaultOrgId]);
     } else {
       await client.query(`
         UPDATE users 
@@ -199,10 +211,11 @@ export async function initSuperAdminDatabase() {
     // 6.3 Seed sample users with various statuses (active, pending_approval, blocked, suspended)
     await client.query(`
       INSERT INTO users (
-        email, password_hash, full_name, role, is_active, is_super_admin, status,
+        organization_id, email, password_hash, full_name, role, is_active, is_super_admin, status,
         department, module_access, title, license_number, license_status, blocked_reason, blocked_at, blocked_by
       ) VALUES 
         (
+          $1,
           'kristin.siegel@careorbit.health',
           'pbkdf2:demo123',
           'Kristin Siegel, RN',
@@ -218,6 +231,7 @@ export async function initSuperAdminDatabase() {
           NULL, NULL, NULL
         ),
         (
+          $1,
           'marcus.bell@careorbit.health',
           'pbkdf2:demo123',
           'Marcus Bell, PT',
@@ -233,6 +247,7 @@ export async function initSuperAdminDatabase() {
           NULL, NULL, NULL
         ),
         (
+          $1,
           'elena.rostova@careorbit.health',
           'pbkdf2:demo123',
           'Elena Rostova, LPN',
@@ -248,6 +263,7 @@ export async function initSuperAdminDatabase() {
           NULL, NULL, NULL
         ),
         (
+          $1,
           'devon.ward@careorbit.health',
           'pbkdf2:demo123',
           'Devon Ward',
@@ -265,6 +281,7 @@ export async function initSuperAdminDatabase() {
           'Sarah Sterling, MD'
         ),
         (
+          $1,
           'alex.reid@careorbit.health',
           'pbkdf2:demo123',
           'Alex Reid, MSW',
@@ -285,7 +302,7 @@ export async function initSuperAdminDatabase() {
         status = EXCLUDED.status,
         license_status = EXCLUDED.license_status,
         module_access = EXCLUDED.module_access;
-    `);
+    `, [defaultOrgId]);
 
     // 6.4 Seed Moderation Reports (Reported Messages & Reported Users)
     const existingReports = await client.query('SELECT COUNT(*) FROM moderation_reports');

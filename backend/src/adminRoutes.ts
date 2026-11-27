@@ -197,13 +197,17 @@ adminRouter.post('/users', async (req: Request, res: Response) => {
       return res.status(409).json({ success: false, error: 'A user with this email address already exists' });
     }
 
+    const orgCheck = await pool.query('SELECT id FROM organizations LIMIT 1');
+    const orgId = orgCheck.rows[0]?.id || null;
+
     const insertRes = await pool.query(`
       INSERT INTO users (
-        email, password_hash, full_name, role, is_active, is_super_admin, status,
+        organization_id, email, password_hash, full_name, role, is_active, is_super_admin, status,
         department, module_access, title, license_number, license_state, license_status, mobile_phone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id, email, full_name, role, status, module_access, created_at;
     `, [
+      orgId,
       email.toLowerCase().trim(),
       'pbkdf2:defaultgeneratedhash2026',
       fullName.trim(),
