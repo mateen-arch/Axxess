@@ -26,6 +26,7 @@ export const ReportsCensusGovernancePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('all');
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -45,6 +46,43 @@ export const ReportsCensusGovernancePage: React.FC = () => {
       showToast(err.message || 'Failed to load reports & census data', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async (rep: AdminReportItem) => {
+    try {
+      setDownloadingId(rep.id);
+      showToast(`Preparing download for ${rep.report_name}...`, 'info');
+      const response = await fetch(`/api/admin/reports/${rep.id}/download`);
+      if (!response.ok) {
+        let errMsg = 'Download failed';
+        try {
+          const errData = await response.json();
+          errMsg = errData.error || errData.message || errMsg;
+        } catch {
+          // ignore
+        }
+        throw new Error(errMsg);
+      }
+
+      const blob = await response.blob();
+      const ext = (rep.format || 'xlsx').toLowerCase();
+      const fileName = `${rep.report_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.${ext}`;
+      
+      const blobUrl = window.URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.href = blobUrl;
+      tempLink.setAttribute('download', fileName);
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      window.URL.revokeObjectURL(blobUrl);
+
+      showToast(`Downloaded ${fileName}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download report', 'error');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -301,14 +339,18 @@ export const ReportsCensusGovernancePage: React.FC = () => {
                               </button>
                             )}
 
-                            <a
-                              href={`/api/reports/completed/${rep.id}/download`}
-                              download
+                            <button
+                              onClick={() => handleDownloadReport(rep)}
+                              disabled={downloadingId === rep.id}
                               className="p-1.5 rounded-lg hover:bg-pearl-200 dark:hover:bg-charcoal-750 text-slate-600 dark:text-slate-300 transition-all cursor-pointer inline-flex items-center"
-                              title="Download Report File"
+                              title={`Download ${rep.report_name} (${rep.format || 'XLSX'})`}
                             >
-                              <Download size={14} />
-                            </a>
+                              {downloadingId === rep.id ? (
+                                <RefreshCw size={14} className="animate-spin text-amber-500" />
+                              ) : (
+                                <Download size={14} />
+                              )}
+                            </button>
 
                             <button
                               onClick={() => handleDeleteReport(rep.id, rep.report_name)}
