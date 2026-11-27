@@ -7,6 +7,8 @@ import path from 'path';
 import { pool } from './db';
 import { initReportCenterDatabase } from './seedReportCenter';
 import { initCompletedReportsDatabase, STORAGE_DIR } from './seedCompletedReports';
+import { initSuperAdminDatabase } from './seedSuperAdmin';
+import { adminRouter } from './adminRoutes';
 
 dotenv.config();
 
@@ -15,6 +17,9 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// CareOrbit Super Admin API Router
+app.use('/api/admin', adminRouter);
 
 // Root Route
 app.get('/', (_req: Request, res: Response) => {
@@ -7240,6 +7245,12 @@ async function initCoreTables() {
     await initCompletedReportsDatabase();
   } catch (err) {
     console.error('Failed to init completed reports db:', err);
+  }
+
+  try {
+    await initSuperAdminDatabase();
+  } catch (err) {
+    console.error('Failed to init super admin db:', err);
   }
 
   console.log('[initCoreTables] Core table initialization completed.');
