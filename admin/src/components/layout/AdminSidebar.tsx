@@ -11,7 +11,10 @@ import {
   ShieldCheck,
   Building2,
   Stethoscope,
-  MessageSquare
+  MessageSquare,
+  HeartPulse,
+  BarChart3,
+  CalendarDays
 } from 'lucide-react';
 import { useAdmin, AdminTab } from '../../context/AdminContext';
 import { SystemModuleKey } from '../../types/admin';
@@ -27,7 +30,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const { activeTab, setActiveTab, selectedModule, setSelectedModule } = useAdmin();
 
-  const navItems: Array<{
+  const coreNavItems: Array<{
     id: AdminTab;
     label: string;
     icon: React.ElementType;
@@ -53,6 +56,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'modules', label: 'Modules Management', icon: Layers },
     { id: 'audit', label: 'Audit Trail', icon: FileClock },
     { id: 'settings', label: 'System Settings', icon: Sliders },
+  ];
+
+  const operationsNavItems: Array<{
+    id: AdminTab;
+    label: string;
+    icon: React.ElementType;
+  }> = [
+    { id: 'patients', label: 'Patients Governance', icon: HeartPulse },
+    { id: 'clinicians', label: 'Clinicians & Roster', icon: Stethoscope },
+    { id: 'scheduling', label: 'Scheduling & EVV', icon: CalendarDays },
+    { id: 'clinical_emr', label: 'Clinical EMR Hub', icon: Layers },
+    { id: 'reports_census', label: 'Reports & Census', icon: BarChart3 },
   ];
 
   const modulesList: Array<{ id: SystemModuleKey; label: string; icon: React.ElementType; color: string }> = [
@@ -83,12 +98,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* 2. Navigation Items */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        {/* Core Admin */}
         <div>
           <div className="px-3 mb-2 text-[10px] font-extrabold tracking-wider uppercase text-slate-400 dark:text-slate-500">
             Core Administration
           </div>
           <nav className="space-y-1">
-            {navItems.map((item) => {
+            {coreNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -111,6 +127,36 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       {item.badge}
                     </span>
                   )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Clinical & Operations Governance */}
+        <div>
+          <div className="px-3 mb-2 text-[10px] font-extrabold tracking-wider uppercase text-slate-400 dark:text-slate-500">
+            Clinical & Operations Hub
+          </div>
+          <nav className="space-y-1">
+            {operationsNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-extrabold shadow-2xs border border-rose-200/60 dark:border-rose-900/40'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-pearl-100 dark:hover:bg-charcoal-750 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon size={16} className={isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'} />
+                    <span>{item.label}</span>
+                  </div>
                 </button>
               );
             })}
@@ -148,9 +194,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <MIcon size={14} className={m.color} />
-                    <span className="truncate">{m.label}</span>
+                    <span>{m.label}</span>
                   </div>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 </button>
               );
             })}
@@ -158,24 +203,25 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
       </div>
 
-      {/* 4. Bottom Footer: Switch to Client Website */}
-      <div className="p-3 border-t border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-900/50 space-y-2">
+      {/* 4. Client Platform Launcher */}
+      <div className="p-3 border-t border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/40">
         <a
           href="http://localhost:5173"
           target="_blank"
-          rel="noreferrer"
-          className="flex items-center justify-between px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer shadow-2xs"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-charcoal-700 transition-all border border-pearl-200 dark:border-charcoal-650 shadow-2xs group cursor-pointer"
         >
-          <span className="flex items-center gap-2">
-            <ExternalLink size={13} className="text-rose-600" />
+          <div className="flex items-center gap-2">
+            <ExternalLink size={14} className="text-slate-400 group-hover:text-rose-600 transition-colors" />
             <span>Open Client Platform</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono">:5173</span>
+          </div>
+          <span className="font-mono text-[10px] text-slate-400">:5173</span>
         </a>
-
-        <div className="px-2 py-1 flex items-center justify-between text-[10px] font-semibold text-slate-400">
+        <div className="mt-2 px-1 flex items-center justify-between text-[10px] font-mono text-slate-400">
           <span>Database Pool:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">PostgreSQL Live</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+            PostgreSQL Live
+          </span>
         </div>
       </div>
     </aside>

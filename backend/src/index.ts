@@ -625,10 +625,12 @@ app.get('/api/episodes', async (req: Request, res: Response) => {
       JOIN patients p ON e.patient_id = p.id
     `;
     const params: any[] = [];
+    const conditions: string[] = ["(e.approval_status IS NULL OR e.approval_status = 'approved')"];
     if (patientId) {
       params.push(patientId);
-      query += ` WHERE e.patient_id = $1`;
+      conditions.push(`e.patient_id = $${params.length}`);
     }
+    query += ` WHERE ` + conditions.join(' AND ');
     query += ` ORDER BY e.episode_start_date DESC;`;
 
     const result = await pool.query(query, params);
@@ -681,8 +683,9 @@ app.post('/api/episodes', async (req: Request, res: Response) => {
         secondary_insurance,
         comments,
         status,
+        approval_status,
         created_at
-      ) VALUES ($1, $2, $3::date, $4::date, $5::date, $6, $7, $8, $9, $10, 'active', NOW())
+      ) VALUES ($1, $2, $3::date, $4::date, $5::date, $6, $7, $8, $9, $10, 'pending_approval', 'pending_approval', NOW())
       RETURNING *;
     `, [
       orgId,
@@ -695,6 +698,25 @@ app.post('/api/episodes', async (req: Request, res: Response) => {
       primaryInsurance || null,
       secondaryInsurance || null,
       comments || null
+    ]);
+
+    const row = insertRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'episode_approval', 'home_health', $1, $2, 'normal', 'pending',
+        $3, $4, 'episode', $5
+      );
+    `, [
+      `New Episode Authorization: ${pat.first_name} ${pat.last_name}`,
+      `Cert period ${episodeStartDate} to ${episodeEndDate} awaiting Super Admin authorization.`,
+      caseManager || 'Case Manager',
+      row.id,
+      JSON.stringify({ patientName: `${pat.first_name} ${pat.last_name}`, mrn: pat.mrn, episodeStartDate, episodeEndDate, primaryPhysician })
     ]);
 
     // Update patient table with current episode info
@@ -717,7 +739,6 @@ app.post('/api/episodes', async (req: Request, res: Response) => {
       resolvedPatientId
     ]);
 
-    const row = insertRes.rows[0];
     res.status(201).json({
       id: row.id,
       patientId: row.patient_id,
@@ -936,7 +957,7 @@ app.get('/api/orders', async (req: Request, res: Response) => {
       FROM orders o
     `;
     const params: any[] = [];
-    const conditions: string[] = [];
+    const conditions: string[] = ["(o.approval_status IS NULL OR o.approval_status = 'approved')"];
 
     if (patientId) {
       params.push(patientId);
@@ -1015,8 +1036,8 @@ app.post('/api/orders', async (req: Request, res: Response) => {
         organization_id, patient_id, patient_name, mrn, episode_associated,
         attending_physician, send_to, copy_to, order_date, order_time, effective_date,
         order_is_for_next_episode, summary_title, order_type, order_content,
-        order_read_back_and_verified, clinician_signature, signature_date, signature_time, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11::date, $12, $13, $14, $15, $16, $17, $18::date, $19, $20)
+        order_read_back_and_verified, clinician_signature, signature_date, signature_time, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11::date, $12, $13, $14, $15, $16, $17, $18::date, $19, $20, 'pending_approval')
       RETURNING *
     `, [
       orgId,
@@ -1042,6 +1063,23 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     ]);
 
     const row = insertResult.rows[0];
+
+    // Enqueue order for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'doctor_order_signature', 'home_health', $1, $2, 'normal', 'pending',
+        $3, $4, 'order', $5
+      );
+    `, [
+      `Physician Order Verification: ${summaryTitle.slice(0, 50)}`,
+      `Order by ${clinicianSignature.trim()} for ${resolvedPatName || 'Patient'} awaiting Super Admin verification.`,
+      clinicianSignature.trim() || 'Staff Clinician',
+      row.id,
+      JSON.stringify({ patientName: resolvedPatName, mrn: resolvedMrn, summaryTitle, orderType })
+    ]);
 
     // Also add to patient_tasks if patient exists so it appears in PatientChartsView
     if (resolvedPatientId && orgId) {
@@ -1193,6 +1231,7 @@ app.get('/api/facilities', async (_req: Request, res: Response) => {
         contact_person as "contactPerson", email, comments, status,
         created_at as "createdAt"
       FROM facilities
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY name ASC;
     `);
     res.json(result.rows);
@@ -1214,8 +1253,8 @@ app.post('/api/facilities', async (req: Request, res: Response) => {
     const insRes = await pool.query(`
       INSERT INTO facilities (
         organization_id, name, facility_type, address_line1, address_line2,
-        city, state, zip, phone, fax, contact_person, email, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        city, state, zip, phone, fax, contact_person, email, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending_approval')
       RETURNING *
     `, [
       orgId, name.trim(), facilityType || 'Hospital', addressLine1.trim(), addressLine2 || '',
@@ -1223,6 +1262,22 @@ app.post('/api/facilities', async (req: Request, res: Response) => {
       contactPerson || '', email || '', comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'facility_registration', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'facility', $4
+      );
+    `, [
+      `Facility Enrollment Approval: ${row.name}`,
+      `Healthcare facility ${row.name} (${row.facility_type}) pending verification before directory publication.`,
+      row.id,
+      JSON.stringify({ name: row.name, facilityType: row.facility_type, city: row.city, state: row.state, phone: row.phone })
+    ]);
     res.status(201).json({
       id: row.id,
       name: row.name,
@@ -1260,6 +1315,7 @@ app.get('/api/physicians', async (_req: Request, res: Response) => {
         order_delivery_method as "orderDeliveryMethod", comments, status,
         created_at as "createdAt"
       FROM physicians
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY last_name ASC, first_name ASC;
     `);
     res.json(result.rows);
@@ -1282,8 +1338,8 @@ app.post('/api/physicians', async (req: Request, res: Response) => {
       INSERT INTO physicians (
         organization_id, first_name, last_name, credentials, npi,
         taxonomy_code, medicaid_provider_id, pecos_status, address_line1, address_line2,
-        city, state, zip, phone, fax, email, order_delivery_method, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        city, state, zip, phone, fax, email, order_delivery_method, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'pending_approval')
       RETURNING *
     `, [
       orgId, firstName.trim(), lastName.trim(), credentials || 'MD', npi.trim(),
@@ -1293,6 +1349,22 @@ app.post('/api/physicians', async (req: Request, res: Response) => {
       comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'clinician_credential', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'physician', $4
+      );
+    `, [
+      `Physician Credential Verification: Dr. ${row.first_name} ${row.last_name}`,
+      `NPI #${row.npi} awaiting Super Admin credential sign-off before assignment in directory.`,
+      row.id,
+      JSON.stringify({ name: `${row.first_name} ${row.last_name}`, npi: row.npi, credentials: row.credentials, phone: row.phone })
+    ]);
     res.status(201).json({
       id: row.id,
       firstName: row.first_name,
@@ -1403,6 +1475,7 @@ app.get('/api/pharmacies', async (_req: Request, res: Response) => {
         city, state, zip, phone, fax, contact_person as "contactPerson", email,
         comments, status, created_at as "createdAt"
       FROM pharmacies
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY name ASC;
     `);
     res.json(result.rows);
@@ -1424,8 +1497,8 @@ app.post('/api/pharmacies', async (req: Request, res: Response) => {
     const insRes = await pool.query(`
       INSERT INTO pharmacies (
         organization_id, name, address_line1, address_line2, city, state, zip,
-        phone, fax, contact_person, email, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        phone, fax, contact_person, email, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_approval')
       RETURNING *
     `, [
       orgId, name.trim(), addressLine1.trim(), addressLine2 || '', city.trim(),
@@ -1433,6 +1506,22 @@ app.post('/api/pharmacies', async (req: Request, res: Response) => {
       email || '', comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'pharmacy_partner', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'pharmacy', $4
+      );
+    `, [
+      `Pharmacy Enrollment Approval: ${row.name}`,
+      `Pharmacy partner ${row.name} in ${row.city}, ${row.state} requires Super Admin verification.`,
+      row.id,
+      JSON.stringify({ name: row.name, city: row.city, state: row.state, phone: row.phone, contactPerson: row.contact_person })
+    ]);
     res.status(201).json({
       id: row.id,
       name: row.name,
@@ -1692,7 +1781,7 @@ app.get('/api/orders', async (req: Request, res: Response) => {
       FROM orders o
     `;
     const params: any[] = [];
-    const conditions: string[] = [];
+    const conditions: string[] = ["(o.approval_status IS NULL OR o.approval_status = 'approved')"];
 
     if (patientId) {
       params.push(patientId);
@@ -1771,8 +1860,8 @@ app.post('/api/orders', async (req: Request, res: Response) => {
         organization_id, patient_id, patient_name, mrn, episode_associated,
         attending_physician, send_to, copy_to, order_date, order_time, effective_date,
         order_is_for_next_episode, summary_title, order_type, order_content,
-        order_read_back_and_verified, clinician_signature, signature_date, signature_time, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11::date, $12, $13, $14, $15, $16, $17, $18::date, $19, $20)
+        order_read_back_and_verified, clinician_signature, signature_date, signature_time, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11::date, $12, $13, $14, $15, $16, $17, $18::date, $19, $20, 'pending_approval')
       RETURNING *
     `, [
       orgId,
@@ -1798,6 +1887,23 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     ]);
 
     const row = insertResult.rows[0];
+
+    // Enqueue order for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'doctor_order_signature', 'home_health', $1, $2, 'normal', 'pending',
+        $3, $4, 'order', $5
+      );
+    `, [
+      `Physician Order Verification: ${summaryTitle.slice(0, 50)}`,
+      `Order by ${clinicianSignature.trim()} for ${resolvedPatName || 'Patient'} awaiting Super Admin verification.`,
+      clinicianSignature.trim() || 'Staff Clinician',
+      row.id,
+      JSON.stringify({ patientName: resolvedPatName, mrn: resolvedMrn, summaryTitle, orderType })
+    ]);
 
     // Also add to patient_tasks if patient exists so it appears in PatientChartsView
     if (resolvedPatientId && orgId) {
@@ -1949,6 +2055,7 @@ app.get('/api/facilities', async (_req: Request, res: Response) => {
         contact_person as "contactPerson", email, comments, status,
         created_at as "createdAt"
       FROM facilities
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY name ASC;
     `);
     res.json(result.rows);
@@ -1970,8 +2077,8 @@ app.post('/api/facilities', async (req: Request, res: Response) => {
     const insRes = await pool.query(`
       INSERT INTO facilities (
         organization_id, name, facility_type, address_line1, address_line2,
-        city, state, zip, phone, fax, contact_person, email, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        city, state, zip, phone, fax, contact_person, email, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending_approval')
       RETURNING *
     `, [
       orgId, name.trim(), facilityType || 'Hospital', addressLine1.trim(), addressLine2 || '',
@@ -1979,6 +2086,22 @@ app.post('/api/facilities', async (req: Request, res: Response) => {
       contactPerson || '', email || '', comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'facility_registration', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'facility', $4
+      );
+    `, [
+      `Facility Enrollment Approval: ${row.name}`,
+      `Healthcare facility ${row.name} (${row.facility_type}) pending verification before directory publication.`,
+      row.id,
+      JSON.stringify({ name: row.name, facilityType: row.facility_type, city: row.city, state: row.state, phone: row.phone })
+    ]);
     res.status(201).json({
       id: row.id,
       name: row.name,
@@ -2016,6 +2139,7 @@ app.get('/api/physicians', async (_req: Request, res: Response) => {
         order_delivery_method as "orderDeliveryMethod", comments, status,
         created_at as "createdAt"
       FROM physicians
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY last_name ASC, first_name ASC;
     `);
     res.json(result.rows);
@@ -2038,8 +2162,8 @@ app.post('/api/physicians', async (req: Request, res: Response) => {
       INSERT INTO physicians (
         organization_id, first_name, last_name, credentials, npi,
         taxonomy_code, medicaid_provider_id, pecos_status, address_line1, address_line2,
-        city, state, zip, phone, fax, email, order_delivery_method, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        city, state, zip, phone, fax, email, order_delivery_method, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'pending_approval')
       RETURNING *
     `, [
       orgId, firstName.trim(), lastName.trim(), credentials || 'MD', npi.trim(),
@@ -2049,6 +2173,22 @@ app.post('/api/physicians', async (req: Request, res: Response) => {
       comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'clinician_credential', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'physician', $4
+      );
+    `, [
+      `Physician Credential Verification: Dr. ${row.first_name} ${row.last_name}`,
+      `NPI #${row.npi} awaiting Super Admin credential sign-off before assignment in directory.`,
+      row.id,
+      JSON.stringify({ name: `${row.first_name} ${row.last_name}`, npi: row.npi, credentials: row.credentials, phone: row.phone })
+    ]);
     res.status(201).json({
       id: row.id,
       firstName: row.first_name,
@@ -2159,6 +2299,7 @@ app.get('/api/pharmacies', async (_req: Request, res: Response) => {
         city, state, zip, phone, fax, contact_person as "contactPerson", email,
         comments, status, created_at as "createdAt"
       FROM pharmacies
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
       ORDER BY name ASC;
     `);
     res.json(result.rows);
@@ -2180,8 +2321,8 @@ app.post('/api/pharmacies', async (req: Request, res: Response) => {
     const insRes = await pool.query(`
       INSERT INTO pharmacies (
         organization_id, name, address_line1, address_line2, city, state, zip,
-        phone, fax, contact_person, email, comments, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        phone, fax, contact_person, email, comments, status, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_approval')
       RETURNING *
     `, [
       orgId, name.trim(), addressLine1.trim(), addressLine2 || '', city.trim(),
@@ -2189,6 +2330,22 @@ app.post('/api/pharmacies', async (req: Request, res: Response) => {
       email || '', comments || '', status || 'Active'
     ]);
     const row = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'pharmacy_partner', 'home_health', $1, $2, 'normal', 'pending',
+        'Staff Coordinator', $3, 'pharmacy', $4
+      );
+    `, [
+      `Pharmacy Enrollment Approval: ${row.name}`,
+      `Pharmacy partner ${row.name} in ${row.city}, ${row.state} requires Super Admin verification.`,
+      row.id,
+      JSON.stringify({ name: row.name, city: row.city, state: row.state, phone: row.phone, contactPerson: row.contact_person })
+    ]);
     res.status(201).json({
       id: row.id,
       name: row.name,
@@ -2460,6 +2617,7 @@ app.get('/api/patients', async (_req: Request, res: Response) => {
       FROM patients p
       LEFT JOIN clinicians c ON p.assigned_clinician_id = c.id
       LEFT JOIN users u ON c.user_id = u.id
+      WHERE (p.approval_status IS NULL OR p.approval_status = 'approved')
       ORDER BY 
         CASE WHEN p.mrn = '1061' THEN 0 ELSE 1 END,
         p.last_name, p.first_name;
@@ -2517,15 +2675,15 @@ app.post('/api/patients', async (req: Request, res: Response) => {
         primary_diagnosis, phone, secondary_phone, email, address_street, address_city,
         address_state, address_zip, episode_start, episode_end, start_of_care_date,
         attending_physician, insurance_name, policy_number, primary_contact, secondary_contact,
-        fall_risk, hospitalization_risk, infection_risk, full_code
+        fall_risk, hospitalization_risk, infection_risk, full_code, approval_status
       ) VALUES (
-        $1, $2, $3, $4, $5::date, $6, $7, 'active',
+        $1, $2, $3, $4, $5::date, $6, $7, 'pending_approval',
         $8, $9, $10, $11, $12, $13,
         $14, $15, $16::date,
         $17::date,
         $18::date,
         $19, $20, $21, $22, $23,
-        $24, $25, $26, $27
+        $24, $25, $26, $27, 'pending_approval'
       ) RETURNING *;
     `, [
       orgId,
@@ -2558,6 +2716,22 @@ app.post('/api/patients', async (req: Request, res: Response) => {
     ]);
 
     const p = insertRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'patient_admission', 'central', $1, $2, 'urgent', 'pending',
+        'Intake Coordinator', $3, 'patient', $4
+      );
+    `, [
+      `New Patient Admission: ${p.first_name} ${p.last_name}`,
+      `Admitted patient MRN #${p.mrn} (${p.service_line}) pending Super Admin verification before public release.`,
+      p.id,
+      JSON.stringify({ mrn: p.mrn, name: `${p.first_name} ${p.last_name}`, serviceLine: p.service_line, diagnosis: p.primary_diagnosis })
+    ]);
 
     // Auto-create initial chart tasks for newly admitted patient
     await pool.query(`
@@ -5161,7 +5335,7 @@ app.get('/api/reports/completed', async (req: Request, res: Response) => {
     const status = req.query.status as string;
     const format = req.query.format as string;
 
-    const whereClauses: string[] = [];
+    const whereClauses: string[] = ["(gr.approval_status IS NULL OR gr.approval_status = 'approved')"];
     const params: any[] = [];
     let paramIdx = 1;
 
@@ -5437,8 +5611,8 @@ app.post('/api/reports/completed/request', async (req: Request, res: Response) =
       INSERT INTO generated_reports (
         report_id, report_name, category_name, file_name, file_path, file_format,
         file_size_bytes, status, requested_by, user_id, requested_at, started_at,
-        completed_at, applied_filters, error_message
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Completed', $8, $9, NOW() - INTERVAL '6 seconds', NOW() - INTERVAL '4 seconds', NOW(), $10, NULL)
+        completed_at, applied_filters, error_message, approval_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Completed', $8, $9, NOW() - INTERVAL '6 seconds', NOW() - INTERVAL '4 seconds', NOW(), $10, NULL, 'pending_approval')
       RETURNING 
         id,
         report_id as "reportId",
@@ -5455,7 +5629,8 @@ app.post('/api/reports/completed/request', async (req: Request, res: Response) =
         started_at as "startedAt",
         completed_at as "completedAt",
         applied_filters as "appliedFilters",
-        error_message as "errorMessage";
+        error_message as "errorMessage",
+        approval_status as "approvalStatus";
     `, [
       reportId || null,
       reportName,
@@ -5467,6 +5642,25 @@ app.post('/api/reports/completed/request', async (req: Request, res: Response) =
       user.full_name,
       user.id,
       JSON.stringify(filters || {})
+    ]);
+
+    const createdRep = insRes.rows[0];
+
+    // Enqueue for Super Admin approval
+    await pool.query(`
+      INSERT INTO admin_approvals (
+        approval_type, module, title, description, priority, status,
+        requested_by, target_id, target_type, details
+      ) VALUES (
+        'prior_authorization', 'home_health', $1, $2, 'normal', 'pending',
+        $3, $4, 'report', $5
+      );
+    `, [
+      `Generated Report Release: ${createdRep.name}`,
+      `Clinical report ${createdRep.name} (${createdRep.format}) generated by ${createdRep.requestedBy} awaiting compliance release.`,
+      createdRep.requestedBy || 'Director of Nursing',
+      createdRep.id,
+      JSON.stringify({ name: createdRep.name, format: createdRep.format, category: createdRep.categoryName, size: createdRep.fileSizeBytes })
     ]);
 
     res.status(201).json({

@@ -1,7 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { SystemModuleKey } from '../types/admin';
 
-export type AdminTab = 'overview' | 'users' | 'moderation' | 'approvals' | 'modules' | 'audit' | 'settings';
+export type AdminTab = 
+  | 'overview' 
+  | 'users' 
+  | 'moderation' 
+  | 'approvals' 
+  | 'patients'
+  | 'clinicians'
+  | 'scheduling'
+  | 'clinical_emr'
+  | 'reports_census'
+  | 'modules' 
+  | 'audit' 
+  | 'settings';
 
 interface Toast {
   id: string;

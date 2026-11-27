@@ -5,7 +5,15 @@ import {
   ModuleConfig,
   AdminAuditLog,
   DashboardStats,
-  SystemModuleKey
+  SystemModuleKey,
+  AdminPatient,
+  AdminClinician,
+  AdminVisit,
+  AdminEpisode,
+  AdminOrder,
+  AdminDirectoryItem,
+  AdminReportItem,
+  AdminCensusStats
 } from '../types/admin';
 
 const BASE_URL = '/api/admin';
@@ -228,5 +236,109 @@ export const adminApi = {
 
     const query = params.toString() ? `?${params.toString()}` : '';
     return request(`/audit-logs${query}`);
+  },
+
+  // 7. Patients Governance
+  async getPatients(filters?: {
+    search?: string;
+    serviceLine?: string;
+    approvalStatus?: string;
+    branch?: string;
+  }): Promise<{ success: boolean; patients: AdminPatient[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.serviceLine) params.append('serviceLine', filters.serviceLine);
+    if (filters?.approvalStatus) params.append('approvalStatus', filters.approvalStatus);
+    if (filters?.branch) params.append('branch', filters.branch);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/patients${query}`);
+  },
+
+  async approvePatient(id: string): Promise<{ success: boolean; patient: AdminPatient }> {
+    return request(`/patients/${id}/approve`, { method: 'POST' });
+  },
+
+  async rejectPatient(id: string, reason?: string): Promise<{ success: boolean; patient: AdminPatient }> {
+    return request(`/patients/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async deletePatient(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/patients/${id}`, { method: 'DELETE' });
+  },
+
+  // 8. Clinicians Governance
+  async getClinicians(filters?: {
+    search?: string;
+    discipline?: string;
+    branch?: string;
+  }): Promise<{ success: boolean; clinicians: AdminClinician[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.discipline) params.append('discipline', filters.discipline);
+    if (filters?.branch) params.append('branch', filters.branch);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/clinicians${query}`);
+  },
+
+  // 9. Scheduling & EVV Visits Governance
+  async getVisits(filters?: {
+    search?: string;
+    status?: string;
+    evvStatus?: string;
+  }): Promise<{ success: boolean; visits: AdminVisit[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.evvStatus) params.append('evvStatus', filters.evvStatus);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/visits${query}`);
+  },
+
+  // 10. Clinical EMR (Episodes, Orders, Directory)
+  async getEpisodes(): Promise<{ success: boolean; episodes: AdminEpisode[]; total: number }> {
+    return request('/episodes');
+  },
+
+  async approveEpisode(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/episodes/${id}/approve`, { method: 'POST' });
+  },
+
+  async getOrders(): Promise<{ success: boolean; orders: AdminOrder[]; total: number }> {
+    return request('/orders');
+  },
+
+  async approveOrder(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/orders/${id}/approve`, { method: 'POST' });
+  },
+
+  async getDirectoryItems(type: 'pharmacies' | 'facilities' | 'physicians' | 'payers'): Promise<{ success: boolean; items: AdminDirectoryItem[]; total: number }> {
+    return request(`/directory/${type}`);
+  },
+
+  async approveDirectoryItem(type: 'pharmacies' | 'facilities' | 'physicians' | 'payers', id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/directory/${type}/${id}/approve`, { method: 'POST' });
+  },
+
+  // 11. Reports & Census Governance
+  async getReports(): Promise<{ success: boolean; reports: AdminReportItem[]; total: number }> {
+    return request('/reports');
+  },
+
+  async approveReport(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/reports/${id}/approve`, { method: 'POST' });
+  },
+
+  async deleteReport(id: string): Promise<{ success: boolean; message: string }> {
+    return request(`/reports/${id}`, { method: 'DELETE' });
+  },
+
+  async getCensus(): Promise<{ success: boolean } & AdminCensusStats> {
+    return request('/census');
   },
 };

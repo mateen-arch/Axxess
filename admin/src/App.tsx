@@ -10,6 +10,11 @@ import { ApprovalsQueuePage } from './pages/ApprovalsQueuePage';
 import { ModulesManagementPage } from './pages/ModulesManagementPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { PatientsGovernancePage } from './pages/PatientsGovernancePage';
+import { CliniciansGovernancePage } from './pages/CliniciansGovernancePage';
+import { SchedulingGovernancePage } from './pages/SchedulingGovernancePage';
+import { ClinicalEmrGovernancePage } from './pages/ClinicalEmrGovernancePage';
+import { ReportsCensusGovernancePage } from './pages/ReportsCensusGovernancePage';
 import { adminApi } from './services/adminApi';
 
 const AdminLayout: React.FC = () => {
@@ -47,6 +52,16 @@ const AdminLayout: React.FC = () => {
         return <ModerationSafetyPage />;
       case 'approvals':
         return <ApprovalsQueuePage />;
+      case 'patients':
+        return <PatientsGovernancePage />;
+      case 'clinicians':
+        return <CliniciansGovernancePage />;
+      case 'scheduling':
+        return <SchedulingGovernancePage />;
+      case 'clinical_emr':
+        return <ClinicalEmrGovernancePage />;
+      case 'reports_census':
+        return <ReportsCensusGovernancePage />;
       case 'modules':
         return <ModulesManagementPage />;
       case 'audit':

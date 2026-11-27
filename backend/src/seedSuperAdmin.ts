@@ -26,6 +26,25 @@ export async function initSuperAdminDatabase() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS license_state VARCHAR(50) DEFAULT 'TX';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS license_status VARCHAR(50) DEFAULT 'verified';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Clinical Operations';
+
+      -- 1.1 Extend Core Entity Tables with approval_status for the Super Admin Verification Gate
+      ALTER TABLE patients ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE physicians ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE facilities ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE episodes ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE insurance_payers ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE generated_reports ADD COLUMN IF NOT EXISTS approval_status VARCHAR(50) DEFAULT 'approved';
+
+      UPDATE patients SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE pharmacies SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE physicians SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE facilities SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE orders SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE episodes SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE insurance_payers SET approval_status = 'approved' WHERE approval_status IS NULL;
+      UPDATE generated_reports SET approval_status = 'approved' WHERE approval_status IS NULL;
     `);
 
     // 2. MODERATION REPORTS TABLE (Messages, Users, PHI Violations)
