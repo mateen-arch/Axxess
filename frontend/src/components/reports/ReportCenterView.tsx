@@ -53,9 +53,15 @@ export interface ReportItem {
   slug: string;
   description: string;
   route: string | null;
-  displayOrder: number;
+  displayOrder?: number;
   isActive: boolean;
   isImplemented: boolean;
+  fileFormat?: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  requestedBy?: string;
+  generatedAt?: string;
+  downloadUrl?: string;
 }
 
 export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
@@ -138,6 +144,23 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
     }
   };
 
+  // Download report file directly
+  const handleDownloadReport = async (report: ReportItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      setIsGenerating(true);
+      showToast(`Downloading "${report.name}"...`);
+      const ext = (report.fileFormat || 'xlsx').toLowerCase();
+      const filename = report.fileName || `${report.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.${ext}`;
+      await api.downloadCompletedReport(report.id, filename);
+      showToast(`Downloaded ${filename}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download report');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Category Icon helper
   const getCategoryIcon = (slug: string) => {
     switch (slug) {
@@ -214,7 +237,7 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search all 61 reports..."
+              placeholder={`Search all ${reports.length} reports...`}
               className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 dark:text-slate-100"
             />
             {searchQuery && (
@@ -385,22 +408,29 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
                   className="group relative rounded-2xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 p-4 transition-all duration-200 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-800/80 cursor-pointer flex flex-col justify-between"
                 >
                   <div>
-                    {/* Top Category Pill & Route Indicator */}
+                    {/* Top Category Pill & Format / Route Indicator */}
                     <div className="flex items-center justify-between gap-2 mb-2.5">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${getCategoryBadgeClass(report.categorySlug)}`}>
                         {report.categoryName}
                       </span>
 
-                      {hasRoute ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200">
-                          <CheckCircle2 size={10} />
-                          <span>Live Page</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-pearl-100 dark:bg-charcoal-750 px-2 py-0.5 rounded-full">
-                          <span>Template</span>
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {report.fileFormat && (
+                          <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-black bg-pearl-100 dark:bg-charcoal-750 text-slate-700 dark:text-slate-300 border border-pearl-200 dark:border-charcoal-600">
+                            {report.fileFormat}
+                          </span>
+                        )}
+                        {hasRoute ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <CheckCircle2 size={10} />
+                            <span>Live</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <span>Published</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Report Name */}
@@ -415,9 +445,20 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
                   </div>
 
                   {/* Bottom Action Strip */}
-                  <div className="mt-4 pt-3 border-t border-pearl-100 dark:border-charcoal-750 flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400 group-hover:text-rose-600">
-                    <span>{hasRoute ? 'Open Report' : 'View Specification'}</span>
-                    <ChevronRight size={14} className="transform group-hover:translate-x-1 transition-transform" />
+                  <div className="mt-4 pt-3 border-t border-pearl-100 dark:border-charcoal-750 flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                    <span className="group-hover:text-rose-600 flex items-center gap-1">
+                      <span>{hasRoute ? 'Open Report' : 'View Details'}</span>
+                      <ChevronRight size={14} className="transform group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDownloadReport(report, e)}
+                      className="p-1.5 rounded-lg bg-pearl-100 dark:bg-charcoal-750 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-200 hover:text-rose-700 dark:hover:text-rose-300 transition cursor-pointer"
+                      title={`Download ${report.name}`}
+                    >
+                      <Download size={13} />
+                    </button>
                   </div>
                 </div>
               );
@@ -460,28 +501,41 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
 
               <div className="p-3.5 rounded-xl bg-pearl-50 dark:bg-charcoal-800 border border-pearl-200 dark:border-charcoal-700 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-500">Database Slug:</span>
+                  <span className="font-semibold text-slate-500">File Format:</span>
                   <span className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                    {selectedReportForModal.slug}
+                    {selectedReportForModal.fileFormat || 'XLSX'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-500">Admin Managed:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Yes (PostgreSQL)</span>
-                </div>
+                {selectedReportForModal.fileSizeBytes ? (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">File Size:</span>
+                    <span className="font-mono text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                      {Math.max(1, Math.round(selectedReportForModal.fileSizeBytes / 1024))} KB
+                    </span>
+                  </div>
+                ) : null}
+                {selectedReportForModal.requestedBy && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Published By:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {selectedReportForModal.requestedBy}
+                    </span>
+                  </div>
+                )}
+                {selectedReportForModal.generatedAt && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Published Date:</span>
+                    <span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                      {selectedReportForModal.generatedAt}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-slate-500">Status:</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                    Registered Template
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    Published & Approved
                   </span>
                 </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2">
-                <Info size={16} className="shrink-0 mt-0.5 text-rose-600" />
-                <p className="leading-relaxed">
-                  This report definition is stored dynamically in the agency database. It is registered for future administration via the Admin Panel and queued for live dashboard rendering.
-                </p>
               </div>
             </div>
 
@@ -489,53 +543,20 @@ export const ReportCenterView: React.FC<ReportCenterViewProps> = ({
               <button
                 type="button"
                 disabled={isGenerating}
-                onClick={async () => {
-                  if (!selectedReportForModal) return;
-                  setIsGenerating(true);
-                  try {
-                    await api.requestGenerateReport({
-                      reportId: selectedReportForModal.id,
-                      reportName: selectedReportForModal.name,
-                      categoryName: selectedReportForModal.categoryName,
-                      format: 'XLSX',
-                      filters: { trigger: 'Manual Dispatch from Report Center' }
-                    });
-                    showToast(`Report "${selectedReportForModal.name}" generated & archived!`);
-                    setSelectedReportForModal(null);
-                    if (onNavigate) {
-                      onNavigate('completed-reports');
-                    }
-                  } catch (err: any) {
-                    showToast(err.message || 'Failed to dispatch generation');
-                  } finally {
-                    setIsGenerating(false);
-                  }
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-xs font-black shadow-xs cursor-pointer transition disabled:opacity-50"
+                onClick={() => handleDownloadReport(selectedReportForModal)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-xs font-black shadow-xs cursor-pointer transition disabled:opacity-50"
               >
                 <Download size={13} />
-                <span>{isGenerating ? 'Generating...' : 'Generate & Archive'}</span>
+                <span>{isGenerating ? 'Downloading...' : `Download ${selectedReportForModal.fileFormat || 'Report'}`}</span>
               </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedReportForModal(null)}
-                  className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-pearl-100 transition cursor-pointer"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    showToast(`Template registered for ${selectedReportForModal.name}`);
-                    setSelectedReportForModal(null);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition cursor-pointer"
-                >
-                  Acknowledge
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedReportForModal(null)}
+                className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-pearl-100 transition cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

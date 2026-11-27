@@ -355,6 +355,38 @@ export const adminApi = {
     return request('/reports');
   },
 
+  async createReport(payload: {
+    report_name: string;
+    category_name: string;
+    description?: string;
+    file_format?: string;
+    requested_by?: string;
+    approval_status?: string;
+    file_name?: string;
+    file_data_base64?: string;
+  }): Promise<{ success: boolean; message: string; report: AdminReportItem }> {
+    return request('/reports', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateReport(id: string, payload: {
+    report_name?: string;
+    category_name?: string;
+    description?: string;
+    file_format?: string;
+    requested_by?: string;
+    approval_status?: string;
+    file_name?: string;
+    file_data_base64?: string;
+  }): Promise<{ success: boolean; message: string; report: AdminReportItem }> {
+    return request(`/reports/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
   async approveReport(id: string): Promise<{ success: boolean; message: string }> {
     return request(`/reports/${id}/approve`, { method: 'POST' });
   },

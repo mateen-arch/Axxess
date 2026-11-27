@@ -244,6 +244,9 @@ export interface AdminReportItem {
   report_name: string;
   category: string;
   format: string;
+  file_name?: string;
+  description?: string;
+  has_file?: boolean;
   status: string;
   approval_status: 'approved' | 'pending_approval' | 'rejected';
   requested_by: string;

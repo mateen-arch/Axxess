@@ -17,7 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // CareOrbit Super Admin API Router
 app.use('/api/admin', adminRouter);
@@ -5308,24 +5309,23 @@ app.post('/api/reports/schedule-deviation/export', async (req: Request, res: Res
 // REPORT CENTER ENDPOINTS
 // ==========================================
 
-// GET /api/reports/center/categories
+// GET /api/reports/center/categories (Synced with Admin Panel generated_reports)
 app.get('/api/reports/center/categories', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        c.id,
-        c.name,
-        c.slug,
-        c.description,
-        c.display_order as "displayOrder",
-        c.icon,
-        c.is_active as "isActive",
-        COUNT(r.id)::int as "reportCount"
-      FROM report_categories c
-      LEFT JOIN reports r ON c.id = r.category_id AND r.is_active = true
-      WHERE c.is_active = true
-      GROUP BY c.id
-      ORDER BY c.display_order ASC;
+      SELECT
+        LOWER(REGEXP_REPLACE(COALESCE(category_name, 'General Reports'), '[^a-zA-Z0-9]+', '-', 'g')) as id,
+        COALESCE(category_name, 'General Reports') as name,
+        LOWER(REGEXP_REPLACE(COALESCE(category_name, 'General Reports'), '[^a-zA-Z0-9]+', '-', 'g')) as slug,
+        COALESCE(category_name, 'General Reports') || ' managed by Admin Governance' as description,
+        ROW_NUMBER() OVER (ORDER BY MIN(category_name) ASC)::int as "displayOrder",
+        'folder' as icon,
+        true as "isActive",
+        COUNT(*)::int as "reportCount"
+      FROM generated_reports
+      WHERE (approval_status IS NULL OR approval_status = 'approved')
+      GROUP BY COALESCE(category_name, 'General Reports')
+      ORDER BY COALESCE(category_name, 'General Reports') ASC;
     `);
 
     res.json({
@@ -5338,46 +5338,55 @@ app.get('/api/reports/center/categories', async (_req: Request, res: Response) =
   }
 });
 
-// GET /api/reports/center/reports
+// GET /api/reports/center/reports (Synced with Admin Panel generated_reports)
 app.get('/api/reports/center/reports', async (req: Request, res: Response) => {
   try {
     const { categorySlug, search } = req.query;
 
     let query = `
-      SELECT 
-        r.id,
-        r.category_id as "categoryId",
-        c.name as "categoryName",
-        c.slug as "categorySlug",
-        c.icon as "categoryIcon",
-        r.name,
-        r.slug,
-        r.description,
-        r.route,
-        r.display_order as "displayOrder",
-        r.is_active as "isActive",
-        CASE WHEN r.route IS NOT NULL AND r.route <> '' THEN true ELSE false END as "isImplemented"
-      FROM reports r
-      JOIN report_categories c ON r.category_id = c.id
-      WHERE r.is_active = true AND c.is_active = true
+      SELECT
+        gr.id,
+        LOWER(REGEXP_REPLACE(COALESCE(gr.category_name, 'General Reports'), '[^a-zA-Z0-9]+', '-', 'g')) as "categoryId",
+        COALESCE(gr.category_name, 'General Reports') as "categoryName",
+        LOWER(REGEXP_REPLACE(COALESCE(gr.category_name, 'General Reports'), '[^a-zA-Z0-9]+', '-', 'g')) as "categorySlug",
+        'file' as "categoryIcon",
+        gr.report_name as name,
+        LOWER(REGEXP_REPLACE(gr.report_name, '[^a-zA-Z0-9]+', '-', 'g')) as slug,
+        COALESCE(
+          NULLIF(gr.description, ''),
+          r.description,
+          gr.category_name || ' report (' || COALESCE(gr.file_format, 'XLSX') || ') prepared by ' || COALESCE(gr.requested_by, 'Admin')
+        ) as description,
+        COALESCE(gr.route, r.route) as route,
+        gr.file_format as "fileFormat",
+        gr.file_name as "fileName",
+        gr.file_size_bytes as "fileSizeBytes",
+        gr.requested_by as "requestedBy",
+        TO_CHAR(COALESCE(gr.completed_at, gr.created_at), 'YYYY-MM-DD HH12:MI AM') as "generatedAt",
+        ('/api/reports/completed/' || gr.id || '/download') as "downloadUrl",
+        true as "isActive",
+        CASE WHEN COALESCE(gr.route, r.route) IS NOT NULL AND COALESCE(gr.route, r.route) <> '' THEN true ELSE false END as "isImplemented"
+      FROM generated_reports gr
+      LEFT JOIN reports r ON gr.report_id = r.id
+      WHERE (gr.approval_status IS NULL OR gr.approval_status = 'approved')
     `;
 
     const params: any[] = [];
     let paramIdx = 1;
 
     if (categorySlug && categorySlug !== 'all') {
-      query += ` AND c.slug = $${paramIdx}`;
+      query += ` AND LOWER(REGEXP_REPLACE(COALESCE(gr.category_name, 'General Reports'), '[^a-zA-Z0-9]+', '-', 'g')) = $${paramIdx}`;
       params.push(categorySlug);
       paramIdx++;
     }
 
     if (search && typeof search === 'string' && search.trim() !== '') {
-      query += ` AND (r.name ILIKE $${paramIdx} OR r.description ILIKE $${paramIdx} OR c.name ILIKE $${paramIdx})`;
+      query += ` AND (gr.report_name ILIKE $${paramIdx} OR COALESCE(gr.description, '') ILIKE $${paramIdx} OR gr.category_name ILIKE $${paramIdx})`;
       params.push(`%${search.trim()}%`);
       paramIdx++;
     }
 
-    query += ` ORDER BY c.display_order ASC, r.display_order ASC;`;
+    query += ` ORDER BY COALESCE(gr.completed_at, gr.created_at) DESC;`;
 
     const result = await pool.query(query, params);
 
@@ -5530,7 +5539,7 @@ app.get('/api/reports/completed/:id/download', async (req: Request, res: Respons
 
     const report = result.rows[0];
     const fileFormat = (report.file_format || 'XLSX').toUpperCase();
-    const downloadExt = fileFormat.toLowerCase() === 'csv' ? 'csv' : fileFormat.toLowerCase() === 'pdf' ? 'pdf' : 'xlsx';
+    const downloadExt = fileFormat.toLowerCase();
     const downloadFilename = report.file_name || `${report.report_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.${downloadExt}`;
 
     let filePath = report.file_path;
@@ -5553,11 +5562,16 @@ app.get('/api/reports/completed/:id/download', async (req: Request, res: Respons
       }
     }
 
-    const contentType = downloadExt === 'csv'
-      ? 'text/csv'
-      : downloadExt === 'pdf'
-        ? 'application/pdf'
-        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const mimeMap: Record<string, string> = {
+      csv: 'text/csv',
+      pdf: 'application/pdf',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      doc: 'application/msword',
+      txt: 'text/plain',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      xls: 'application/vnd.ms-excel'
+    };
+    const contentType = mimeMap[downloadExt] || 'application/octet-stream';
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);

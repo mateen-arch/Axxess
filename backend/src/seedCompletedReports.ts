@@ -45,6 +45,9 @@ export async function initCompletedReportsDatabase() {
     CREATE INDEX IF NOT EXISTS idx_gen_reports_requested_at ON generated_reports(requested_at DESC);
     CREATE INDEX IF NOT EXISTS idx_gen_reports_user_id ON generated_reports(user_id);
     CREATE INDEX IF NOT EXISTS idx_gen_reports_report_id ON generated_reports(report_id);
+
+    ALTER TABLE generated_reports ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE generated_reports ADD COLUMN IF NOT EXISTS route VARCHAR(255);
   `);
 
   // Check if existing records exist

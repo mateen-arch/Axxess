@@ -1535,10 +1535,13 @@ adminRouter.get('/reports', async (req: Request, res: Response) => {
         report_name, 
         category_name as category, 
         file_format as format, 
+        file_name,
+        description,
         status,
         COALESCE(approval_status, 'approved') as approval_status,
         requested_by, 
-        file_size_bytes, 
+        file_size_bytes,
+        CASE WHEN file_path IS NOT NULL AND file_path <> '' THEN true ELSE false END as has_file,
         ('/api/reports/completed/' || id || '/download') as download_url, 
         TO_CHAR(COALESCE(completed_at, created_at), 'YYYY-MM-DD HH12:MI AM') as generated_at
       FROM generated_reports
@@ -1553,6 +1556,188 @@ adminRouter.get('/reports', async (req: Request, res: Response) => {
   }
 });
 
+// Create a new report in Admin Panel (with optional file attachment)
+adminRouter.post('/reports', async (req: Request, res: Response) => {
+  try {
+    const {
+      report_name,
+      category_name,
+      description,
+      file_format,
+      requested_by,
+      approval_status,
+      file_name,
+      file_data_base64
+    } = req.body;
+
+    if (!report_name || !report_name.trim()) {
+      return res.status(400).json({ success: false, error: 'Report name is required' });
+    }
+
+    const cleanName = report_name.trim();
+    const category = (category_name || 'Patient Reports').trim();
+    const requestedBy = (requested_by || 'System Administrator').trim();
+    const approvalStatus = approval_status === 'pending_approval' ? 'pending_approval' : 'approved';
+
+    let finalFormat = (file_format || 'XLSX').toUpperCase();
+    let finalFileName = file_name ? String(file_name).replace(/[^a-zA-Z0-9._-]/g, '_') : '';
+    let filePath: string | null = null;
+    let fileSizeBytes = 0;
+
+    if (file_data_base64 && typeof file_data_base64 === 'string') {
+      const base64Clean = file_data_base64.includes(',')
+        ? file_data_base64.split(',')[1]
+        : file_data_base64;
+      const buffer = Buffer.from(base64Clean, 'base64');
+      if (!finalFileName) {
+        finalFileName = `${cleanName.replace(/[^a-zA-Z0-9_-]/g, '_')}.${finalFormat.toLowerCase()}`;
+      }
+      const extMatch = path.extname(finalFileName).replace('.', '').toUpperCase();
+      if (extMatch && !file_format) {
+        finalFormat = extMatch;
+      }
+      const uniqueName = `${Date.now()}_${finalFileName}`;
+      filePath = path.join(ADMIN_STORAGE_DIR, uniqueName);
+      fs.writeFileSync(filePath, buffer);
+      fileSizeBytes = buffer.length;
+    } else {
+      finalFileName = `${cleanName.replace(/[^a-zA-Z0-9_-]/g, '_')}.${finalFormat.toLowerCase()}`;
+    }
+
+    const insertRes = await pool.query(`
+      INSERT INTO generated_reports (
+        report_name,
+        category_name,
+        description,
+        file_name,
+        file_path,
+        file_format,
+        file_size_bytes,
+        status,
+        approval_status,
+        requested_by,
+        started_at,
+        completed_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Completed', $8, $9, NOW(), NOW())
+      RETURNING *;
+    `, [
+      cleanName,
+      category,
+      description || null,
+      finalFileName,
+      filePath,
+      finalFormat,
+      fileSizeBytes,
+      approvalStatus,
+      requestedBy
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: `Report "${cleanName}" created successfully`,
+      report: insertRes.rows[0]
+    });
+  } catch (err: any) {
+    console.error('Error creating admin report:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to create report' });
+  }
+});
+
+// Edit an existing report in Admin Panel (with optional file replacement)
+adminRouter.put('/reports/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const {
+      report_name,
+      category_name,
+      description,
+      file_format,
+      requested_by,
+      approval_status,
+      file_name,
+      file_data_base64
+    } = req.body;
+
+    const existingRes = await pool.query(`SELECT * FROM generated_reports WHERE id::text = $1`, [id]);
+    if (existingRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+    const existing = existingRes.rows[0];
+
+    const cleanName = report_name ? report_name.trim() : existing.report_name;
+    const category = category_name ? category_name.trim() : existing.category_name;
+    const updatedDescription = description !== undefined ? description : existing.description;
+    const requestedBy = requested_by ? requested_by.trim() : existing.requested_by;
+    const approvalStatus = approval_status || existing.approval_status || 'approved';
+
+    let finalFormat = file_format ? file_format.toUpperCase() : existing.file_format;
+    let finalFileName = existing.file_name;
+    let filePath = existing.file_path;
+    let fileSizeBytes = existing.file_size_bytes || 0;
+
+    if (file_data_base64 && typeof file_data_base64 === 'string') {
+      const base64Clean = file_data_base64.includes(',')
+        ? file_data_base64.split(',')[1]
+        : file_data_base64;
+      const buffer = Buffer.from(base64Clean, 'base64');
+      const safeName = file_name
+        ? String(file_name).replace(/[^a-zA-Z0-9._-]/g, '_')
+        : `${cleanName.replace(/[^a-zA-Z0-9_-]/g, '_')}.${finalFormat.toLowerCase()}`;
+      const extMatch = path.extname(safeName).replace('.', '').toUpperCase();
+      if (extMatch) finalFormat = extMatch;
+      const uniqueName = `${Date.now()}_${safeName}`;
+      const newPath = path.join(ADMIN_STORAGE_DIR, uniqueName);
+      fs.writeFileSync(newPath, buffer);
+
+      // Clean up old file if present
+      if (existing.file_path && fs.existsSync(existing.file_path)) {
+        try { fs.unlinkSync(existing.file_path); } catch { /* ignore */ }
+      }
+
+      filePath = newPath;
+      finalFileName = safeName;
+      fileSizeBytes = buffer.length;
+    }
+
+    const updateRes = await pool.query(`
+      UPDATE generated_reports
+      SET
+        report_name = $1,
+        category_name = $2,
+        description = $3,
+        file_name = $4,
+        file_path = $5,
+        file_format = $6,
+        file_size_bytes = $7,
+        requested_by = $8,
+        approval_status = $9,
+        updated_at = NOW()
+      WHERE id::text = $10
+      RETURNING *;
+    `, [
+      cleanName,
+      category,
+      updatedDescription,
+      finalFileName,
+      filePath,
+      finalFormat,
+      fileSizeBytes,
+      requestedBy,
+      approvalStatus,
+      id
+    ]);
+
+    res.json({
+      success: true,
+      message: `Report "${cleanName}" updated successfully`,
+      report: updateRes.rows[0]
+    });
+  } catch (err: any) {
+    console.error('Error updating admin report:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to update report' });
+  }
+});
+
 // Securely stream and download generated report for admin
 adminRouter.get('/reports/:id/download', async (req: Request, res: Response) => {
   try {
@@ -1564,7 +1749,7 @@ adminRouter.get('/reports/:id/download', async (req: Request, res: Response) => 
 
     const report = result.rows[0];
     const fileFormat = (report.file_format || 'XLSX').toUpperCase();
-    const downloadExt = fileFormat.toLowerCase() === 'csv' ? 'csv' : fileFormat.toLowerCase() === 'pdf' ? 'pdf' : 'xlsx';
+    const downloadExt = fileFormat.toLowerCase();
     const downloadFilename = report.file_name || `${report.report_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.${downloadExt}`;
 
     let filePath = report.file_path;
@@ -1586,11 +1771,16 @@ adminRouter.get('/reports/:id/download', async (req: Request, res: Response) => 
       }
     }
 
-    const contentType = downloadExt === 'csv'
-      ? 'text/csv'
-      : downloadExt === 'pdf'
-        ? 'application/pdf'
-        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const mimeMap: Record<string, string> = {
+      csv: 'text/csv',
+      pdf: 'application/pdf',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      doc: 'application/msword',
+      txt: 'text/plain',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      xls: 'application/vnd.ms-excel'
+    };
+    const contentType = mimeMap[downloadExt] || 'application/octet-stream';
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
@@ -1615,6 +1805,10 @@ adminRouter.post('/reports/:id/approve', async (req: Request, res: Response) => 
 adminRouter.delete('/reports/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const existing = await pool.query(`SELECT file_path FROM generated_reports WHERE id::text = $1`, [id]);
+    if (existing.rows.length > 0 && existing.rows[0].file_path && fs.existsSync(existing.rows[0].file_path)) {
+      try { fs.unlinkSync(existing.rows[0].file_path); } catch { /* ignore */ }
+    }
     await pool.query(`DELETE FROM generated_reports WHERE id::text = $1`, [id]);
     res.json({ success: true, message: 'Report deleted from records' });
   } catch (err: any) {

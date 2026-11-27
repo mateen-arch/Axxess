@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart3,
   Search,
@@ -12,7 +12,13 @@ import {
   Building2,
   Users,
   Activity,
-  Layers
+  Layers,
+  Plus,
+  Edit2,
+  Upload,
+  FileText,
+  X,
+  Paperclip
 } from 'lucide-react';
 import { adminApi } from '../services/adminApi';
 import { useAdmin } from '../context/AdminContext';
@@ -27,6 +33,21 @@ export const ReportsCensusGovernancePage: React.FC = () => {
   const [selectedFormat, setSelectedFormat] = useState('all');
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // Add / Edit Report Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState<AdminReportItem | null>(null);
+  const [reportName, setReportName] = useState('');
+  const [categoryName, setCategoryName] = useState('Patient Reports');
+  const [description, setDescription] = useState('');
+  const [fileFormat, setFileFormat] = useState('XLSX');
+  const [requestedBy, setRequestedBy] = useState('Director of Clinical Services');
+  const [approvalStatus, setApprovalStatus] = useState<'approved' | 'pending_approval'>('approved');
+  const [attachedFileName, setAttachedFileName] = useState('');
+  const [attachedFileBase64, setAttachedFileBase64] = useState('');
+  const [attachedFileSize, setAttachedFileSize] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     loadData();
@@ -117,6 +138,95 @@ export const ReportsCensusGovernancePage: React.FC = () => {
     }
   };
 
+  const handleOpenAddModal = () => {
+    setEditingReport(null);
+    setReportName('');
+    setCategoryName('Patient Reports');
+    setDescription('');
+    setFileFormat('XLSX');
+    setRequestedBy('Director of Clinical Services');
+    setApprovalStatus('approved');
+    setAttachedFileName('');
+    setAttachedFileBase64('');
+    setAttachedFileSize(0);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (rep: AdminReportItem) => {
+    setEditingReport(rep);
+    setReportName(rep.report_name);
+    setCategoryName(rep.category || 'Patient Reports');
+    setDescription(rep.description || '');
+    setFileFormat((rep.format || 'XLSX').toUpperCase());
+    setRequestedBy(rep.requested_by || 'Director of Clinical Services');
+    setApprovalStatus(rep.approval_status === 'pending_approval' ? 'pending_approval' : 'approved');
+    setAttachedFileName(rep.file_name || '');
+    setAttachedFileBase64('');
+    setAttachedFileSize(rep.file_size_bytes || 0);
+    setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachedFileName(file.name);
+    setAttachedFileSize(file.size);
+    const ext = file.name.split('.').pop()?.toUpperCase();
+    if (ext && ['XLSX', 'XLS', 'CSV', 'PDF', 'DOCX', 'DOC', 'TXT'].includes(ext)) {
+      setFileFormat(ext === 'XLS' ? 'XLSX' : ext);
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAttachedFileBase64(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportName.trim()) {
+      showToast('Please enter a report name.', 'error');
+      return;
+    }
+    try {
+      setIsSaving(true);
+      const payload: any = {
+        report_name: reportName.trim(),
+        category_name: categoryName,
+        description: description.trim(),
+        file_format: fileFormat,
+        requested_by: requestedBy.trim() || 'System Administrator',
+        approval_status: approvalStatus,
+      };
+      if (attachedFileBase64) {
+        payload.file_name = attachedFileName;
+        payload.file_data_base64 = attachedFileBase64;
+      }
+
+      if (editingReport) {
+        const res = await adminApi.updateReport(editingReport.id, payload);
+        if (res.success) {
+          showToast(`Report "${reportName}" updated successfully!`, 'success');
+          setIsModalOpen(false);
+          triggerRefresh();
+        }
+      } else {
+        const res = await adminApi.createReport(payload);
+        if (res.success) {
+          showToast(`Report "${reportName}" added and synced to Reports & Census!`, 'success');
+          setIsModalOpen(false);
+          triggerRefresh();
+        }
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save report', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const pendingReportsCount = reports.filter(r => r.approval_status === 'pending_approval').length;
 
   return (
@@ -140,19 +250,29 @@ export const ReportsCensusGovernancePage: React.FC = () => {
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Supervise clinical & operational census intelligence across branches. Approve generated reports before public staff access.
+              Supervise clinical & operational census intelligence across branches. Approved reports appear directly in Reports & Census.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={loadData}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-pearl-100 hover:bg-pearl-200 dark:bg-charcoal-750 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all self-start md:self-auto cursor-pointer"
-        >
-          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-extrabold shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Add Report</span>
+          </button>
+
+          <button
+            onClick={loadData}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-pearl-100 hover:bg-pearl-200 dark:bg-charcoal-750 dark:hover:bg-charcoal-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Live Census Breakdown Cards */}
@@ -340,6 +460,14 @@ export const ReportsCensusGovernancePage: React.FC = () => {
                             )}
 
                             <button
+                              onClick={() => handleOpenEditModal(rep)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer inline-flex items-center"
+                              title="Edit Report"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+
+                            <button
                               onClick={() => handleDownloadReport(rep)}
                               disabled={downloadingId === rep.id}
                               className="p-1.5 rounded-lg hover:bg-pearl-200 dark:hover:bg-charcoal-750 text-slate-600 dark:text-slate-300 transition-all cursor-pointer inline-flex items-center"
@@ -370,6 +498,178 @@ export const ReportsCensusGovernancePage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Add / Edit Report Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <FileSpreadsheet size={18} />
+                <h3 className="text-sm font-black tracking-tight">
+                  {editingReport ? 'Edit Report' : 'Add New Report'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveReport} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Report Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reportName}
+                  onChange={(e) => setReportName(e.target.value)}
+                  placeholder="e.g. Monthly Clinical Census Summary"
+                  className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={categoryName}
+                    onChange={(e) => setCategoryName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="Patient Reports">Patient Reports</option>
+                    <option value="Schedule Reports">Schedule Reports</option>
+                    <option value="Employee Reports">Employee Reports</option>
+                    <option value="Clinician Reports">Clinician Reports</option>
+                    <option value="Billing & Financial">Billing & Financial</option>
+                    <option value="Quality Assurance">Quality Assurance</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    File Format
+                  </label>
+                  <select
+                    value={fileFormat}
+                    onChange={(e) => setFileFormat(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="XLSX">XLSX (Excel)</option>
+                    <option value="CSV">CSV</option>
+                    <option value="PDF">PDF</option>
+                    <option value="DOCX">DOCX (Word)</option>
+                    <option value="TXT">TXT</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Requested By / Author
+                  </label>
+                  <input
+                    type="text"
+                    value={requestedBy}
+                    onChange={(e) => setRequestedBy(e.target.value)}
+                    placeholder="Director of Clinical Services"
+                    className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Publication Status
+                  </label>
+                  <select
+                    value={approvalStatus}
+                    onChange={(e) => setApprovalStatus(e.target.value as 'approved' | 'pending_approval')}
+                    className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="approved">Published (Visible in Reports & Census)</option>
+                    <option value="pending_approval">Pending Approval</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Description / Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe the purpose and clinical scope of this report..."
+                  className="w-full px-3 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+
+              {/* File Attachment */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Attach Report File {editingReport ? '(Optional — leave empty to keep existing file)' : '(XLSX, CSV, PDF, DOCX)'}
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-pearl-300 dark:border-charcoal-600 hover:border-amber-500 dark:hover:border-amber-500 rounded-xl p-4 text-center cursor-pointer transition bg-pearl-50/40 dark:bg-charcoal-800/40"
+                >
+                  {attachedFileName ? (
+                    <div className="flex items-center justify-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                      <Paperclip size={15} className="text-amber-500" />
+                      <span className="truncate max-w-[260px]">{attachedFileName}</span>
+                      {attachedFileSize > 0 && (
+                        <span className="text-[10px] font-mono text-slate-400">
+                          ({Math.max(1, Math.round(attachedFileSize / 1024))} KB)
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400">
+                      <Upload size={20} className="text-amber-500" />
+                      <span className="font-bold">Click to attach a report file</span>
+                      <span className="text-[10px]">Supports .xlsx, .csv, .pdf, .docx up to 50MB</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-pearl-200 dark:border-charcoal-700 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-pearl-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  {isSaving && <RefreshCw size={13} className="animate-spin" />}
+                  <span>{isSaving ? 'Saving...' : editingReport ? 'Save Changes' : 'Add Report'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
