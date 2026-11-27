@@ -3,7 +3,17 @@ import { Sparkles, Activity, ShieldCheck, ArrowUpRight, TrendingUp, CheckCircle2
 import { useHealthcare } from '../../context/HealthcareContext';
 
 export const HeroWelcome: React.FC = () => {
-  const { organization, census, scheduledSummary, unassignedVisits7Days, unreadCount, setActiveNavTab } = useHealthcare();
+  const {
+    organization,
+    census,
+    scheduledSummary,
+    unassignedVisits7Days,
+    unreadCount,
+    setActiveNavTab,
+    setCurrentWebsite,
+    setConnectModule,
+    setConnectRailTab,
+  } = useHealthcare();
 
   return (
     <div className="glass-panel p-6 md:p-8 mb-6 relative overflow-hidden transition-colors">
@@ -117,8 +127,13 @@ export const HeroWelcome: React.FC = () => {
 
           {/* Card 4: Unread Alerts */}
           <div
-            onClick={() => setActiveNavTab('messages')}
+            onClick={() => {
+              setCurrentWebsite('connect');
+              setConnectModule('connect');
+              setConnectRailTab('chat');
+            }}
             className="hero-kpi-card group p-5 rounded-2xl border cursor-pointer transition-all duration-200 hover:-translate-y-1 shadow-xs hover:shadow-md flex flex-col justify-between min-h-[145px]"
+            title="Open CareOrbit Connect"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">

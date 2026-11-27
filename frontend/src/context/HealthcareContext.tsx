@@ -1016,7 +1016,11 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setUnassignedVisits(prev => [newVisit, ...prev]);
   };
 
-  const unreadCount = messages.filter(m => !m.isRead).length;
+  const unreadCount = React.useMemo(() => {
+    const connectUnread = (conversations || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+    const emrUnread = (messages || []).filter(m => !m.isRead).length;
+    return connectUnread + emrUnread;
+  }, [conversations, messages]);
 
   const markMessageRead = async (id: string) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, isRead: true } : m));

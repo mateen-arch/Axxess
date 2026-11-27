@@ -364,11 +364,12 @@ app.get('/api/dashboard/metrics', async (_req: Request, res: Response) => {
       }
     });
 
-    // 5. Unread Messages Count
-    const unreadMessagesRes = await pool.query(`
-      SELECT COUNT(*)::int as count FROM messages WHERE is_read = false;
-    `);
-    const unreadMessagesCount = unreadMessagesRes.rows[0]?.count || 0;
+    // 5. Unread Messages & Clinical Alerts Count (CareOrbit Connect Chat + EMR Messages)
+    const [unreadMessagesRes, unreadChatRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int as count FROM messages WHERE is_read = false;`),
+      pool.query(`SELECT COUNT(*)::int as count FROM chat_messages WHERE is_read = false;`)
+    ]);
+    const unreadMessagesCount = (unreadMessagesRes.rows[0]?.count || 0) + (unreadChatRes.rows[0]?.count || 0);
 
     res.json({
       activePatients: {

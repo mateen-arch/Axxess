@@ -15,7 +15,10 @@ export const UnreadMessagesCard: React.FC = () => {
     markMessageRead,
     setSelectedMessage,
     setActiveNavTab,
-    serviceFilter
+    serviceFilter,
+    setCurrentWebsite,
+    setConnectModule,
+    setConnectRailTab,
   } = useHealthcare();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'urgent' | 'home_care' | 'home_health'>('all');
@@ -47,7 +50,11 @@ export const UnreadMessagesCard: React.FC = () => {
             {unreadCount} Total
           </span>
           <button
-            onClick={() => setActiveNavTab('messages')}
+            onClick={() => {
+              setCurrentWebsite('connect');
+              setConnectModule('connect');
+              setConnectRailTab('chat');
+            }}
             className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 group cursor-pointer"
           >
             <span>CareOrbit Connect</span>
@@ -157,7 +164,11 @@ export const UnreadMessagesCard: React.FC = () => {
           Showing {filteredMessages.length} of {unreadCount} unread items
         </span>
         <button
-          onClick={() => setActiveNavTab('messages')}
+          onClick={() => {
+            setCurrentWebsite('connect');
+            setConnectModule('connect');
+            setConnectRailTab('chat');
+          }}
           className="text-rose-600 dark:text-rose-400 hover:underline font-bold text-xs"
         >
           View All Inbox ({unreadCount})
