@@ -60,6 +60,9 @@ export const CareOrbitConnectView: React.FC = () => {
   const [selectedAttachment, setSelectedAttachment] = useState<ChatMessage['attachment'] | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef<number>(0);
+  const prevConvIdRef = useRef<string | null>(null);
 
   // Active Conversation Object
   const activeConversation = useMemo(() => {
@@ -67,47 +70,70 @@ export const CareOrbitConnectView: React.FC = () => {
     return conversations.find(c => c.id === activeConversationId) || conversations[0] || null;
   }, [conversations, activeConversationId]);
 
-  // Direct active messages state with real-time sync
-  const [conversationMessages, setConversationMessages] = useState<ChatMessage[]>([]);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const activeConvId = activeConversation?.id;
 
-  const loadConversationMessages = useCallback(async (convId: string) => {
-    try {
-      const msgs = await api.getConnectMessages(convId);
-      if (Array.isArray(msgs)) {
-        setConversationMessages(msgs);
-      }
-    } catch (err) {
-      console.error('Failed to load conversation messages:', err);
-    }
-  }, []);
+  // Direct active messages state keyed by conversation ID to isolate streams and avoid race-condition collisions
+  const [messagesByConv, setMessagesByConv] = useState<Record<string, ChatMessage[]>>(messagesMap || {});
 
-  // Load messages from database whenever active conversation changes + 3s live polling
+  // Load messages from database whenever active conversation changes + 5s live polling with cancellation guard
   useEffect(() => {
-    if (activeConversation?.id) {
-      loadConversationMessages(activeConversation.id);
-      markConversationRead(activeConversation.id);
+    if (!activeConvId) return;
 
-      const interval = setInterval(() => {
-        loadConversationMessages(activeConversation.id);
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [activeConversation?.id, loadConversationMessages, markConversationRead]);
+    markConversationRead(activeConvId);
 
-  // Active Messages list
+    let isMounted = true;
+    const fetchMsgs = async () => {
+      try {
+        const msgs = await api.getConnectMessages(activeConvId);
+        if (isMounted && Array.isArray(msgs)) {
+          setMessagesByConv(prev => ({
+            ...prev,
+            [activeConvId]: msgs
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load conversation messages:', err);
+      }
+    };
+
+    fetchMsgs();
+
+    const interval = setInterval(fetchMsgs, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeConvId]);
+
+  // Active Messages list strictly for the selected conversation
   const activeMessages = useMemo(() => {
-    if (conversationMessages.length > 0) return conversationMessages;
-    if (activeConversation?.id && messagesMap[activeConversation.id]) {
-      return messagesMap[activeConversation.id];
+    if (activeConvId && messagesByConv[activeConvId]) {
+      return messagesByConv[activeConvId];
+    }
+    if (activeConvId && messagesMap[activeConvId]) {
+      return messagesMap[activeConvId];
     }
     return [];
-  }, [conversationMessages, messagesMap, activeConversation?.id]);
+  }, [messagesByConv, messagesMap, activeConvId]);
 
-  // Auto-scroll on new messages
+  // Controlled, container-scoped scrolling without viewport shaking
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeMessages.length]);
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const currentCount = activeMessages.length;
+    const convChanged = prevConvIdRef.current !== activeConvId;
+
+    if (convChanged) {
+      prevConvIdRef.current = activeConvId || null;
+      prevMsgCountRef.current = currentCount;
+      // Instant position at bottom when switching conversations
+      container.scrollTop = container.scrollHeight;
+    } else if (currentCount > prevMsgCountRef.current) {
+      prevMsgCountRef.current = currentCount;
+      // Smooth container scroll on new incoming/outgoing message
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  }, [activeMessages.length, activeConvId]);
 
   // Filtered Conversations
   const filteredConversations = useMemo(() => {
@@ -134,16 +160,17 @@ export const CareOrbitConnectView: React.FC = () => {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!activeConversation?.id) return;
+    if (!activeConvId) return;
     if (!messageInput.trim() && !selectedAttachment) return;
 
+    const convId = activeConvId;
     const content = messageInput.trim();
     const attachment = selectedAttachment || undefined;
     setMessageInput('');
     setSelectedAttachment(null);
     setIsAttachmentPickerOpen(false);
 
-    // Instant optimistic message append
+    // Instant optimistic message append locked to this specific conversation
     const optimisticMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderId: 'current-user',
@@ -157,10 +184,13 @@ export const CareOrbitConnectView: React.FC = () => {
       attachment
     };
 
-    setConversationMessages(prev => [...prev, optimisticMsg]);
+    setMessagesByConv(prev => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), optimisticMsg]
+    }));
 
     try {
-      const savedMsg = await api.sendConnectMessage(activeConversation.id, {
+      const savedMsg = await api.sendConnectMessage(convId, {
         content,
         senderId: 'current-user',
         senderName: 'Hilder M., RN',
@@ -168,7 +198,10 @@ export const CareOrbitConnectView: React.FC = () => {
         attachment
       });
 
-      setConversationMessages(prev => prev.map(m => m.id === optimisticMsg.id ? savedMsg : m));
+      setMessagesByConv(prev => ({
+        ...prev,
+        [convId]: (prev[convId] || []).map(m => m.id === optimisticMsg.id ? savedMsg : m)
+      }));
       refreshConnectConversations();
     } catch (err) {
       console.error('Failed to send message to database:', err);
@@ -176,7 +209,8 @@ export const CareOrbitConnectView: React.FC = () => {
   };
 
   const handleQuickReply = async (text: string) => {
-    if (!activeConversation?.id) return;
+    if (!activeConvId) return;
+    const convId = activeConvId;
     const optimisticMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderId: 'current-user',
@@ -188,16 +222,22 @@ export const CareOrbitConnectView: React.FC = () => {
       date: 'Today',
       isRead: true
     };
-    setConversationMessages(prev => [...prev, optimisticMsg]);
+    setMessagesByConv(prev => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), optimisticMsg]
+    }));
 
     try {
-      const savedMsg = await api.sendConnectMessage(activeConversation.id, {
+      const savedMsg = await api.sendConnectMessage(convId, {
         content: text,
         senderId: 'current-user',
         senderName: 'Hilder M., RN',
         senderRole: 'Clinical Supervisor'
       });
-      setConversationMessages(prev => prev.map(m => m.id === optimisticMsg.id ? savedMsg : m));
+      setMessagesByConv(prev => ({
+        ...prev,
+        [convId]: (prev[convId] || []).map(m => m.id === optimisticMsg.id ? savedMsg : m)
+      }));
       refreshConnectConversations();
     } catch (err) {
       console.error('Failed to send quick reply:', err);
@@ -581,7 +621,7 @@ export const CareOrbitConnectView: React.FC = () => {
                 </div>
 
                 {/* Message Stream */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                   {/* Date Divider */}
                   <div className="flex items-center justify-center my-2">
                     <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-pearl-100 dark:bg-charcoal-750 text-slate-500 dark:text-slate-400 border border-pearl-200 dark:border-charcoal-650">

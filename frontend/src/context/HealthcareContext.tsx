@@ -865,16 +865,18 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const markConversationRead = async (conversationId: string) => {
+  const markConversationRead = useCallback(async (conversationId: string) => {
     try {
       await api.markConnectConversationRead(conversationId);
     } catch (err) {
       console.error('Failed to mark conversation read on server:', err);
     }
-    setConversations(prev =>
-      prev.map(c => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
-    );
-  };
+    setConversations(prev => {
+      const target = prev.find(c => c.id === conversationId);
+      if (!target || target.unreadCount === 0) return prev;
+      return prev.map(c => (c.id === conversationId ? { ...c, unreadCount: 0 } : c));
+    });
+  }, []);
 
   const createNewConversation = async (data: any) => {
     try {
