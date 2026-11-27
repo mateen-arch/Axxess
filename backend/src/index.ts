@@ -275,12 +275,27 @@ app.get('/api/dashboard/metrics', async (_req: Request, res: Response) => {
     });
     const totalUnassigned7Days = unassignedHealth + unassignedCare;
 
-    // 3. Central Intake Past 30 Days
+    // 3. Central Intake Past 30 Days (Real-time normalized by service line and stage)
     const intakeQuery = await pool.query(`
-      SELECT service_line, stage, COUNT(*)::int as count
+      SELECT 
+        CASE 
+          WHEN service_line::text ILIKE '%care%' THEN 'home_care'
+          WHEN service_line::text ILIKE '%hospice%' THEN 'hospice'
+          ELSE 'home_health'
+        END as service_line,
+        CASE 
+          WHEN stage::text ILIKE '%inquiry%' THEN 'inquiry'
+          ELSE 'referral'
+        END as intake_type,
+        CASE 
+          WHEN stage::text ILIKE '%admit%' OR status::text ILIKE '%admit%' THEN 1 
+          ELSE 0 
+        END as is_admitted,
+        COUNT(*)::int as count
       FROM intake_referrals
       WHERE received_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-      GROUP BY service_line, stage;
+         OR received_at IS NULL
+      GROUP BY 1, 2, 3;
     `);
 
     const intakeMap: Record<string, { inquiry: number; referral: number; admitted: number }> = {
@@ -291,9 +306,14 @@ app.get('/api/dashboard/metrics', async (_req: Request, res: Response) => {
     intakeQuery.rows.forEach(row => {
       const s = row.service_line;
       if (!intakeMap[s]) intakeMap[s] = { inquiry: 0, referral: 0, admitted: 0 };
-      if (row.stage === 'inquiry') intakeMap[s].inquiry += row.count;
-      else if (row.stage === 'referral') intakeMap[s].referral += row.count;
-      else if (row.stage === 'admitted') intakeMap[s].admitted += row.count;
+      if (row.intake_type === 'inquiry') {
+        intakeMap[s].inquiry += row.count;
+      } else {
+        intakeMap[s].referral += row.count;
+      }
+      if (row.is_admitted === 1) {
+        intakeMap[s].admitted += row.count;
+      }
     });
 
     const intakeMetrics = [
@@ -302,18 +322,22 @@ app.get('/api/dashboard/metrics', async (_req: Request, res: Response) => {
         inquiry: intakeMap.home_health.inquiry,
         referral: intakeMap.home_health.referral,
         admitted: intakeMap.home_health.admitted,
-        conversionRate: intakeMap.home_health.referral + intakeMap.home_health.inquiry > 0
-          ? `${Math.round((intakeMap.home_health.admitted / (intakeMap.home_health.referral + intakeMap.home_health.inquiry)) * 100)}%`
-          : '0%'
+        conversionRate: intakeMap.home_health.referral > 0
+          ? `${Math.round((intakeMap.home_health.admitted / intakeMap.home_health.referral) * 100)}%`
+          : intakeMap.home_health.inquiry > 0
+            ? `${Math.round((intakeMap.home_health.admitted / intakeMap.home_health.inquiry) * 100)}%`
+            : '0%'
       },
       {
         service: 'Home Care (Private Duty)',
         inquiry: intakeMap.home_care.inquiry,
         referral: intakeMap.home_care.referral,
         admitted: intakeMap.home_care.admitted,
-        conversionRate: intakeMap.home_care.referral + intakeMap.home_care.inquiry > 0
-          ? `${Math.round((intakeMap.home_care.admitted / (intakeMap.home_care.referral + intakeMap.home_care.inquiry)) * 100)}%`
-          : '0%'
+        conversionRate: intakeMap.home_care.referral > 0
+          ? `${Math.round((intakeMap.home_care.admitted / intakeMap.home_care.referral) * 100)}%`
+          : intakeMap.home_care.inquiry > 0
+            ? `${Math.round((intakeMap.home_care.admitted / intakeMap.home_care.inquiry) * 100)}%`
+            : '0%'
       }
     ];
 
