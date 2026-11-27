@@ -25,7 +25,7 @@ export const TopHeader: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-16 w-full glass-panel !rounded-none !border-t-0 !border-x-0 !border-b border-pearl-200 dark:border-charcoal-700 px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
+      <header className="no-print print:hidden sticky top-0 z-30 h-16 w-full glass-panel !rounded-none !border-t-0 !border-x-0 !border-b border-pearl-200 dark:border-charcoal-700 px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
         {/* Mobile menu toggle, app switcher, and page heading */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           {/* Mobile Sidebar Hamburger Toggle */}

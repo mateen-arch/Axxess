@@ -744,7 +744,7 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
   return (
     <div className="flex flex-col h-full w-full space-y-4 animate-fadeIn text-slate-900 dark:text-slate-100 font-sans text-xs select-none">
       {/* 1. Top Header Segment (Consistent with Central Template) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 shrink-0">
+      <div className="no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 shrink-0">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
@@ -802,9 +802,9 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
       </div>
 
       {/* 2. Main Split View: Left Patient Roster & Right Interactive Schedule */}
-      <div className="flex flex-1 rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden min-h-[700px]">
+      <div className="flex flex-1 rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden min-h-[700px] print:block print:border-none print:shadow-none print:overflow-visible print:min-h-0">
         {/* Left Sidebar: Filter Ribbon & Patients Table */}
-        <div className="w-64 sm:w-72 md:w-80 border-r border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 flex flex-col shrink-0">
+        <div className="no-print print:hidden w-64 sm:w-72 md:w-80 border-r border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 flex flex-col shrink-0">
           {/* Top Button: Add New Patient */}
           <div className="p-2 border-b border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/40">
             <button
@@ -940,7 +940,27 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
         </div>
 
         {/* Right Main Panel */}
-        <div className="flex-1 flex flex-col overflow-y-auto bg-pearl-50/40 dark:bg-charcoal-900">
+        <div className="flex-1 flex flex-col overflow-y-auto bg-pearl-50/40 dark:bg-charcoal-900 print:bg-white print:overflow-visible print:block">
+          {/* Formal Printable Healthcare Header (Only visible when printing) */}
+          <div className="hidden print:block p-4 pb-3 mb-2 border-b-2 border-rose-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-slate-900">
+                  STANDARDS HOME CARE — PATIENT CLINICAL SCHEDULE CENTER
+                </h1>
+                <p className="text-xs text-slate-600 font-mono mt-0.5">
+                  CareOrbit Central Healthcare Platform • Multi-Disciplinary Master Roster & EVV Schedule
+                </p>
+              </div>
+              <div className="text-right text-xs text-slate-600 font-mono">
+                <div>Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                <div className="font-bold text-rose-700">CONFIDENTIAL MEDICAL DOCUMENT</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[10px] text-slate-500 italic">
+              Patient: {currentPatientName} • Episode: {patientDetail?.episodeStart || '10/26/2026'} - {patientDetail?.episodeEnd || '12/24/2026'} • Payer: {patientDetail?.insuranceName || 'COMMONWEALTH CARE ALLIANCE'}
+            </div>
+          </div>
           {/* Patient Banner: Episode Selector & LUPA Risk */}
           <div className="p-3 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center space-x-2">
@@ -1521,6 +1541,22 @@ export const ScheduleCenterView: React.FC<ScheduleCenterViewProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Printable Clinician & Supervisor Certification Block */}
+            <div className="hidden print:block mt-8 pt-4 border-t border-slate-400 text-xs">
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+                  <div className="font-bold text-slate-800">Field Clinician / Scheduler Verification</div>
+                  <div className="text-[11px] text-slate-500">Date: ____________________ License #: ____________</div>
+                </div>
+                <div>
+                  <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+                  <div className="font-bold text-slate-800">Clinical Supervisor / Director Approval</div>
+                  <div className="text-[11px] text-slate-500">Date: ____________________ Alexandria Nelson, RN</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

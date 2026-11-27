@@ -311,7 +311,7 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
       )}
 
       {/* 1. Page Header */}
-      <div className="p-4 sm:p-6 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 shadow-2xs">
+      <div className="no-print print:hidden p-4 sm:p-6 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -363,7 +363,27 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-5">
+      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-5 print:p-0 print:space-y-3 print:block">
+        {/* Formal Printable Healthcare Header (Only visible when printing) */}
+        <div className="hidden print:block pb-3 mb-4 border-b-2 border-rose-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-slate-900">
+                STANDARDS HOME CARE — PAYER PRE-AUTHORIZATION AUDIT REPORT
+              </h1>
+              <p className="text-xs text-slate-600 font-mono mt-0.5">
+                CareOrbit Central Healthcare Platform • Utilization Review & Payer Compliance Record
+              </p>
+            </div>
+            <div className="text-right text-xs text-slate-600 font-mono">
+              <div>Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+              <div className="font-bold text-rose-700">CONFIDENTIAL MEDICAL DOCUMENT</div>
+            </div>
+          </div>
+          <div className="mt-2 text-[10px] text-slate-500 italic">
+            Patient: {patientName} (MRN: {patient.mrn}) • Payer: {patient.insuranceName || 'COMMONWEALTH CARE ALLIANCE'} • Episode: {patient.episodeStart || '10/26/2026'} - {patient.episodeEnd || '12/24/2026'}
+          </div>
+        </div>
         {/* Patient Banner & Summary Stats */}
         <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -407,7 +427,7 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
         </div>
 
         {/* Filters and Search Bar */}
-        <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="no-print print:hidden bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-1 max-w-lg">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -477,7 +497,7 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
                   <th className="py-3 px-3 text-center whitespace-nowrap">Unused</th>
                   <th className="py-3 px-3 whitespace-nowrap">Unit</th>
                   <th className="py-3 px-4 min-w-[130px] whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap no-print print:hidden">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-pearl-100 dark:divide-charcoal-750 font-medium">
@@ -538,7 +558,7 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
                         <span className="whitespace-nowrap">{auth.status}</span>
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                    <td className="py-3 px-4 text-right whitespace-nowrap no-print print:hidden">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
@@ -594,6 +614,22 @@ export const AuthorizationsView: React.FC<AuthorizationsViewProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Printable Supervisor / UR Certification Block */}
+        <div className="hidden print:block mt-8 pt-4 border-t border-slate-400 text-xs">
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+              <div className="font-bold text-slate-800">Utilization Review Specialist Signature</div>
+              <div className="text-[11px] text-slate-500">Date: ____________________ Alexandria Nelson, RN</div>
+            </div>
+            <div>
+              <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+              <div className="font-bold text-slate-800">Billing / Revenue Cycle Approval</div>
+              <div className="text-[11px] text-slate-500">Date: ____________________ Status: Verified</div>
+            </div>
           </div>
         </div>
       </div>

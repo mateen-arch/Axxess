@@ -283,7 +283,7 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
   return (
     <div className="space-y-5 animate-fadeIn">
       {/* Top Header & Navigation Segment (Consistent across all pages) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+      <div className="no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
@@ -343,9 +343,9 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
       </div>
 
       {/* Main Container: Split View */}
-      <div className="rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden flex flex-col lg:flex-row min-h-[720px]">
+      <div className="rounded-2xl border border-pearl-200/80 dark:border-charcoal-700 bg-white dark:bg-charcoal-850 shadow-2xs overflow-hidden flex flex-col lg:flex-row min-h-[720px] print:border-none print:shadow-none print:min-h-0 print:block print:overflow-visible">
         {/* Left Side: Filter Column & Patient Directory Cards */}
-        <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-charcoal-850 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 max-h-64 lg:max-h-none overflow-y-auto">
+        <aside className="no-print print:hidden w-full lg:w-72 shrink-0 bg-white dark:bg-charcoal-850 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-charcoal-700 flex flex-col p-3 space-y-3 max-h-64 lg:max-h-none overflow-y-auto">
           {/* Organization Select */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
@@ -460,9 +460,30 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
         </aside>
 
         {/* Right Side: EHR Chart Details & Tasks Table */}
-        <main className="flex-1 flex flex-col p-4 space-y-4 overflow-y-auto">
+        <main className="flex-1 flex flex-col p-4 space-y-4 overflow-y-auto print:p-0 print:space-y-3 print:overflow-visible print:block">
           {currentPatient ? (
             <>
+              {/* Formal Printable Healthcare Header (Only visible when printing) */}
+              <div className="hidden print:block pb-4 mb-4 border-b-2 border-rose-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-xl font-black tracking-tight text-slate-900">
+                      STANDARDS HOME CARE — CLINICAL MEDICAL RECORD
+                    </h1>
+                    <p className="text-xs text-slate-600 font-mono mt-0.5">
+                      CareOrbit Central Healthcare Platform • Electronic Health Record (EHR)
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-slate-600 font-mono">
+                    <div>Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="font-bold text-rose-700">CONFIDENTIAL MEDICAL DOCUMENT</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10px] text-slate-500 italic">
+                  Notice: This clinical document contains Protected Health Information (PHI) under HIPAA & HITECH Act regulations. Unauthorized reproduction or disclosure is strictly prohibited.
+                </div>
+              </div>
+
               {/* Header EHR Card matching reference screenshot */}
               <div className="bg-white dark:bg-charcoal-850 rounded-xl border border-slate-200 dark:border-charcoal-700 p-4 shadow-xs">
                 <div className="flex flex-col md:flex-row gap-5">
@@ -611,7 +632,7 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
               </div>
 
               {/* Table Filter Bar: All Disciplines & All Status */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-charcoal-850 p-3 rounded-xl border border-slate-200 dark:border-charcoal-700 shadow-xs">
+              <div className="no-print print:hidden flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-charcoal-850 p-3 rounded-xl border border-slate-200 dark:border-charcoal-700 shadow-xs">
                 <div className="flex items-center gap-3">
                   {/* Discipline Dropdown */}
                   <select
@@ -868,6 +889,22 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
                   </table>
                 </div>
               </div>
+
+              {/* Printable Clinician Signature & Certification Block */}
+              <div className="hidden print:block mt-8 pt-4 border-t border-slate-400 text-xs">
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+                    <div className="font-bold text-slate-800">Attending / Field Clinician Signature</div>
+                    <div className="text-[11px] text-slate-500">Date: ____________________ License #: ____________</div>
+                  </div>
+                  <div>
+                    <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+                    <div className="font-bold text-slate-800">Clinical Supervisor / Medical Director Review</div>
+                    <div className="text-[11px] text-slate-500">Date: ____________________ Alexandria Nelson, RN</div>
+                  </div>
+                </div>
+              </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
@@ -876,7 +913,7 @@ export const PatientChartsView: React.FC<PatientChartsViewProps> = ({
           )}
 
           {/* Reference Website Footer */}
-          <footer className="py-4 text-center text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-charcoal-700 mt-auto">
+          <footer className="no-print print:hidden py-4 text-center text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-charcoal-700 mt-auto">
             Axxess © 2026 | Release Version: 1.0.3868.0 | Environment: Production | Built in Dallas, Texas
           </footer>
         </main>

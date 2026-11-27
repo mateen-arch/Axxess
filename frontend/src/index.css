@@ -285,3 +285,191 @@ textarea:focus-visible {
 .pulse-indicator.red::after {
   background: #e11d48;
 }
+
+/* ==========================================================================
+   ENTERPRISE HEALTHCARE PRINT STYLESHEET (HIPAA-COMPLIANT & PROFESSIONAL)
+   ========================================================================== */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  /* 1. Page margin and clean orientation setup */
+  @page {
+    size: letter portrait;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  /* 2. Global background, color, and typography overrides for crisp paper printing */
+  *,
+  *::before,
+  *::after {
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* 3. Completely hide operational chrome, sidebars, headers, action buttons, search, tabs, alerts */
+  aside,
+  header.no-print,
+  header.sticky,
+  header[class*="glass-panel"],
+  nav,
+  footer,
+  .app-footer,
+  .no-print,
+  .print\:hidden,
+  button,
+  input:not([type="checkbox"]),
+  select,
+  textarea,
+  .search-container,
+  .filter-bar,
+  .action-buttons,
+  .toast,
+  .pulse-indicator,
+  .modal-backdrop,
+  [role="dialog"] ~ *,
+  .app-switcher-modal,
+  .command-palette {
+    display: none !important;
+  }
+
+  /* 4. Reset layout wrappers to unclip content and flow across pages naturally */
+  html,
+  body,
+  #root,
+  #root > div,
+  .app-container,
+  .content-body,
+  main,
+  div[class*="overflow-hidden"],
+  div[class*="overflow-y-auto"],
+  div[class*="overflow-x-auto"],
+  div[class*="h-screen"],
+  div[class*="h-full"] {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    float: none !important;
+  }
+
+  /* 5. Clean clinical containers & cards with subtle grey borders */
+  .rounded-2xl,
+  .rounded-3xl,
+  .rounded-xl,
+  .glass-panel,
+  .card {
+    border-radius: 4px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    padding: 8pt !important;
+    margin-bottom: 10pt !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 6. Medical Tables: Full width with formal headers and borders */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 6pt !important;
+    margin-bottom: 12pt !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  thead tr {
+    background-color: #f1f5f9 !important;
+    border-bottom: 2px solid #475569 !important;
+  }
+
+  th {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    color: #0f172a !important;
+    padding: 5pt 7pt !important;
+    border: 1px solid #cbd5e1 !important;
+    text-align: left !important;
+  }
+
+  td {
+    font-size: 8.5pt !important;
+    padding: 4.5pt 7pt !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+  }
+
+  tbody tr:nth-child(even) {
+    background-color: #f8fafc !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 7. Badges and Status indicators */
+  span[class*="rounded-full"],
+  span[class*="badge"] {
+    display: inline-block !important;
+    border: 1px solid #64748b !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 7.5pt !important;
+    padding: 1pt 4pt !important;
+    border-radius: 3px !important;
+  }
+
+  /* 8. Make sure print-only content displays clearly */
+  .print-only,
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:flex {
+    display: flex !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* 9. Printable Document Overrides (for blank forms & standalone modal printouts) */
+  .printable-document {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+}

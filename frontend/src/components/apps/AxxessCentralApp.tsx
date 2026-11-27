@@ -48,7 +48,7 @@ export const CareOrbitCentralApp: React.FC = () => {
           {renderActiveView()}
 
           {/* Modern Enterprise Status Footer */}
-          <footer className="app-footer mt-auto py-3.5 px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-2 text-[11px] text-center md:text-left transition-colors">
+          <footer className="app-footer no-print print:hidden mt-auto py-3.5 px-4 sm:px-8 flex flex-col md:flex-row items-center justify-between gap-2 text-[11px] text-center md:text-left transition-colors">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3">
               <span className="font-extrabold text-slate-800 dark:text-slate-200">CareOrbit Central Healthcare</span>
               <span className="hidden sm:inline">•</span>

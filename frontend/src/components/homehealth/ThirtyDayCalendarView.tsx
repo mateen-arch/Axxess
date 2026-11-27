@@ -417,7 +417,7 @@ export const ThirtyDayCalendarView: React.FC<ThirtyDayCalendarViewProps> = ({
       )}
 
       {/* 1. Page Header */}
-      <div className="p-4 sm:p-6 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 shadow-2xs">
+      <div className="no-print print:hidden p-4 sm:p-6 bg-white dark:bg-charcoal-850 border-b border-pearl-200 dark:border-charcoal-700 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -475,7 +475,27 @@ export const ThirtyDayCalendarView: React.FC<ThirtyDayCalendarViewProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-5">
+      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-5 print:p-0 print:space-y-3 print:block">
+        {/* Formal Printable Healthcare Header (Only visible when printing) */}
+        <div className="hidden print:block pb-3 mb-4 border-b-2 border-rose-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-slate-900">
+                STANDARDS HOME CARE — 30-DAY CLINICAL VISIT CALENDAR (PDGM)
+              </h1>
+              <p className="text-xs text-slate-600 font-mono mt-0.5">
+                CareOrbit Central Healthcare Platform • Patient Episode Schedule & LUPA Tracking
+              </p>
+            </div>
+            <div className="text-right text-xs text-slate-600 font-mono">
+              <div>Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+              <div className="font-bold text-rose-700">CLINICAL VISIT ROSTER</div>
+            </div>
+          </div>
+          <div className="mt-2 text-[10px] text-slate-500 italic">
+            Patient: {patientName} (MRN: {patient.mrn}) • Period: {billingPeriod === 'first' ? '1st 30-Day Period' : '2nd 30-Day Period'} • Target: {billingPeriod === 'first' ? '3 visits' : '4 visits'} (Scheduled: {periodVisitsCount})
+          </div>
+        </div>
         {/* Patient Banner & LUPA Compliance Info */}
         <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -521,7 +541,7 @@ export const ThirtyDayCalendarView: React.FC<ThirtyDayCalendarViewProps> = ({
         </div>
 
         {/* Period and Episode Selectors Ribbon */}
-        <div className="bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="no-print print:hidden bg-white dark:bg-charcoal-850 rounded-2xl border border-pearl-200 dark:border-charcoal-700 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 text-xs">
               <label className="font-extrabold text-slate-600 dark:text-slate-400">Episode:</label>
@@ -661,6 +681,22 @@ export const ThirtyDayCalendarView: React.FC<ThirtyDayCalendarViewProps> = ({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Printable Clinician & Supervisor Certification Block */}
+        <div className="hidden print:block mt-8 pt-4 border-t border-slate-400 text-xs">
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+              <div className="font-bold text-slate-800">Case Manager / RN Signature</div>
+              <div className="text-[11px] text-slate-500">Date: ____________________ License #: ____________</div>
+            </div>
+            <div>
+              <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+              <div className="font-bold text-slate-800">Clinical Supervisor Review</div>
+              <div className="text-[11px] text-slate-500">Date: ____________________ Alexandria Nelson, RN</div>
+            </div>
           </div>
         </div>
       </div>

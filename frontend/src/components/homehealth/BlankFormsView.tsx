@@ -662,10 +662,11 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
   }, [searchQuery, selectedCategory]);
 
   const handlePrintForm = (form: BlankFormItem) => {
+    setPreviewForm(form);
     showToast(`Preparing blank PDF for "${form.title}"...`);
     setTimeout(() => {
       window.print();
-    }, 600);
+    }, 400);
   };
 
   const handleDownloadPdf = (form: BlankFormItem) => {
@@ -683,7 +684,7 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
       )}
 
       {/* 1. Contextual Header Strip */}
-      <div className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-pearl-200/90 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/80 sm:px-6">
+      <div className="no-print print:hidden flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-b border-pearl-200/90 bg-white/80 px-4 py-2.5 backdrop-blur-xl dark:border-charcoal-700/80 dark:bg-charcoal-900/80 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -739,9 +740,22 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4">
+      <div className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-4 print:p-0 print:space-y-3 print:overflow-visible print:block ${previewForm ? 'print:hidden' : ''}`}>
+        {/* Printable Catalog Header (only visible when printing catalog) */}
+        <div className="hidden print:block pb-3 mb-4 border-b-2 border-rose-700">
+          <h1 className="text-lg font-black tracking-tight text-slate-900">
+            STANDARDS HOME CARE — CLINICAL BLANK FORMS CATALOG
+          </h1>
+          <p className="text-xs text-slate-600 font-mono mt-0.5">
+            CareOrbit Central Healthcare • Standard CMS / OASIS-E1 Blank Documentation Master Directory
+          </p>
+          <div className="text-[10px] text-slate-500 mt-1 font-mono">
+            Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} • Active Discipline: {selectedCategory}
+          </div>
+        </div>
+
         {/* Single Row Filter & Actions Bar */}
-        <div className="rounded-2xl border border-pearl-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95 sm:px-5">
+        <div className="no-print print:hidden rounded-2xl border border-pearl-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-charcoal-700/80 dark:bg-charcoal-800/95 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Left Filter: Category Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
@@ -778,7 +792,7 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
         </div>
 
         {/* Search Bar - Separate compact row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
@@ -923,15 +937,15 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
 
       {/* Blank Form Preview Modal */}
       {previewForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl border border-pearl-200 bg-white shadow-2xl dark:border-charcoal-700 dark:bg-charcoal-800 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-white print:z-auto print:block">
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl border border-pearl-200 bg-white shadow-2xl dark:border-charcoal-700 dark:bg-charcoal-800 overflow-hidden printable-document print:max-h-none print:h-auto print:w-full print:max-w-none print:rounded-none print:border-none print:shadow-none print:block print:overflow-visible">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-pearl-200 bg-rose-700 px-6 py-4 text-white">
+            <div className="flex items-center justify-between border-b border-pearl-200 bg-rose-700 px-6 py-4 text-white print:bg-white print:text-slate-900 print:border-b-2 print:border-rose-700 print:px-0 print:py-2">
               <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-white" />
+                <FileText className="h-5 w-5 text-white print:text-rose-700" />
                 <div>
-                  <h3 className="text-sm font-bold">{previewForm.title}</h3>
-                  <p className="text-[11px] text-white/80">
+                  <h3 className="text-sm font-bold print:text-lg print:text-slate-900">{previewForm.title}</h3>
+                  <p className="text-[11px] text-white/80 print:text-slate-600 font-mono">
                     {previewForm.category} {previewForm.cmsCode && `• CMS Code: ${previewForm.cmsCode}`}
                   </p>
                 </div>
@@ -939,14 +953,14 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
               <button
                 type="button"
                 onClick={() => setPreviewForm(null)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
+                className="no-print print:hidden flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 cursor-pointer"
               >
                 <X size={15} />
               </button>
             </div>
 
             {/* Simulated Blank Form Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-slate-800 dark:text-slate-200 bg-white dark:bg-charcoal-800">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-slate-800 dark:text-slate-200 bg-white dark:bg-charcoal-800 print:overflow-visible print:p-2 print:space-y-4 print:block">
               {/* Form Agency Header */}
               <div className="flex items-center justify-between border-b border-pearl-300 pb-4 dark:border-charcoal-600">
                 <div>
@@ -1052,7 +1066,7 @@ export const BlankFormsView: React.FC<BlankFormsViewProps> = ({ onBack }) => {
             </div>
 
             {/* Modal Actions Footer */}
-            <div className="flex items-center justify-between border-t border-pearl-200 bg-pearl-50 px-6 py-3 dark:border-charcoal-700 dark:bg-charcoal-850">
+            <div className="no-print print:hidden flex items-center justify-between border-t border-pearl-200 bg-pearl-50 px-6 py-3 dark:border-charcoal-700 dark:bg-charcoal-850">
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
                 Ready for offline completion or blank charting backup.
               </span>

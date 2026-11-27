@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Sparkles,
   RotateCcw,
+  Printer,
   X
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
@@ -36,7 +37,7 @@ export const EmployeeCalendarView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>(['org-hh', 'org-hc']);
   const [selectedBranches, setSelectedBranches] = useState<string[]>(['branch-1', 'branch-2']);
-  
+
   const allCredentials = useMemo(() => [
     'RN', 'LVN', 'LPN', 'MD', 'PA', 'DO', 'NP', 'HHA', 'MSW', 'PT', 'OT', 'ST',
     'PTA', 'OTA', 'STA', 'LMSW', 'PCW', 'HMK', 'Other', 'EMT', 'EMTP',
@@ -225,11 +226,11 @@ export const EmployeeCalendarView: React.FC = () => {
       )}
 
       {/* Structured Modern Control Center */}
-      <div className="relative z-30 p-4 rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 space-y-3.5 shadow-xs">
-        
+      <div className="no-print print:hidden relative z-30 p-4 rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 space-y-3.5 shadow-xs">
+
         {/* Tier 1: Week Navigation & Primary Actions */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          
+
           {/* Date Navigation Cluster (Never Breaks onto Odd Lines) */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Week Range Scroller */}
@@ -265,11 +266,10 @@ export const EmployeeCalendarView: React.FC = () => {
                 setWeekOffset(0);
                 setActiveDayIndex(new Date().getDay());
               }}
-              className={`px-3 py-1.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer border ${
-                weekOffset === 0
+              className={`px-3 py-1.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer border ${weekOffset === 0
                   ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900 shadow-2xs'
                   : 'bg-white dark:bg-charcoal-800 text-slate-600 dark:text-slate-300 border-pearl-200 dark:border-charcoal-700 hover:bg-pearl-50 dark:hover:bg-charcoal-750'
-              }`}
+                }`}
             >
               Today
             </button>
@@ -279,22 +279,20 @@ export const EmployeeCalendarView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewMode('weekly')}
-                className={`px-3 py-1 rounded-xl transition-all cursor-pointer ${
-                  viewMode === 'weekly'
+                className={`px-3 py-1 rounded-xl transition-all cursor-pointer ${viewMode === 'weekly'
                     ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Weekly
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('daily')}
-                className={`px-3 py-1 rounded-xl transition-all cursor-pointer ${
-                  viewMode === 'daily'
+                className={`px-3 py-1 rounded-xl transition-all cursor-pointer ${viewMode === 'daily'
                     ? 'bg-white dark:bg-charcoal-700 text-rose-600 dark:text-rose-400 shadow-2xs font-extrabold'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Daily
               </button>
@@ -335,6 +333,16 @@ export const EmployeeCalendarView: React.FC = () => {
                 <span className="hidden sm:inline">Reset</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="no-print print:hidden h-9 px-3.5 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-white dark:bg-charcoal-800 hover:bg-pearl-100 dark:hover:bg-charcoal-750 font-extrabold text-xs text-slate-700 dark:text-slate-200 transition flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
+              title="Print Clinician Schedule"
+            >
+              <Printer size={14} className="text-rose-600" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
 
             <button
               type="button"
@@ -419,8 +427,29 @@ export const EmployeeCalendarView: React.FC = () => {
         </div>
       </div>
 
+      {/* Formal Printable Healthcare Header (Only visible when printing) */}
+      <div className="hidden print:block pb-3 mb-4 border-b-2 border-rose-700">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-slate-900">
+              STANDARDS HOME CARE — CLINICIAN MASTER DISPATCH SCHEDULE
+            </h1>
+            <p className="text-xs text-slate-600 font-mono mt-0.5">
+              CareOrbit Central Healthcare Platform • Multi-Disciplinary Staff Roster & EVV Verification
+            </p>
+          </div>
+          <div className="text-right text-xs text-slate-600 font-mono">
+            <div>Printed: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="font-bold text-rose-700">CLINICAL DISPATCH RECORD</div>
+          </div>
+        </div>
+        <div className="mt-2 text-[10px] text-slate-500 italic">
+          Master Schedule Range: {weekRangeLabel} • Total Clinicians: {clinicians.length}
+        </div>
+      </div>
+
       {/* Modern Schedule Matrix Grid (Wide min-w-[1360px] to guarantee 160px per day column) */}
-      <div className="relative z-10 rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs">
+      <div className="relative z-10 rounded-3xl glass-panel border border-pearl-200 dark:border-charcoal-700 overflow-hidden shadow-xs print:border-none print:shadow-none print:block print:overflow-visible">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1360px] table-fixed">
             {/* Header Columns */}
@@ -435,11 +464,10 @@ export const EmployeeCalendarView: React.FC = () => {
                 {currentWeekDays.map(day => (
                   <th
                     key={day.dayIndex}
-                    className={`py-3.5 px-3 w-[160px] text-center transition-colors border-r last:border-r-0 border-pearl-200/80 dark:border-charcoal-700 ${
-                      day.isToday
+                    className={`py-3.5 px-3 w-[160px] text-center transition-colors border-r last:border-r-0 border-pearl-200/80 dark:border-charcoal-700 ${day.isToday
                         ? 'bg-rose-500/10 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-black'
                         : 'text-slate-600 dark:text-slate-300'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center">
                       <span className="text-[10px] tracking-widest">{day.dayName}</span>
@@ -483,13 +511,12 @@ export const EmployeeCalendarView: React.FC = () => {
                       <td className="py-3.5 px-4 w-[240px] shrink-0 border-r border-pearl-200/80 dark:border-charcoal-700 bg-white/70 dark:bg-charcoal-850/80 align-top">
                         <div className="space-y-2">
                           <div className="flex items-start gap-2.5">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                              clinician.credentials === 'RN'
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${clinician.credentials === 'RN'
                                 ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                                 : clinician.credentials === 'OT' || clinician.credentials === 'PT'
-                                ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                                : 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                            }`}>
+                                  ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                  : 'bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                              }`}>
                               {clinician.credentials}
                             </div>
 
@@ -504,11 +531,10 @@ export const EmployeeCalendarView: React.FC = () => {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black ${
-                              primaryService === 'home_care'
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black ${primaryService === 'home_care'
                                 ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
                                 : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                            }`}>
+                              }`}>
                               {formatServiceLine(primaryService)}
                             </span>
 
@@ -532,9 +558,8 @@ export const EmployeeCalendarView: React.FC = () => {
                         return (
                           <td
                             key={day.dayIndex}
-                            className={`py-2 px-2 w-[160px] align-top border-r last:border-r-0 border-pearl-200/80 dark:border-charcoal-700 relative group/cell transition-colors ${
-                              day.isToday ? 'bg-rose-500/5 dark:bg-rose-950/20' : ''
-                            }`}
+                            className={`py-2 px-2 w-[160px] align-top border-r last:border-r-0 border-pearl-200/80 dark:border-charcoal-700 relative group/cell transition-colors ${day.isToday ? 'bg-rose-500/5 dark:bg-rose-950/20' : ''
+                              }`}
                           >
                             <div className="min-h-[105px] space-y-2 flex flex-col justify-start">
                               {dayVisits.map(visit => {
@@ -549,39 +574,36 @@ export const EmployeeCalendarView: React.FC = () => {
                                       setSelectedVisit(visit);
                                       setIsDetailOpen(true);
                                     }}
-                                    className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer group/visit hover:shadow-md hover:-translate-y-0.5 ${
-                                      isCompleted
+                                    className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer group/visit hover:shadow-md hover:-translate-y-0.5 ${isCompleted
                                         ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-400'
                                         : isInProgress
-                                        ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/80 hover:border-blue-400 ring-1 ring-blue-500/20'
-                                        : isMissed
-                                        ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 hover:border-rose-400'
-                                        : 'bg-white dark:bg-charcoal-800 border-pearl-200 dark:border-charcoal-700 hover:border-rose-300 dark:hover:border-rose-700'
-                                    }`}
+                                          ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/80 hover:border-blue-400 ring-1 ring-blue-500/20'
+                                          : isMissed
+                                            ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 hover:border-rose-400'
+                                            : 'bg-white dark:bg-charcoal-800 border-pearl-200 dark:border-charcoal-700 hover:border-rose-300 dark:hover:border-rose-700'
+                                      }`}
                                   >
                                     {/* Top Row: Time + Status Pill */}
                                     <div className="flex items-center justify-between gap-1 mb-1.5">
                                       <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                                         {visit.timeSlot}
                                       </span>
-                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold ${
-                                        isCompleted
+                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold ${isCompleted
                                           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                                           : isInProgress
-                                          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
-                                          : isMissed
-                                          ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
-                                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
-                                      }`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${
-                                          isCompleted
+                                            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                                            : isMissed
+                                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                                              : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+                                        }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isCompleted
                                             ? 'bg-emerald-500'
                                             : isInProgress
-                                            ? 'bg-blue-500 animate-pulse'
-                                            : isMissed
-                                            ? 'bg-rose-500'
-                                            : 'bg-indigo-400'
-                                        }`} />
+                                              ? 'bg-blue-500 animate-pulse'
+                                              : isMissed
+                                                ? 'bg-rose-500'
+                                                : 'bg-indigo-400'
+                                          }`} />
                                         <span>{isCompleted ? 'EVV' : isInProgress ? 'Active' : isMissed ? 'Missed' : 'Due'}</span>
                                       </span>
                                     </div>
@@ -644,6 +666,22 @@ export const EmployeeCalendarView: React.FC = () => {
 
           <div className="text-[11px] font-mono text-slate-400">
             Automated Recurrence Engine: Plan of Care Frequencies Synced
+          </div>
+        </div>
+      </div>
+
+      {/* Printable Supervisor Certification Block */}
+      <div className="hidden print:block mt-8 pt-4 border-t border-slate-400 text-xs">
+        <div className="grid grid-cols-2 gap-8">
+          <div>
+            <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+            <div className="font-bold text-slate-800">Clinical Dispatch Coordinator Signature</div>
+            <div className="text-[11px] text-slate-500">Date: ____________________ License #: ____________</div>
+          </div>
+          <div>
+            <div className="border-b border-slate-800 pb-1 mb-1 h-8"></div>
+            <div className="font-bold text-slate-800">Director of Clinical Services Review</div>
+            <div className="text-[11px] text-slate-500">Date: ____________________ Alexandria Nelson, RN</div>
           </div>
         </div>
       </div>
