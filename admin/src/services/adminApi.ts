@@ -16,7 +16,12 @@ import {
   AdminCensusStats
 } from '../types/admin';
 
-const BASE_URL = '/api/admin';
+const rawApiUrl = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://axxess-production-fb61b11f.up.railway.app' : '')
+).trim();
+const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
+const BASE_URL = `${API_BASE_URL}/api/admin`;
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
@@ -393,6 +398,21 @@ export const adminApi = {
 
   async deleteReport(id: string): Promise<{ success: boolean; message: string }> {
     return request(`/reports/${id}`, { method: 'DELETE' });
+  },
+
+  async downloadReportBlob(id: string): Promise<Blob> {
+    const res = await fetch(`${BASE_URL}/reports/${id}/download`);
+    if (!res.ok) {
+      let errMsg = 'Download failed';
+      try {
+        const errData = await res.json();
+        errMsg = errData.error || errData.message || errMsg;
+      } catch {
+        // ignore
+      }
+      throw new Error(errMsg);
+    }
+    return await res.blob();
   },
 
   async getCensus(): Promise<{ success: boolean } & AdminCensusStats> {

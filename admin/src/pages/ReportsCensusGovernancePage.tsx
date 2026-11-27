@@ -74,19 +74,7 @@ export const ReportsCensusGovernancePage: React.FC = () => {
     try {
       setDownloadingId(rep.id);
       showToast(`Preparing download for ${rep.report_name}...`, 'info');
-      const response = await fetch(`/api/admin/reports/${rep.id}/download`);
-      if (!response.ok) {
-        let errMsg = 'Download failed';
-        try {
-          const errData = await response.json();
-          errMsg = errData.error || errData.message || errMsg;
-        } catch {
-          // ignore
-        }
-        throw new Error(errMsg);
-      }
-
-      const blob = await response.blob();
+      const blob = await adminApi.downloadReportBlob(rep.id);
       const ext = (rep.format || 'xlsx').toLowerCase();
       const fileName = `${rep.report_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.${ext}`;
       
