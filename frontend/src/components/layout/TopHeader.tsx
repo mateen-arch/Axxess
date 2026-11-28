@@ -7,6 +7,7 @@ import {
   Moon,
   LayoutGrid,
   Menu,
+  LogOut,
 } from 'lucide-react';
 import { useHealthcare } from '../../context/HealthcareContext';
 import { AppSwitcherModal } from '../portal/AppSwitcherModal';
@@ -19,6 +20,7 @@ export const TopHeader: React.FC = () => {
     setIsNewPatientModalOpen,
     setIsCommandPaletteOpen,
     setIsMobileSidebarOpen,
+    logoutAuth,
   } = useHealthcare();
 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
@@ -116,6 +118,17 @@ export const TopHeader: React.FC = () => {
         >
           <Plus size={15} className="stroke-[2.8]" />
           <span className="hidden sm:inline whitespace-nowrap">New Patient</span>
+        </button>
+
+        {/* Sign Out Button */}
+        <button
+          type="button"
+          onClick={logoutAuth}
+          className="theme-btn-control h-9 w-9 rounded-xl flex items-center justify-center transition-colors shadow-2xs shrink-0 text-slate-500 hover:text-rose-600 cursor-pointer"
+          title="Sign Out"
+          aria-label="Sign Out"
+        >
+          <LogOut size={16} />
         </button>
       </div>
     </header>

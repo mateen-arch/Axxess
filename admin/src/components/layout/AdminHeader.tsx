@@ -6,7 +6,8 @@ import {
   Bell,
   Search,
   UserCheck,
-  CheckCircle2
+  CheckCircle2,
+  LogOut
 } from 'lucide-react';
 import { useAdmin, AdminTab } from '../../context/AdminContext';
 
@@ -15,7 +16,15 @@ interface AdminHeaderProps {
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ isLoading = false }) => {
-  const { activeTab, isDarkMode, toggleDarkMode, triggerRefresh } = useAdmin();
+  const { activeTab, isDarkMode, toggleDarkMode, triggerRefresh, adminUser, logoutAdmin } = useAdmin();
+
+  const initials = (adminUser?.fullName || 'Admin')
+    .replace(/,.*$/, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || '')
+    .join('') || 'AD';
 
   const getPageInfo = (tab: AdminTab) => {
     switch (tab) {
@@ -104,16 +113,24 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ isLoading = false }) =
         {/* Admin Profile */}
         <div className="flex items-center gap-2.5 pl-2 border-l border-pearl-200 dark:border-charcoal-700">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-rose-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-            SS
+            {initials}
           </div>
           <div className="hidden lg:block text-left">
             <div className="text-xs font-black text-slate-900 dark:text-white leading-tight">
-              Dr. Sarah Sterling
+              {adminUser?.fullName || 'Super Administrator'}
             </div>
             <div className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
-              Chief Compliance Officer
+              {adminUser?.title || 'Chief Medical & Compliance Officer'}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={logoutAdmin}
+            className="ml-1 w-8 h-8 rounded-xl border border-pearl-200 dark:border-charcoal-700 bg-pearl-50 dark:bg-charcoal-800 text-slate-500 hover:border-rose-300 hover:text-rose-600 flex items-center justify-center transition cursor-pointer shadow-2xs"
+            title="Sign Out of Admin Panel"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import { pool } from './db';
+import { hashPassword } from './authUtils';
 
 export async function initSuperAdminDatabase() {
   console.log('[SuperAdmin] Initializing Super Admin database tables & schemas...');
@@ -557,6 +558,26 @@ export async function initSuperAdminDatabase() {
             '{"role": "clinician", "moduleAccess": ["central", "home_health", "connect"]}'::jsonb
           )
       `);
+    }
+
+    // 6.4 Ensure ONLY admin@careorbit.health is super_admin and upgrade placeholder password hashes to real scrypt hashes
+    await client.query(`
+      UPDATE users SET is_super_admin = false WHERE LOWER(email) <> 'admin@careorbit.health';
+      UPDATE users SET is_super_admin = true, role = 'super_admin', status = 'active', is_active = true WHERE LOWER(email) = 'admin@careorbit.health';
+    `);
+
+    const usersToUpgrade = await client.query(`SELECT id, email, password_hash FROM users`);
+    for (const u of usersToUpgrade.rows) {
+      if (!u.password_hash || !String(u.password_hash).startsWith('scrypt:')) {
+        const lowerEmail = String(u.email || '').toLowerCase();
+        let defaultPw = 'CareOrbit@2026!';
+        if (lowerEmail === 'admin@careorbit.health') {
+          defaultPw = 'Admin@CareOrbit2026!';
+        } else if (lowerEmail === 'alexandria.nelson@standardshomecare.com') {
+          defaultPw = 'Nurse@2026!';
+        }
+        await client.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [hashPassword(defaultPw), u.id]);
+      }
     }
 
     await client.query('COMMIT');

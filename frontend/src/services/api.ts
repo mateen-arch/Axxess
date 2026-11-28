@@ -862,13 +862,18 @@ export const api = {
   },
 
   async sendConnectMessage(conversationId: string, data: any) {
+    const token = localStorage.getItem('careorbit_auth_token');
     const res = await fetch(`${API_BASE_URL}/api/connect/conversations/${conversationId}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to send message');
-    return res.json();
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Failed to send message');
+    return json;
   },
 
   async markConnectConversationRead(conversationId: string) {
@@ -1225,6 +1230,46 @@ export const api = {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Failed to request report generation');
+    return json;
+  },
+
+  // ==========================================
+  // MODULE AUTHENTICATION
+  // ==========================================
+  async loginModuleUser(email: string, password: string) {
+    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Login failed');
+    return json;
+  },
+
+  async registerModuleUser(data: {
+    fullName: string;
+    email: string;
+    password: string;
+    title?: string;
+    department?: string;
+  }) {
+    const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Registration failed');
+    return json;
+  },
+
+  async verifyModuleSession(token: string) {
+    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Session expired');
     return json;
   },
 };

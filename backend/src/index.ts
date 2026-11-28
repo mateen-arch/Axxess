@@ -10,6 +10,7 @@ import { initCompletedReportsDatabase, STORAGE_DIR } from './seedCompletedReport
 import { initSuperAdminDatabase } from './seedSuperAdmin';
 import { seedScheduleCenterData } from './seedScheduleData';
 import { adminRouter } from './adminRoutes';
+import { hashPassword, verifyPassword, signToken, verifyToken } from './authUtils';
 
 dotenv.config();
 
@@ -32,6 +33,190 @@ app.get('/', (_req: Request, res: Response) => {
     documentation: '/api/health',
     timestamp: new Date().toISOString()
   });
+});
+
+// =====================================================================
+// AUTHENTICATION ENDPOINTS (CareOrbit Central, Home Health, Connect)
+// =====================================================================
+
+// POST /api/auth/login
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, email, password_hash, full_name, role, title, department, status, is_active, is_super_admin, module_access
+       FROM users
+       WHERE LOWER(email) = $1
+       LIMIT 1`,
+      [String(email).toLowerCase().trim()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    }
+
+    const user = result.rows[0];
+
+    if (user.status === 'blocked') {
+      return res.status(403).json({ success: false, error: 'Your account has been blocked by the administrator.' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ success: false, error: 'Your account is currently suspended. Contact your supervisor.' });
+    }
+    if (user.status === 'pending_approval') {
+      return res.status(403).json({ success: false, error: 'Your account is pending administrator approval.' });
+    }
+    if (user.status !== 'active' || user.is_active === false) {
+      return res.status(403).json({ success: false, error: 'Account is inactive. Please contact your administrator.' });
+    }
+
+    const valid = verifyPassword(String(password), user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    }
+
+    const token = signToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isSuperAdmin: Boolean(user.is_super_admin),
+      fullName: user.full_name,
+    });
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        title: user.title || 'Staff Member',
+        department: user.department || 'Clinical Operations',
+        moduleAccess: user.module_access || ['central', 'home_health', 'connect'],
+        isSuperAdmin: Boolean(user.is_super_admin),
+      }
+    });
+  } catch (err: any) {
+    console.error('Error during module login:', err);
+    res.status(500).json({ success: false, error: 'Authentication failed.' });
+  }
+});
+
+// POST /api/auth/register (For Modules only — never creates Super Admin)
+app.post('/api/auth/register', async (req: Request, res: Response) => {
+  try {
+    const { fullName, email, password, title, department, phone } = req.body;
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ success: false, error: 'Full name, email, and password are required.' });
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters.' });
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+    const existing = await pool.query(`SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1`, [cleanEmail]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ success: false, error: 'An account with this email already exists.' });
+    }
+
+    const orgRes = await pool.query(`SELECT id FROM organizations LIMIT 1`);
+    const orgId = orgRes.rows[0]?.id || null;
+
+    const cleanTitle = (title || 'Registered Nurse').trim();
+    const safeRole = 'clinician';
+    const passwordHash = hashPassword(String(password));
+
+    const insertRes = await pool.query(
+      `INSERT INTO users (
+        organization_id, email, password_hash, full_name, role, is_active, is_super_admin, status,
+        department, module_access, title, mobile_phone
+      ) VALUES ($1, $2, $3, $4, $5, true, false, 'active', $6, ARRAY['central', 'home_health', 'connect']::TEXT[], $7, $8)
+      RETURNING id, email, full_name, role, title, department, module_access, is_super_admin`,
+      [
+        orgId,
+        cleanEmail,
+        passwordHash,
+        String(fullName).trim(),
+        safeRole,
+        (department || 'Clinical Operations').trim(),
+        cleanTitle,
+        phone ? String(phone).trim() : null
+      ]
+    );
+
+    const newUser = insertRes.rows[0];
+    const token = signToken({
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+      isSuperAdmin: false,
+      fullName: newUser.full_name,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Account registered successfully.',
+      token,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        fullName: newUser.full_name,
+        role: newUser.role,
+        title: newUser.title,
+        department: newUser.department,
+        moduleAccess: newUser.module_access,
+        isSuperAdmin: false,
+      }
+    });
+  } catch (err: any) {
+    console.error('Error during module registration:', err);
+    res.status(500).json({ success: false, error: 'Registration failed.' });
+  }
+});
+
+// GET /api/auth/me
+app.get('/api/auth/me', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ success: false, error: 'Unauthorized or expired session.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, email, full_name, role, title, department, status, is_active, is_super_admin, module_access
+       FROM users
+       WHERE id::text = $1
+       LIMIT 1`,
+      [payload.id]
+    );
+    if (result.rows.length === 0 || result.rows[0].status !== 'active' || result.rows[0].is_active === false) {
+      return res.status(401).json({ success: false, error: 'Account is no longer active.' });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        title: user.title || 'Staff Member',
+        department: user.department || 'Clinical Operations',
+        moduleAccess: user.module_access || ['central', 'home_health', 'connect'],
+        isSuperAdmin: Boolean(user.is_super_admin),
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to verify session.' });
+  }
 });
 
 // Health Check
@@ -6564,6 +6749,30 @@ app.post('/api/connect/conversations/:id/messages', async (req: Request, res: Re
   try {
     const { id } = req.params;
     const { content, senderId, senderName, senderRole, attachment } = req.body;
+
+    // Enforce that only registered, active CareOrbit users can chat on CareOrbit Connect
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const payload = verifyToken(token);
+
+    const verifiedUserId = payload?.id || senderId;
+    if (!verifiedUserId || verifiedUserId === 'current-user') {
+      return res.status(401).json({
+        error: 'Only registered, authenticated CareOrbit users are allowed to chat on CareOrbit Connect.'
+      });
+    }
+
+    const userCheck = await pool.query(
+      `SELECT id, full_name, title, status, is_active FROM users WHERE id::text = $1 LIMIT 1`,
+      [String(verifiedUserId)]
+    );
+    if (userCheck.rows.length === 0 || userCheck.rows[0].status !== 'active' || userCheck.rows[0].is_active === false) {
+      return res.status(403).json({
+        error: 'Your account is not active or not registered for CareOrbit Connect.'
+      });
+    }
+
+    const activeUser = userCheck.rows[0];
     const msgId = `msg-${Date.now()}`;
 
     const result = await pool.query(`
@@ -6581,9 +6790,9 @@ app.post('/api/connect/conversations/:id/messages', async (req: Request, res: Re
     `, [
       msgId,
       id,
-      senderId || 'current-user',
-      senderName || 'You',
-      senderRole || 'Care Coordinator',
+      activeUser.id,
+      senderName || activeUser.full_name,
+      senderRole || activeUser.title || 'Staff Member',
       content || '',
       attachment?.name || null,
       attachment?.type || null,

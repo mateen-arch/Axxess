@@ -47,6 +47,27 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const adminApi = {
+  // 0. Super Admin Auth
+  async loginAdmin(email: string, password: string): Promise<{
+    success: boolean;
+    token: string;
+    admin: { id: string; email: string; fullName: string; role: string; title: string };
+  }> {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async verifyAdminSession(token: string): Promise<{
+    success: boolean;
+    admin: { id: string; email: string; fullName: string; role: string; title: string };
+  }> {
+    return request('/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
   // 1. Dashboard
   async getDashboard(): Promise<{ success: boolean; data: DashboardStats }> {
     return request('/dashboard');

@@ -243,6 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [collapsedHoverSection, setCollapsedHoverSection] = useState<string | null>(null);
 
   const {
+    authUser,
     activeNavTab,
     setActiveNavTab,
     connectModule,
@@ -911,53 +912,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
 
             {/* User Profile Card */}
-            {isOpen ? (
-              <div
-                className="flex items-center gap-2.5 p-2 rounded-2xl border transition-colors"
-                style={{
-                  background:
-                    theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
-                  borderColor:
-                    theme === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)',
-                }}
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
-                    {isHomeHealth ? 'HM' : 'AN'}
+            {(() => {
+              const displayName = authUser?.fullName || 'Authorized Staff';
+              const displayRole = authUser?.title || authUser?.role || 'Staff Member';
+              const initials = displayName
+                .replace(/,.*$/, '')
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(w => w[0]?.toUpperCase() || '')
+                .join('') || 'CO';
+
+              return isOpen ? (
+                <div
+                  className="flex items-center gap-2.5 p-2 rounded-2xl border transition-colors"
+                  style={{
+                    background:
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor:
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)',
+                  }}
+                >
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
+                      {initials}
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
                   </div>
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-black text-slate-950 dark:text-white truncate flex items-center gap-1">
+                      {displayName}
+                      <ShieldCheck
+                        size={14}
+                        className="text-rose-600 dark:text-rose-400 shrink-0"
+                        weight="fill"
+                      />
+                    </div>
+                    <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
+                      {displayRole}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-black text-slate-950 dark:text-white truncate flex items-center gap-1">
-                    {isHomeHealth ? 'Hilder M., RN' : 'Alexandria Nelson'}
-                    <ShieldCheck
-                      size={14}
-                      className="text-rose-600 dark:text-rose-400 shrink-0"
-                      weight="fill"
-                    />
-                  </div>
-                  <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold truncate">
-                    Clinical Supervisor
+              ) : (
+                <div
+                  className="flex justify-center py-1"
+                  title={`${displayName} (${displayRole})`}
+                >
+                  <div className="relative shrink-0">
+                    <div className="w-[46px] h-[46px] rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
+                      {initials}
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div
-                className="flex justify-center py-1"
-                title={
-                  isHomeHealth
-                    ? 'Hilder M., RN (Clinical Supervisor)'
-                    : 'Alexandria Nelson (Clinical Supervisor)'
-                }
-              >
-                <div className="relative shrink-0">
-                  <div className="w-[46px] h-[46px] rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-black flex items-center justify-center text-xs shadow-sm">
-                    {isHomeHealth ? 'HM' : 'AN'}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-charcoal-900" />
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </motion.aside>

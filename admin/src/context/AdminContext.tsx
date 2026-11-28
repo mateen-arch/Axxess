@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { SystemModuleKey } from '../types/admin';
+import { adminApi } from '../services/adminApi';
 
 export type AdminTab = 
   | 'overview' 
@@ -22,7 +23,19 @@ interface Toast {
   message: string;
 }
 
+export interface AdminAuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  title: string;
+}
+
 interface AdminContextType {
+  adminUser: AdminAuthUser | null;
+  isAuthChecking: boolean;
+  setAdminSession: (admin: AdminAuthUser, token: string) => void;
+  logoutAdmin: () => void;
   activeTab: AdminTab;
   setActiveTab: (tab: AdminTab) => void;
   selectedModule: SystemModuleKey;
@@ -39,6 +52,15 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [adminUser, setAdminUser] = useState<AdminAuthUser | null>(() => {
+    try {
+      const raw = localStorage.getItem('careorbit_admin_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [selectedModule, setSelectedModule] = useState<SystemModuleKey>('central');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -46,6 +68,44 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('careorbit_admin_token');
+    if (!token) {
+      setAdminUser(null);
+      setIsAuthChecking(false);
+      return;
+    }
+    adminApi.verifyAdminSession(token)
+      .then((res) => {
+        if (res.success && res.admin) {
+          setAdminUser(res.admin);
+          localStorage.setItem('careorbit_admin_user', JSON.stringify(res.admin));
+        } else {
+          localStorage.removeItem('careorbit_admin_token');
+          localStorage.removeItem('careorbit_admin_user');
+          setAdminUser(null);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('careorbit_admin_token');
+        localStorage.removeItem('careorbit_admin_user');
+        setAdminUser(null);
+      })
+      .finally(() => setIsAuthChecking(false));
+  }, []);
+
+  const setAdminSession = (admin: AdminAuthUser, token: string) => {
+    localStorage.setItem('careorbit_admin_token', token);
+    localStorage.setItem('careorbit_admin_user', JSON.stringify(admin));
+    setAdminUser(admin);
+  };
+
+  const logoutAdmin = () => {
+    localStorage.removeItem('careorbit_admin_token');
+    localStorage.removeItem('careorbit_admin_user');
+    setAdminUser(null);
+  };
 
   useEffect(() => {
     if (isDarkMode) {
@@ -77,6 +137,10 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <AdminContext.Provider
       value={{
+        adminUser,
+        isAuthChecking,
+        setAdminSession,
+        logoutAdmin,
         activeTab,
         setActiveTab,
         selectedModule,

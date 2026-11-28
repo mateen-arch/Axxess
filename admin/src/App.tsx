@@ -15,6 +15,7 @@ import { CliniciansGovernancePage } from './pages/CliniciansGovernancePage';
 import { SchedulingGovernancePage } from './pages/SchedulingGovernancePage';
 import { ClinicalEmrGovernancePage } from './pages/ClinicalEmrGovernancePage';
 import { ReportsCensusGovernancePage } from './pages/ReportsCensusGovernancePage';
+import { AdminLoginPage } from './pages/AdminLoginPage';
 import { adminApi } from './services/adminApi';
 
 const AdminLayout: React.FC = () => {
@@ -98,10 +99,33 @@ const AdminLayout: React.FC = () => {
   );
 };
 
+const AdminAuthGate: React.FC = () => {
+  const { adminUser, isAuthChecking } = useAdmin();
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 text-white text-sm font-bold">
+        Verifying administrator session...
+      </div>
+    );
+  }
+
+  if (!adminUser) {
+    return (
+      <>
+        <AdminLoginPage />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  return <AdminLayout />;
+};
+
 export const App: React.FC = () => {
   return (
     <AdminProvider>
-      <AdminLayout />
+      <AdminAuthGate />
     </AdminProvider>
   );
 };

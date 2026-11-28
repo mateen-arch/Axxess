@@ -3,6 +3,7 @@ import { pool } from './db';
 import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
+import { hashPassword, verifyPassword, signToken, verifyToken } from './authUtils';
 
 const ADMIN_STORAGE_DIR = path.join(process.cwd(), 'storage', 'reports');
 if (!fs.existsSync(ADMIN_STORAGE_DIR)) {
@@ -10,6 +11,108 @@ if (!fs.existsSync(ADMIN_STORAGE_DIR)) {
 }
 
 export const adminRouter = Router();
+
+// =====================================================================
+// SUPER ADMIN AUTHENTICATION (Strict Single-Admin Role Gate)
+// =====================================================================
+
+adminRouter.post('/auth/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, email, password_hash, full_name, role, title, status, is_active, is_super_admin
+       FROM users
+       WHERE LOWER(email) = $1
+       LIMIT 1`,
+      [String(email).toLowerCase().trim()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Invalid administrator credentials.' });
+    }
+
+    const user = result.rows[0];
+    const valid = verifyPassword(String(password), user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ success: false, error: 'Invalid administrator credentials.' });
+    }
+
+    // Strict Super Admin enforcement: ONLY the designated super_admin account is permitted
+    if (!user.is_super_admin || user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. Only the designated Super Administrator is authorized to enter the Admin Panel.'
+      });
+    }
+
+    if (user.status !== 'active' || user.is_active === false) {
+      return res.status(403).json({ success: false, error: 'Administrator account is not active.' });
+    }
+
+    const token = signToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isSuperAdmin: true,
+      fullName: user.full_name,
+    });
+
+    res.json({
+      success: true,
+      token,
+      admin: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        title: user.title || 'Chief Medical & Compliance Officer',
+      }
+    });
+  } catch (err: any) {
+    console.error('Error during admin login:', err);
+    res.status(500).json({ success: false, error: 'Admin authentication failed.' });
+  }
+});
+
+adminRouter.get('/auth/me', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const payload = verifyToken(token);
+    if (!payload || !payload.isSuperAdmin) {
+      return res.status(401).json({ success: false, error: 'Unauthorized admin session.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, email, full_name, role, title, status, is_active, is_super_admin
+       FROM users
+       WHERE id::text = $1 AND is_super_admin = true AND role = 'super_admin' AND status = 'active'
+       LIMIT 1`,
+      [payload.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Admin session no longer valid.' });
+    }
+
+    const admin = result.rows[0];
+    res.json({
+      success: true,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        fullName: admin.full_name,
+        role: admin.role,
+        title: admin.title || 'Chief Medical & Compliance Officer',
+      }
+    });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to verify admin session.' });
+  }
+});
 
 // Helper to log administrative actions
 async function recordAuditLog(
@@ -217,11 +320,11 @@ adminRouter.post('/users', async (req: Request, res: Response) => {
     `, [
       orgId,
       email.toLowerCase().trim(),
-      'pbkdf2:defaultgeneratedhash2026',
+      hashPassword(req.body.password || 'CareOrbit@2026!'),
       fullName.trim(),
       role,
       status === 'active',
-      isSuperAdmin,
+      false,
       status,
       department,
       moduleAccess,

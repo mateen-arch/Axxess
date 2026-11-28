@@ -203,7 +203,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* 4. Client Platform Launcher */}
       <div className="p-3 border-t border-pearl-200 dark:border-charcoal-700 bg-pearl-50/50 dark:bg-charcoal-800/40">
         <a
-          href="http://localhost:5173"
+          href="https://careorbit-central.vercel.app/hub#top"
           target="_blank"
           rel="noopener noreferrer"
           className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-charcoal-700 transition-all border border-pearl-200 dark:border-charcoal-650 shadow-2xs group cursor-pointer"
@@ -212,14 +212,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <ExternalLink size={14} className="text-slate-400 group-hover:text-rose-600 transition-colors" />
             <span>Open Client Platform</span>
           </div>
-          <span className="font-mono text-[10px] text-slate-400">:5173</span>
         </a>
-        <div className="mt-2 px-1 flex items-center justify-between text-[10px] font-mono text-slate-400">
-          <span>Database Pool:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-            PostgreSQL Live
-          </span>
-        </div>
       </div>
     </aside>
   );

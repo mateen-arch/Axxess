@@ -19,6 +19,7 @@ import {
   Sun,
   UsersRound,
   Workflow,
+  LogOut,
   X,
 } from 'lucide-react';
 import { CareOrbitLogo } from '../../assets/CareOrbitLogo';
@@ -40,6 +41,8 @@ export const CareOrbitHubLanding: React.FC = () => {
 
   const closeMobileNav = () => setMobileNavOpen(false);
   const {
+    authUser,
+    logoutAuth,
     setCurrentWebsite,
     organization,
     census,
@@ -124,6 +127,15 @@ export const CareOrbitHubLanding: React.FC = () => {
             <span>Open workspace</span>
             <ArrowUpRight size={16} />
           </button>
+          <button
+            className="portal-theme-toggle"
+            type="button"
+            onClick={logoutAuth}
+            aria-label="Sign Out"
+            title={`Sign Out (${authUser?.fullName || 'User'})`}
+          >
+            <LogOut size={16} />
+          </button>
           {/* Hamburger — mobile only */}
           <button
             className="portal-hamburger"
@@ -192,8 +204,13 @@ export const CareOrbitHubLanding: React.FC = () => {
                   <span className="portal-preview-network"><i />Care network</span>
                 </div>
                 <div className="portal-preview-heading">
-                  <div><span className="portal-preview-overline">YOUR OPERATIONS AT A GLANCE</span><h2>Good morning, Hilder</h2></div>
-                  <span className="portal-preview-user">HM</span>
+                  <div>
+                    <span className="portal-preview-overline">YOUR OPERATIONS AT A GLANCE</span>
+                    <h2>Welcome, {(authUser?.fullName || 'Clinician').replace(/,.*$/, '').split(/\s+/)[0]}</h2>
+                  </div>
+                  <span className="portal-preview-user">
+                    {(authUser?.fullName || 'CO').replace(/,.*$/, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')}
+                  </span>
                 </div>
                 <div className="portal-preview-kpis">
                   <div className="portal-preview-kpi">

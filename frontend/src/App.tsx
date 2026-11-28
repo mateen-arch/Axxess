@@ -9,10 +9,23 @@ import { PatientDrawer } from './components/patients/PatientDrawer';
 import { NewPatientModal } from './components/patients/NewPatientModal';
 import { MessageDetailModal } from './components/dashboard/MessageDetailModal';
 import { VideoModal } from './components/video/VideoModal';
+import { ModulesAuthPage } from './components/auth/ModulesAuthPage';
 import './styles/modern-ui.css';
 
 const MainAppContent: React.FC = () => {
-  const { currentWebsite } = useHealthcare();
+  const { authUser, isAuthChecking, currentWebsite } = useHealthcare();
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-pearl-100 dark:bg-charcoal-900 text-slate-700 dark:text-slate-200 text-sm font-bold">
+        Verifying CareOrbit session...
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return <ModulesAuthPage />;
+  }
 
   const renderCurrentWebsite = () => {
     switch (currentWebsite) {

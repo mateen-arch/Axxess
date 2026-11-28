@@ -31,7 +31,22 @@ import {
 } from '../types/connectAndPlanner';
 import { Patient, PatientChartTask, ScheduledVisit, MessageItem, AnnouncementItem, ServiceLine, Inquiry, Referral, EmployeeClinician, EmployeeVisit, UnassignedPatientVisit, HuvSfvRecord, HomeHealthEpisode, HomeHealthCommunicationNote, HomeHealthOrder, FaceToFaceEncounter, Facility, Pharmacy, InsurancePayer, IncidentLog } from '../types';
 
+export interface ModuleAuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  title: string;
+  department: string;
+  moduleAccess: string[];
+  isSuperAdmin: boolean;
+}
+
 interface HealthcareContextType {
+  authUser: ModuleAuthUser | null;
+  isAuthChecking: boolean;
+  setAuthSession: (user: ModuleAuthUser, token: string) => void;
+  logoutAuth: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   organization: {
@@ -316,6 +331,54 @@ function parseRouteFromUrl(): {
 }
 
 export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authUser, setAuthUser] = useState<ModuleAuthUser | null>(() => {
+    try {
+      const raw = localStorage.getItem('careorbit_auth_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('careorbit_auth_token');
+    if (!token) {
+      setAuthUser(null);
+      setIsAuthChecking(false);
+      return;
+    }
+    api.verifyModuleSession(token)
+      .then((res) => {
+        if (res.success && res.user) {
+          setAuthUser(res.user);
+          localStorage.setItem('careorbit_auth_user', JSON.stringify(res.user));
+        } else {
+          localStorage.removeItem('careorbit_auth_token');
+          localStorage.removeItem('careorbit_auth_user');
+          setAuthUser(null);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('careorbit_auth_token');
+        localStorage.removeItem('careorbit_auth_user');
+        setAuthUser(null);
+      })
+      .finally(() => setIsAuthChecking(false));
+  }, []);
+
+  const setAuthSession = (user: ModuleAuthUser, token: string) => {
+    localStorage.setItem('careorbit_auth_token', token);
+    localStorage.setItem('careorbit_auth_user', JSON.stringify(user));
+    setAuthUser(user);
+  };
+
+  const logoutAuth = () => {
+    localStorage.removeItem('careorbit_auth_token');
+    localStorage.removeItem('careorbit_auth_user');
+    setAuthUser(null);
+  };
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('axxess_theme');
     const initialTheme = savedTheme === 'dark' ? 'dark' : 'light';
@@ -816,9 +879,9 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       const createdMsg = await api.sendConnectMessage(conversationId, {
         content,
-        senderId: 'current-user',
-        senderName: 'Hilder M., RN',
-        senderRole: 'Clinical Supervisor',
+        senderId: authUser?.id || 'current-user',
+        senderName: authUser?.fullName || 'Authorized Staff',
+        senderRole: authUser?.title || 'Staff Member',
         attachment
       });
 
@@ -1281,6 +1344,10 @@ export const HealthcareProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   return (
     <HealthcareContext.Provider
       value={{
+        authUser,
+        isAuthChecking,
+        setAuthSession,
+        logoutAuth,
         theme,
         toggleTheme,
         organization,
