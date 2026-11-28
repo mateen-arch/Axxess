@@ -49,6 +49,33 @@ interface AdminContextType {
   triggerRefresh: () => void;
 }
 
+const ADMIN_TAB_ROUTES: Record<AdminTab, string> = {
+  overview: '/overview',
+  users: '/users',
+  moderation: '/moderation',
+  approvals: '/approvals',
+  patients: '/patients',
+  clinicians: '/clinicians',
+  scheduling: '/scheduling',
+  clinical_emr: '/clinical-emr',
+  reports_census: '/reports-census',
+  modules: '/modules',
+  audit: '/audit',
+  settings: '/settings',
+};
+
+function parseAdminTabFromPath(pathname: string): AdminTab {
+  const clean = pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (!clean || clean === 'login' || clean === 'overview') return 'overview';
+  for (const [tab, route] of Object.entries(ADMIN_TAB_ROUTES)) {
+    const cleanRoute = route.replace(/^\/+/, '').toLowerCase();
+    if (clean === cleanRoute || clean === tab.toLowerCase()) {
+      return tab as AdminTab;
+    }
+  }
+  return 'overview';
+}
+
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -61,13 +88,48 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   });
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [activeTab, setActiveTabState] = useState<AdminTab>(() =>
+    typeof window !== 'undefined' ? parseAdminTabFromPath(window.location.pathname) : 'overview'
+  );
   const [selectedModule, setSelectedModule] = useState<SystemModuleKey>('central');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('careorbit_admin_dark_mode') === 'true';
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  const setActiveTab = (tab: AdminTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      const targetPath = ADMIN_TAB_ROUTES[tab] || '/overview';
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ tab }, '', targetPath);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTabState(parseAdminTabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthChecking || typeof window === 'undefined') return;
+    if (!adminUser) {
+      if (window.location.pathname !== '/login') {
+        window.history.replaceState(null, '', '/login');
+      }
+    } else {
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/login') {
+        const targetPath = ADMIN_TAB_ROUTES[activeTab] || '/overview';
+        window.history.replaceState({ tab: activeTab }, '', targetPath);
+      }
+    }
+  }, [adminUser, isAuthChecking, activeTab]);
 
   useEffect(() => {
     const token = localStorage.getItem('careorbit_admin_token');
